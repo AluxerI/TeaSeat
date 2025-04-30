@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Item;
 
 use App\Http\Controllers\Controller;
+<<<<<<< HEAD
 use App\Http\Resources\Item\CatalogResource;
 use App\Models\Product;
 use App\Models\Category;
@@ -84,3 +85,20 @@ class IndexController extends Controller
         return $query;
     }
 }
+=======
+use App\Models\Products;
+use App\Http\Resources\ItemResource;
+
+class indexController extends Controller
+{
+    public function __invoke($productId)
+    {
+        $product = Products::with(['nameProduct','VolumeWarehouse'])->find($productId);
+        // dd($product);
+        if (!$product) {
+            return response()->json(['error' => 'Товар не найден'], 404);
+        }
+        return new ItemResource($product);
+    }
+}
+>>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)
