@@ -1,0 +1,10 @@
+.product {
+  border-bottom: 1px solid #ccc;
+  padding: 1rem;
+  font-weight: bold;
+  font-size: 1.3rem;
+}
+
+.product:last-of-type {
+  border-bottom: none;
+}
