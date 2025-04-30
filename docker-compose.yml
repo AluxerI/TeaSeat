@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   backend:
@@ -7,24 +7,25 @@ services:
       context: ./backend
       dockerfile: dockerfile
     ports:
-      - "8000:8000" 
+      - "8000:8000"
     volumes:
-      - ./backend:/app/backend  
+      - ./backend:/app/backend
     depends_on:
       - pgsql
       # - redis
     networks:
       - app
 
-
   frontend:
     container_name: frontend
     build:
       context: ./frontend
       dockerfile: dockerfile
-    tty: true
     ports:
-      - "3000:3000" 
+      - "3000:3000"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
     volumes:
       - ./frontend:/app/frontend
     depends_on:
@@ -55,7 +56,6 @@ services:
   #     - ./data/redis/data
   #   networks:
   #     - app
-
 
 networks:
   app:
