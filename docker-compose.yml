@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  backend:
+    container_name: backend
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    ports:
+      - "8000:8000" 
+    volumes:
+      - ./backend:/app/backend  
+    depends_on:
+      - pgsql
+      # - redis
+    networks:
+      - app
+
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: dockerfile
+    tty: true
+    ports:
+      - "3000:3000" 
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - backend
+    networks:
+      - app
+
+  pgsql:
+    image: postgres:13
+    restart: always
+    container_name: pgsql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=1234
+      - POSTGRES_DB=teaseatsql
+    ports:
+      - "5436:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./databases-files:/databases-files
+    networks:
+      - app
+
+  # redis:
+  #   image: redis:alpine
+  #   restart: always
+  #   volumes:
+  #     - ./data/redis/data
+  #   networks:
+  #     - app
+
+
+networks:
+  app:
+    driver: bridge
