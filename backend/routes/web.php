@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\Route;
 
 
 Route::group(['namespace' => 'App\Http\Controllers\Item'], function() {
-    Route::get('/item/{productId}', 'IndexController')->name('item.index');
+    Route::get('/item/{productId}', 'ShowController')->name('item.show');
+    Route::get('/items', 'IndexController')->name('item.index');
 });
 
 Route::get('/', [MainPageController::class, 'index']);
