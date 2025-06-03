@@ -3,18 +3,17 @@
 namespace App\Http\Controllers\Item;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Item\ProductsResource;
 use App\Models\Products;
-use App\Http\Resources\ItemResource;
 
-class indexController extends Controller
+class IndexController extends Controller
 {
-    public function __invoke($productId)
+    public function __invoke()
     {
-        $product = Products::with(['nameProduct','VolumeWarehouse'])->find($productId);
+        $products =  Products::with(['nameProduct','VolumeWarehouse'])->paginate(10);
+        // ->whereHas('nameProduct', fn($q) => $q->where('name', 'like', '%Книга%'))    фильтрация
+        //  ->orderBy('created_at', 'desc')         сортировка . После неё должно пойти -> paginate(10) , не до этого всего
         // dd($product);
-        if (!$product) {
-            return response()->json(['error' => 'Товар не найден'], 404);
-        }
-        return new ItemResource($product);
+        return ProductsResource::collection($products);
     }
 }

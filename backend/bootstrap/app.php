@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\JsonResponseMiddleware;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -12,9 +13,14 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
+        // Добавляем наш middleware ГЛОБАЛЬНО
+        
+    })
+    ->withMiddleware(function (Middleware $middleware) {
         $middleware->validateCsrfTokens(except: [
-            // 'http://localhost:3000/*',
+            //
         ]);
+        $middleware->append(JsonResponseMiddleware::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
