@@ -2,8 +2,11 @@ FROM node:alpine
 
 WORKDIR /app/frontend
 
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile
+RUN yarn add ajv@^6.12.6
 COPY . .
-RUN npm install
 
-EXPOSE 3000
-CMD ["npm", "start"]
+EXPOSE 3003
+
+CMD ["yarn", "start"]

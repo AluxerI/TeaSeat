@@ -1,0 +1,46 @@
+@function adjust-brightness($color, $amount) {
+    @if $amount > 0 {
+        @return lighten($color, $amount); // Увеличиваем яркость
+    } @else {
+        @return darken($color, abs($amount)); // Уменьшаем яркость
+    }
+}
+@function hex-to-rgba($hex,$alpha){
+    $r: red($hex);
+    $g: green($hex);
+    $b: blue($hex);
+
+    @return rgba($r,$g,$b,$alpha);
+}
+
+//
+@function opacity-change($type,$data,$perc){
+    @if $type=="rgba"{
+        @return rgba(red($data),green($data),blue($data),$perc);
+    }
+    @if $type=="hex"{
+        
+    }
+}
+
+////////
+/// служебная функция для rgb-to-hex
+////////
+@function _component-to-hex($c){
+    $colors:"0123456789ABCDEF";
+
+    $high: foor($c/16);
+    $low:$c%16;
+
+    $high-char: str-slice($colors, $high+1,$high+1);
+    $low-char: str-slice($colors, $low+1,$low+1);
+    @return "#{$high-char}#{$low-char}";
+}
+
+@function rgb-to-hex($rgb,$alpha){
+    $part1: _component-to-hex(red($rgb));
+    $part2: _component-to-hex(green($rgb));
+    $part3: _component-to-hex(blue($rgb));
+
+    @return "#{$part1}#{$part2}#{$part3}";
+}

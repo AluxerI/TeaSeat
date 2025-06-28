@@ -1,14 +1,12 @@
 FROM php:8.2
 
-RUN apt-get update -y && apt-get install -y libonig-dev openssl zip unzip git
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
-RUN docker-php-ext-install pdo mbstring pdo_mysql
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gnupg ca-certificates debian-archive-keyring \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y \
-    libpq-dev \
-    && docker-php-ext-install pdo pdo_pgsql
+
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin --filename=composer
 
 WORKDIR /app/backend
-COPY . .
-RUN composer install
-CMD ["php","artisan","serve", "--host=0.0.0.0", "--port=8000"]
+CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
