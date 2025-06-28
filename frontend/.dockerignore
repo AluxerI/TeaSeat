@@ -1,0 +1,9 @@
+node_modules
+build
+dist
+
+# Системные и служебные файлы
+.git
+.gitignore
+Dockerfile
+docker-compose.yml
