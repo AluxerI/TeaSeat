@@ -1,3 +1,4 @@
+
 @function adjust-brightness($color, $amount) {
     @if $amount > 0 {
         @return lighten($color, $amount); // Увеличиваем яркость
@@ -43,4 +44,14 @@
     $part3: _component-to-hex(blue($rgb));
 
     @return "#{$part1}#{$part2}#{$part3}";
+}
+
+@function spacing($size){
+    @if map-has-key($map: $spacings, $key: $size){
+        @return map-get($spacings,$size);
+    }
+    @else{
+        @warn "Unknown size `#{$size}`";
+        @return $space-unit;
+    }
 }

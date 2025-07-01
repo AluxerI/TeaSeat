@@ -58,11 +58,7 @@
       }
 
       // Добавляем запись в список src‐источников через запятую
-      $src-list: append(
-        $src-list,
-        url("#{$font-path}.#{$fmt}") format("#{$fmt-type}"),
-        comma
-      );
+      $src-list: append($src-list, url("#{$font-path}.#{$fmt}") format("#{$fmt-type}"), comma);
     }
 
     // Прописываем итоговое src
@@ -71,17 +67,39 @@
   }
 }
 
+//——————————————————————————————
+// миксин для центровки
+//——————————————————————————————
 
-@mixin flexible () {
+@mixin flex-centre() {
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
-@mixin border-radius($radius) {        // Префиксы для:
-  -webkit-border-radius: $radius;    // Chrome и Safari
-     -moz-border-radius: $radius;    // Firefox
-      -ms-border-radius: $radius;    // Internet Explorer
-       -o-border-radius: $radius;    // Opera
-          border-radius: $radius;    // Стандартный CSS
+//——————————————————————————————
+// миксин для радиуса на все браузеры
+//——————————————————————————————
+
+@mixin border-radius($radius) {
+  // Префиксы для:
+  -webkit-border-radius: $radius; // Chrome и Safari
+  -moz-border-radius: $radius; // Firefox
+  -ms-border-radius: $radius; // Internet Explorer
+  -o-border-radius: $radius; // Opera
+  border-radius: $radius; // Стандартный CSS
 }
+
+//——————————————————————————————
+// адаптивные медиа-запросы
+//——————————————————————————————
+@mixin respond-to($breakpoint) {
+  @media (min-width: $breakpoint) {
+    @content;
+  }
+}
+
+//——————————————————————————————
+// стили заголовка
+//——————————————————————————————
+//@@ NOT RELISED

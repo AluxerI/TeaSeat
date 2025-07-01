@@ -1,5 +1,4 @@
-function Header(){
-    return (
+const Header = ()=>(
     <header>
         <img src="" alt="Logo" className="logo" />
 
@@ -43,7 +42,7 @@ function Header(){
             </div>
         </div>
 
-    </header>)
-}
+    </header>
+);
 
 export default Header

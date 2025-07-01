@@ -39,12 +39,12 @@ const PhpRequest = () => {
 
   return (
     <div>
-      <h1>Product</h1>
-      <p>Название: {item.name}</p>
-      <p>Цена: {item.price}</p>
-      <p>Описание: {item.description}</p>
-      <p>На складе: {item.stock}</p>
-      <p>Склады: {item.warehouse.join(', ')}</p>
+      <h1>Products</h1>
+      <ul>
+        {data.map((item) => (
+          <li key={item.id}>{item.nameitem}</li>
+        ))}
+      </ul>
     </div>
   );
 };
