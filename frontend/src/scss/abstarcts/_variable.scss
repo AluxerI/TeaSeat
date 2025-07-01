@@ -1,0 +1,46 @@
+// <---- Переменные ---->
+$path: '../../../public/fonts';
+
+// ——————————————————————————————
+//  Цветовая палитра
+// ——————————————————————————————
+
+$color-primary-tea:#87A617 ;
+$color-secondary-tea:#C1D96C ;
+$color-accent-tea:#9AA66F ;
+$color-primary-coffee:#401F18;
+$color-secondary-coffee:#5D2D23;
+$color-hover:#C6EBCA;
+
+
+// ——————————————————————————————
+//  Шрифты и размеры
+// ——————————————————————————————
+@include font-face-mix('', '#{path}/chocolates', 400,normal,swap);
+@include font-face-mix();
+@include font-face-mix();
+
+
+// ——————————————————————————————
+//  Отступы / размеры
+// ——————————————————————————————
+$space-unit:8px;
+$spacings:(
+    'xxs':$space-unit*0.5,
+    'xs':$space-unit*1,
+    'sm':$space-unit*2,
+    'md':$space-unit*3,
+    'lg':$space-unit*4,
+    'xl':$space-unit*6,
+    'xxl':$space-unit*8
+);
+
+// ——————————————————————————————
+//  Брейкпоинты
+// ——————————————————————————————
+$breakpoints:(
+    'sm': 576px,
+    'md':768px,
+    'lg': 992px,
+    'xl':1200px
+);

@@ -22,7 +22,7 @@ const App: React.FC = () => {
   useEffect(() => {
     const fetchItem = async () => {
       try {
-        const res = await fetch('http://localhost:8000/item/3');
+        const res = await fetch('http://localhost:8000/item/2');
         console.log('Fetch status:', res.status, res.headers.get('Content-Type'));
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
