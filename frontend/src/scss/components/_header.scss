@@ -1,0 +1,45 @@
+@use "../abstracts/variable";
+@use "../abstracts/functions";
+@use "../abstracts/mixins";
+@use "../base/typography";
+
+header{
+    @include flex-centre();
+    @include linearGradient(right,$color-primary-tea,$color-secondary-tea);
+}
+
+
+.main_buttons{
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    ul{
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    gap:spacing($md);
+    }
+    @include removed();
+    font-family: "Chocolate Light";
+    @include typography($body,700,2.2);  
+}
+.blocks{
+    @include removed();
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    gap:spacing($lg);
+    
+    
+}
+.container{
+    @include typography($body-sm,400,2.2); 
+}
+.media{
+    display: flex;
+    flex-wrap: wrap;
+    flex-direction: row;
+    .number{color:white;}
+    gap:spacing($sm);
+    margin-left: spacing($xl);
+}

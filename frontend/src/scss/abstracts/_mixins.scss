@@ -1,0 +1,158 @@
+@use "./functions";
+// abstracts/_mixins.scss
+
+/// Миксин для генерации @font-face с учётом списка форматов
+/// @param {String}        $font-name   — имя шрифта (будет прописано в font-family)
+/// @param {String}        $font-path   — путь до файла без расширения (например "/fonts/Roboto-Regular")
+/// @param {Number|String} $weight      — вес шрифта (например 400, 700 и т. д.)
+/// @param {String}        $font-style  — стиль шрифта: normal | italic | oblique (по умолчанию normal)
+/// @param {String}        $display     — значение font-display (по умолчанию swap)
+/// @param {List<String>}  $formats     — список расширений, которые нужно подключить (по умолчанию ("woff2", "woff"))
+///
+/// Пример использования:
+///   @include font-face-mix('Roboto', '/fonts/Roboto-Regular', 400);
+///   @include font-face-mix('Roboto', '/fonts/Roboto-Bold', 700, normal, swap, ("woff2", "woff", "ttf"));
+///   @include font-face-mix('Open Sans', '/fonts/OpenSans-SemiBoldItalic', 600, italic, swap, ("woff2", "woff"));
+///
+/// В результате скомпилируется нечто вроде:
+/// @font-face {
+///   font-family: 'Roboto';
+///   font-weight: 400;
+///   font-style: normal;
+///   src: local("Roboto"),
+///        url("/fonts/Roboto-Regular.woff2") format("woff2"),
+///        url("/fonts/Roboto-Regular.woff") format("woff");
+///   font-display: swap;
+/// }
+///
+@mixin font-face-mix(
+  $font-name,
+  $font-path,
+  $weight,
+  $font-style: normal,
+  $display: swap,
+  $formats: ("woff2", "woff")
+) {
+  @font-face {
+    font-family: unquote("#{$font-name}");
+    font-style: $font-style;
+    font-weight: $weight;
+
+    // Соберём список src-источников: сначала локальная проверка
+    $src-list: local(unquote($font-name));
+    $fmt-type:'';
+    // Пробегаемся по всем указанным форматам и добавляем url(... format(...))
+    @each $fmt in $formats {
+      @if $fmt == "woff2" {
+        $fmt-type: "woff2";
+      } @else if $fmt == "woff" {
+        $fmt-type: "woff";
+      } @else if $fmt == "ttf" {
+        $fmt-type: "truetype";
+      } @else if $fmt == "otf" {
+        $fmt-type: "opentype";
+      } @else if $fmt == "eot" {
+        $fmt-type: "embedded-opentype";
+      } @else {
+        // Если какой‐то нестандартный формат передали, просто используем его как есть
+        $fmt-type: #{$fmt};
+      }
+
+      // Добавляем запись в список src‐источников через запятую
+      $src-list: append($src-list, url("#{$font-path}.#{$fmt}") format("#{$fmt-type}"));
+    }
+
+    // Прописываем итоговое src
+    src: $src-list;
+    font-display: $display;
+  }
+}
+
+//——————————————————————————————
+// миксин для центровки
+//——————————————————————————————
+
+@mixin flex-centre() {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+//——————————————————————————————
+// миксин для радиуса на все браузеры
+//——————————————————————————————
+
+@mixin border-radius($radius) {
+  // Префиксы для:
+  -webkit-border-radius: $radius; // Chrome и Safari
+  -moz-border-radius: $radius; // Firefox
+  -ms-border-radius: $radius; // Internet Explorer
+  -o-border-radius: $radius; // Opera
+  border-radius: $radius; // Стандартный CSS
+}
+
+//——————————————————————————————
+// адаптивные медиа-запросы
+//——————————————————————————————
+@mixin respond-to($breakpoint) {
+  @media (min-width: $breakpoint) {
+    @content;
+  }
+}
+
+
+//——————————————————————————————
+// стили заголовка
+//——————————————————————————————
+//@@ NOT RELISED
+
+
+@mixin removed(){
+  ul { list-style: none; }
+  a{
+    text-decoration:none;
+    color:white;
+    user-select:none;
+  }
+
+  details {
+    // Убираем стандартный стиль стрелочки
+    user-select:none;
+    color:white;
+   
+    &::-webkit-details-marker {
+      display: none;
+    }
+    &::marker{
+      display: none;
+    }
+
+    summary {
+      // Убираем стандартный курсор
+      cursor: pointer;
+      list-style: none;
+
+      // Убираем стандартный жирный шрифт
+      font-weight: normal;
+      // Убираем стандартное отступление
+      padding-left: 0;
+      // Убираем стандартный outline
+      outline: none;}
+      
+    }
+    
+}
+
+@mixin linearGradient($dir,$from,$to){
+  background-color: $to;
+  background-image: -webkit-linear-gradient($dir,$from,$to);
+  background-image: -webkit-gradient($dir,$from,$to);
+  }
+
+@mixin typography($size:"body", $weight: 400, $lh: 1.5) {
+    $fc-value: font-size($size);
+    
+    font-size: $fc-value;
+    font-weight: $weight;
+    line-height: $lh;
+}
