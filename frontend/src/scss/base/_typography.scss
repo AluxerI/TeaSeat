@@ -1,8 +1,42 @@
+//_typography.scss
 html{
     font-size: 62.5%;
 }
 
 body{
-    font-family: ;
+    
     
 }
+
+//////
+/// font-sizes
+//////
+$caption:'caption';
+$body-sm:'body-sm';
+$body:'body';
+$h4:'h4';
+$h3:'h3';
+$h2:'h2';
+$h1:'h1';
+
+//////
+/// spacings
+//////
+$xxs:'xxs';
+$xs:'xs';
+$sm:'sm';
+$md:'md';
+$lg:'lg';
+$xl:'xl';
+$xx:'xx';
+
+$font-unit:8px;
+$font-sizes: (
+  'caption': $font-unit,      // 8px
+  'body-sm': $font-unit*2,      // 16px
+  'body': $font-unit*3,         // 24px
+  'h4': $font-unit*4,           // 32px
+  'h3': $font-unit*6,           // 48px
+  'h2': $font-unit*8,          // 64px
+  'h1': $font-unit*10 // 80px
+);
