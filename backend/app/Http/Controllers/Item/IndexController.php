@@ -4,16 +4,18 @@ namespace App\Http\Controllers\Item;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\Item\ProductsResource;
-use App\Models\Products;
+use App\Models\Product;
+use App\Models\Warehouse;
 
 class IndexController extends Controller
 {
     public function __invoke()
     {
-        $products =  Products::with(['nameProduct','VolumeWarehouse'])->paginate(10);
-        // ->whereHas('nameProduct', fn($q) => $q->where('name', 'like', '%Книга%'))    фильтрация
-        //  ->orderBy('created_at', 'desc')         сортировка . После неё должно пойти -> paginate(10) , не до этого всего
-        // dd($product);
+        $products =  Product::with([
+            'inventories.warehouse',
+            // 'subcategory.category',
+            // 'brand'
+        ])->paginate(10);
         return ProductsResource::collection($products);
     }
 }

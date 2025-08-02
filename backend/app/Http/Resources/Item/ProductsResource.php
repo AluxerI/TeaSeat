@@ -11,11 +11,29 @@ class ProductsResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'name' => $this->nameProduct->name ?? null,
-            'description' => $this->nameProduct->description ?? null,
-            'price' => $this->priceproduct,
-            // 'stock' => $this->itemsOnWarehouse->sum('quantity') ?? 0,
-            'warehouses' => WarehouseResource::collection($this->itemsOnWarehouse ?? [])
+            'name' => $this->name,
+            'description' => $this->description,
+            'price' => $this->price,
+            'weight_grams' => $this->weight_grams,
+            // 'category' => $this->subcategory->category->name,
+            // 'subcategory' => $this->subcategory->name,
+            'brand' => $this->brand->name ?? null,   
+            'inventory' => $this->getInventoryData(),
+            'total_quantity' => $this->inventories->sum('quantity'),
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
+            // 'warehouses' => WarehouseResource::collection($this->itemsOnWarehouse ?? [])
         ];
+    }
+     protected function getInventoryData()
+    {
+        return $this->inventories->map(function ($inventory) {
+            return [
+                'warehouse_id' => $inventory->warehouse_id,
+                'warehouse_name' => $inventory->warehouse->name,
+                'quantity' => $inventory->quantity,
+                'last_restock_date' => $inventory->last_restock_date,
+            ];
+        });
     }
 }
