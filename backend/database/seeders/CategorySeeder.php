@@ -11,7 +11,6 @@ class CategorySeeder extends Seeder
     public function run()
     {
 
-        Category::factory()->count(10)-> create();
-        echo('created');
+        Category::factory()->count(100)-> create();
     }
 }

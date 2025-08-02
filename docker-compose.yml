@@ -16,31 +16,31 @@ services:
     networks:
       - app
 
-  frontend:
-    container_name: frontend
-    build:
-      context: ./frontend
-      dockerfile: dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    volumes:
-      - ./frontend:/app/frontend
-    depends_on:
-      - backend
-    networks:
-      - app
+  # frontend:
+  #   container_name: frontend
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: dockerfile
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - CHOKIDAR_USEPOLLING=true
+  #     - WATCHPACK_POLLING=true
+  #   volumes:
+  #     - ./frontend:/app/frontend
+  #   depends_on:
+  #     - backend
+  #   networks:
+  #     - app
 
   pgsql:
     image: postgres:13
     restart: always
     container_name: pgsql
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=1234
-      - POSTGRES_DB=teaseatsql
+      - POSTGRES_USER my_user
+      - POSTGRES_PASSWORD 102101
+      - POSTGRES_DB teaseatsql
     ports:
       - "5436:5432"
     volumes:
