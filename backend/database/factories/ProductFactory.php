@@ -3,7 +3,8 @@
 namespace Database\Factories;
 
 use App\Models\Brand;
-use App\Models\Subcategory;
+use App\Models\Product;
+use App\Models\Sub_subcategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -29,5 +30,26 @@ class ProductFactory extends Factory
         return $this->state([
             'price' => $this->faker->numberBetween(50, 500), // Сниженная цена
         ]);
+    }
+    public function configure()
+    {
+        return $this->afterCreating(function (Product $product) {
+            // Создаем минимум одну связь с под-подкатегорией
+            $subSubcategory = Sub_subcategory::inRandomOrder()->first() 
+                ?? Sub_subcategory::factory()->create();
+            
+            $product->sub_subcategories()->attach($subSubcategory);
+
+            // Опционально: добавляем случайное количество дополнительных связей
+            if ($this->faker->boolean(30)) { // 30% вероятности добавить еще связи
+                $count = $this->faker->numberBetween(1, 3);
+                $additionalSubSubcategories = Sub_subcategory::inRandomOrder()
+                    ->whereNotIn('id', [$subSubcategory->id])
+                    ->take($count)
+                    ->get();
+                
+                $product->sub_subcategories()->attach($additionalSubSubcategories);
+            }
+        });
     }
 }

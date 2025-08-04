@@ -9,23 +9,51 @@ class ProductsResource extends JsonResource
 {
     public function toArray($request)
     {
+        $mainSubSub = $this->sub_subcategories->first();
         return [
             'id' => $this->id,
             'name' => $this->name,
             'description' => $this->description,
             'price' => $this->price,
             'weight_grams' => $this->weight_grams,
-            // 'category' => $this->subcategory->category->name,
-            // 'subcategory' => $this->subcategory->name,
-            'brand' => $this->brand->name ?? null,   
+            
+            // 'category' => $mainSubSub->subcategory->category ?? null,
+            // 'subcategory' => $mainSubSub->subcategory ?? null,
+            'sub_subcategory' => $mainSubSub,
+            
+            'brand' => $this->brand->name ?? null,
             'inventory' => $this->getInventoryData(),
             'total_quantity' => $this->inventories->sum('quantity'),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
-            // 'warehouses' => WarehouseResource::collection($this->itemsOnWarehouse ?? [])
         ];
     }
-     protected function getInventoryData()
+
+    // protected function getCategoryData()
+    // {
+    //     return $this->Sub_subcategory->subcategory->category ? [
+    //         'id' => $this->Sub_subcategory->subcategory->category->id,
+    //         'name' => $this->Sub_subcategory->subcategory->category->name
+    //     ] : null;
+    // }
+
+    // protected function getSubcategoryData()
+    // {
+    //     return $this->Sub_subcategory->subcategory ? [
+    //         'id' => $this->Sub_subcategory->subcategory->id,
+    //         'name' => $this->Sub_subcategory->subcategory->name
+    //     ] : null;
+    // }
+
+    protected function getSubSubcategoryData()
+    {
+        return $this->Sub_subcategory ? [
+            'id' => $this->Sub_subcategory->id,
+            'name' => $this->Sub_subcategory->name
+        ] : null;
+    }
+
+    protected function getInventoryData()
     {
         return $this->inventories->map(function ($inventory) {
             return [

@@ -11,10 +11,10 @@ class IndexController extends Controller
 {
     public function __invoke()
     {
-        $products =  Product::with([
-            'inventories.warehouse',
-            // 'subcategory.category',
-            // 'brand'
+        $products = Product::with([
+            'sub_subcategories.subcategory.category',
+            'brand',
+            'inventories.warehouse'
         ])->paginate(10);
         return ProductsResource::collection($products);
     }

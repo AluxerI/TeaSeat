@@ -10,9 +10,20 @@ class SubcategoryFactory extends Factory
 {
     public function definition(): array
     {
+        // Группируем подкатегории по родительским категориям
+        $subcategories = [
+            'Чай' => ['Китайский чай', 'Японский чай', 'Индийский чай', 'Травяной чай'],
+            'Сладости' => ['Печенье', 'Шоколад', 'Мармелад', 'Халва'],
+            'Для чая' => ['Чайники', 'Пиалы', 'Ситечки'],
+            'Кофе' => ['Зерновой', 'Молотый']
+        ];
+
+        // Сначала создаём категорию (или берём существующую)
+        $category = Category::factory()->create();
+
         return [
-            'category_id' => Category::factory(), // Связь с категорией
-            'name' => $this->faker->unique()->word, // "Зеленый", "Черный" и т.д.
+            'category_id' => $category->id,
+            'name' => $this->faker->unique()->randomElement($subcategories[$category->name]),
         ];
     }
 }
