@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Product;
 use App\Models\Warehouse;
+use App\Models\Inventory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -11,29 +12,44 @@ use Illuminate\Database\Eloquent\Factories\Factory;
  */
 class InventoryFactory extends Factory
 {
+    private static $warehouses;
+    private static $products;
+    private static $usedPairs = [];
+
     public function definition(): array
     {
-        // Берем случайный товар и склад (может повторяться)
+        // Инициализация складов (ровно 5)
+        if (!self::$warehouses) {
+            self::$warehouses = Warehouse::factory()
+                ->count(5)
+                ->create()
+                ->pluck('id')
+                ->toArray();
+        }
+
+        // Инициализация товаров (20 штук)
+        if (!self::$products) {
+            self::$products = Product::factory()
+                ->count(20)
+                ->create()
+                ->pluck('id')
+                ->toArray();
+        }
+
+        // Генерация уникальной пары товар-склад
+        do {
+            $productId = $this->faker->randomElement(self::$products);
+            $warehouseId = $this->faker->randomElement(self::$warehouses);
+            $pair = "{$productId}_{$warehouseId}";
+        } while (in_array($pair, self::$usedPairs));
+
+        self::$usedPairs[] = $pair;
+
         return [
-            'product_id' => Product::inRandomOrder()->first()->id,
-            'warehouse_id' => Warehouse::inRandomOrder()->first()->id,
-            'quantity' => $this->faker->numberBetween(0, 100), // Более реалистичное количество
+            'product_id' => $productId,
+            'warehouse_id' => $warehouseId,
+            'quantity' => $this->faker->numberBetween(1, 100),
             'last_restock_date' => $this->faker->dateTimeBetween('-1 year', 'now'),
         ];
-    }
-
-    // Состояния для разных сценариев
-    public function popularProduct(): static
-    {
-        return $this->state([
-            'quantity' => $this->faker->numberBetween(50, 200),
-        ]);
-    }
-
-    public function lowStock(): static
-    {
-        return $this->state([
-            'quantity' => $this->faker->numberBetween(1, 5),
-        ]);
     }
 }

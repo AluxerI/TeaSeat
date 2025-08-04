@@ -8,9 +8,11 @@ class CategoryFactory extends Factory
 {
     public function definition(): array
     {
+        $teaTypes = ['Чай', 'Сладости', 'Для чая', 'Кофе'];
+        
         return [
-            'name' => $this->faker->unique()->word, // "Чай", "Сладости"
-            'description' => $this->faker->sentence,
+            'name' => $this->faker->unique()->randomElement($teaTypes),
+            // 'description' => $this->faker->sentence(10),
         ];
     }
 }
