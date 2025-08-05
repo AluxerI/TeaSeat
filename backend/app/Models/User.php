@@ -5,11 +5,11 @@ namespace App\Models;
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    use HasFactory, Notifiable;
+    use HasFactory, HasRoles;
 
     // Связь со скидками
     public function discounts()
@@ -17,10 +17,13 @@ class User extends Authenticatable
         return $this->belongsToMany(Discount::class)
             ->withPivot(['is_used', 'activated_at']);
     }
+
     protected $fillable = [
         'name',
         'email',
         'password',
+        'timezone',       // Добавляем новые поля из миграции
+        'is_active',      // Добавляем новые поля из миграции
     ];
 
     protected $hidden = [
@@ -28,11 +31,14 @@ class User extends Authenticatable
         'remember_token',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
-    }
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'is_active' => 'boolean',  // Добавляем приведение типа для нового поля
+        'deleted_at' => 'datetime', // Для softDeletes
+    ];
+
+    protected $dates = [
+        'deleted_at'     // Для совместимости (если используете старую версию Laravel)
+    ];
 }

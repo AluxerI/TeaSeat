@@ -12,9 +12,9 @@ class ShowController extends Controller
     public function __invoke($productId)
     {
         $product = Product::with([
-            'inventories.warehouse',
-            // 'subcategory.category',
-            'brand'
+            'sub_subcategories.subcategory.category',
+            'brand',
+            'inventories.warehouse'
         ])->find($productId);
         if (!$product) {
             return response()->json(['error' => 'Товар не найден'], 404);

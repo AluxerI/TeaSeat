@@ -12,7 +12,7 @@ services:
       - ./backend:/app/backend
     depends_on:
       - pgsql
-      # - redis
+      - redis
     networks:
       - app
 
@@ -38,9 +38,9 @@ services:
     restart: always
     container_name: pgsql
     environment:
-      - POSTGRES_USER my_user
-      - POSTGRES_PASSWORD 102101
-      - POSTGRES_DB teaseatsql
+      - POSTGRES_USER=my_user
+      - POSTGRES_PASSWORD=102101
+      - POSTGRES_DB=teaseatsql
     ports:
       - "5436:5432"
     volumes:
@@ -49,13 +49,16 @@ services:
     networks:
       - app
 
-  # redis:
-  #   image: redis:alpine
-  #   restart: always
-  #   volumes:
-  #     - ./data/redis/data
-  #   networks:
-  #     - app
+  redis:
+    image: redis:alpine
+    restart: always
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./data/redis:/data
+    networks:
+      - app
 
 networks:
   app:
