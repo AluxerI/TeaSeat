@@ -22,6 +22,11 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->append(JsonResponseMiddleware::class);
     })
+    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->append(\App\Http\Middleware\UseRedisCache::class);
+    })
+
+
     ->withExceptions(function (Exceptions $exceptions) {
         //
     })->create();

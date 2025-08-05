@@ -17,8 +17,6 @@ class ProductsResource extends JsonResource
             'price' => $this->price,
             'weight_grams' => $this->weight_grams,
             
-            // 'category' => $mainSubSub->subcategory->category ?? null,
-            // 'subcategory' => $mainSubSub->subcategory ?? null,
             'sub_subcategory' => $mainSubSub,
             
             'brand' => $this->brand->name ?? null,
@@ -28,22 +26,6 @@ class ProductsResource extends JsonResource
             'updated_at' => $this->updated_at,
         ];
     }
-
-    // protected function getCategoryData()
-    // {
-    //     return $this->Sub_subcategory->subcategory->category ? [
-    //         'id' => $this->Sub_subcategory->subcategory->category->id,
-    //         'name' => $this->Sub_subcategory->subcategory->category->name
-    //     ] : null;
-    // }
-
-    // protected function getSubcategoryData()
-    // {
-    //     return $this->Sub_subcategory->subcategory ? [
-    //         'id' => $this->Sub_subcategory->subcategory->id,
-    //         'name' => $this->Sub_subcategory->subcategory->name
-    //     ] : null;
-    // }
 
     protected function getSubSubcategoryData()
     {
