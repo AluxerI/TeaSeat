@@ -4,6 +4,10 @@
 @import "base/base";
 @import "base/reset";
 @import "base/typography";
+
 @import "layout/container";
 @import "layout/grid";
-@import "components/header";
+
+
+@import "ui/header/header";
+@import "ui/footer/footer";

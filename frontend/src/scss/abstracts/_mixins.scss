@@ -156,3 +156,15 @@
     font-weight: $weight;
     line-height: $lh;
 }
+
+@mixin smooth-transition($properties: all, $duration: 0.4s) {
+  transition: $properties $duration cubic-bezier(0.215, 0.61, 0.355, 1);
+}
+
+//——————————————————————————————
+// стили ховер
+//——————————————————————————————
+@mixin a-hover($color){
+  color:$color;
+  @include smooth-transition(color);
+}
