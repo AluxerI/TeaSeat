@@ -8,6 +8,12 @@ use App\Http\Controllers\CatalogPageController;
 use App\Http\Controllers\ProductController;
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Auth\RegisterController;
+
+Route::middleware('guest')->group(function () {
+    Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register');
+    Route::post('/register', [RegisterController::class, 'register']);
+});
 
 Route::group(['namespace' => 'App\Http\Controllers\Item'], function() {
     Route::get('/item/{productId}', 'ShowController')->name('item.show');
