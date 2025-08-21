@@ -8,7 +8,6 @@ import './../../scss/main.scss';
 const Header = ()=>(
     <header>
         <Images 
-         
         alt='Logo' 
         className='Logo'
         folder='header'
