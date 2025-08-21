@@ -13,17 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        // Добавляем наш middleware ГЛОБАЛЬНО
-        
-    })
-    ->withMiddleware(function (Middleware $middleware) {
-        $middleware->validateCsrfTokens(except: [
-            //
-        ]);
-        $middleware->append(JsonResponseMiddleware::class);
-    })
-    ->withMiddleware(function (Middleware $middleware) {
+        $middleware->validateCsrfTokens(except: []);
         $middleware->append(\App\Http\Middleware\UseRedisCache::class);
+        $middleware->append(JsonResponseMiddleware::class);
     })
 
 
