@@ -1,0 +1,13 @@
+@import "abstracts/variable";  // Сначала переменные
+@import "abstracts/functions";
+@import "abstracts/mixins";     // Затем миксины (они могут использовать переменные)
+@import "base/base";
+@import "base/reset";
+@import "base/typography";
+
+@import "layout/container";
+@import "layout/grid";
+
+
+@import "ui/header/header";
+@import "ui/footer/footer";

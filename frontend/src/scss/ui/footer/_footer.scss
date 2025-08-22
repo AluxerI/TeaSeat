@@ -1,0 +1,187 @@
+footer{
+    
+    background-color: $color-primary-tea;
+    
+}
+.blockup{
+    @include flex-centre();
+    
+    gap:space-mult($xl,2);
+}
+
+.about-company{
+    @include typography($body,400);
+    color:white;
+    @include removed();
+
+    .company{
+        cursor: pointer;
+        user-select: none;
+        a:hover{
+            @include a-hover($color-hover);
+        }
+    }
+    .rekvizit{
+        display: flex;
+        flex-direction: column;
+
+        a{
+            cursor: pointer;
+            user-select: none;
+        }
+
+        a:hover{
+            @include a-hover($color-hover);
+        }
+    }
+}
+.clients{
+    @include typography($body,400);
+    color:white;
+    @include removed();
+    .clientam{
+        cursor: pointer;
+        user-select: none;
+        a:hover{
+            @include a-hover($color-hover);
+        }
+    }
+    .dostavka{
+        display: flex;
+        flex-direction: column;
+        a{
+            cursor: pointer;
+            user-select: none;
+        }
+
+        a:hover{
+            @include a-hover($color-hover);
+        }
+    }
+}
+
+.feedback{
+    color:white;
+    @include typography($body-sm,400);
+    .place-part{
+    display: flex;
+    flex-direction: row;
+    p{
+        margin-left: $xs;
+    }
+    }
+    .number-part{
+    display: flex;
+    flex-direction: row;
+    }
+    .email-part{
+    display: flex;
+    flex-direction: row;
+    }
+}
+
+
+.button-tg-feedback {
+
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  //box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  max-width: 350px;
+  height: 56px;
+
+  transition: transform 0.3s ease;
+
+  
+  @include smooth-transition;
+  @include border-radius(8px);
+  
+
+}
+
+.button-tg-feedback-part1 {
+
+  
+  z-index: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  border: none;
+  background-color: $color-secondary-tea;
+
+  @include border-radius(8px);
+  color:white;
+  @include typography($body,400);
+
+  height: 56px;
+  width: 0px;
+
+ 
+
+  @include smooth-transition((flex, opacity, transform), 0.5s);
+  &::before{
+    //transform: scaleX(0);
+    
+    left: 0;
+    top: 0;
+    height: 100%;
+    width: 0;
+    opacity: 0;
+  }
+  
+}
+
+.button-tg-feedback:hover  .button-tg-feedback-part1{
+    transition: width 0.5s ease-out;
+    width: 300px;
+}
+
+
+.button-tg-feedback  .button-tg-feedback-part1{
+    transition: width 0.5s ease-in-out;
+    width: 0px;
+}
+
+.button-tg-feedback-part2{
+    z-index: 5;
+    @include border-radius($font-unit);
+    height: 56px;
+    width:50px;
+    background: $color-hover;
+    box-shadow: none;
+    border: none;
+
+    
+    
+}
+
+.media{
+    @include flex-centre();
+    .block-media{
+    .trans{gap:20;
+    margin-right:$font-unit;
+    }
+    }
+    .left-line{
+        width: 40%;
+        border:1px solid black;
+    }
+    .right-line{
+        width: 40%;
+        border:1px solid black;
+    }
+    
+}
+
+.license{
+    margin-left: space-mult($xl,2);
+}
+
+
+@keyframes growWidth {
+    from{
+        width: 50px;
+    }
+    to{
+        width:200px;
+    }
+}
