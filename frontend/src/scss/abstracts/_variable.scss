@@ -1,0 +1,60 @@
+//_variables.scss
+@import "mixins";
+
+// <---- Переменные ---->
+$path: '../../../public/fonts';
+
+// ——————————————————————————————
+//  Цветовая палитра
+// ——————————————————————————————
+
+$color-primary-tea:#87A617 ;
+$color-secondary-tea:#C1D96C ;
+$color-accent-tea:#9AA66F ;
+$color-primary-coffee:#401F18;
+$color-secondary-coffee:#5D2D23;
+$color-hover:#C6EBCA;
+
+
+// ——————————————————————————————
+//  Шрифты и размеры
+// ——————————————————————————————
+
+@include font-face-mix('Chocolate Light', '#{$path}/chocolates/TTChocolates-Light', 400,normal,swap);
+
+
+
+// ——————————————————————————————
+//  Отступы / размеры
+// ——————————————————————————————
+$space-unit:8px;
+$spacings:(
+    'xxs':$space-unit*0.5,
+    'xs':$space-unit*1,
+    'sm':$space-unit*2,
+    'md':$space-unit*3,
+    'lg':$space-unit*4,
+    'xl':$space-unit*6,
+    'xxl':$space-unit*8
+);
+
+// ——————————————————————————————
+//  Брейкпоинты
+// ——————————————————————————————
+$breakpoints:(
+    'sm': 576px,
+    'md':768px,
+    'lg': 992px,
+    'xl':1200px
+);
+
+$font-unit: 8px;
+$font-sizes: (
+  'caption': $font-unit,      // 8px
+  'body-sm': $font-unit * 2,  // 16px
+  'body': $font-unit * 3,     // 24px
+  'h4': $font-unit * 4,       // 32px
+  'h3': $font-unit * 6,       // 48px
+  'h2': $font-unit * 8,       // 64px
+  'h1': $font-unit * 10       // 80px
+);
