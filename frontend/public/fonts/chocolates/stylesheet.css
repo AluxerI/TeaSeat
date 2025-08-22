@@ -1,0 +1,120 @@
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Black.eot');
+    src: local('TT Chocolates Black'), local('TTChocolates-Black'),
+        url('TTChocolates-Black.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Black.woff2') format('woff2'),
+        url('TTChocolates-Black.woff') format('woff'),
+        url('TTChocolates-Black.ttf') format('truetype');
+    font-weight: 900;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Thin.eot');
+    src: local('TT Chocolates Thin'), local('TTChocolates-Thin'),
+        url('TTChocolates-Thin.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Thin.woff2') format('woff2'),
+        url('TTChocolates-Thin.woff') format('woff'),
+        url('TTChocolates-Thin.ttf') format('truetype');
+    font-weight: 100;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-ThinItalic.eot');
+    src: local('TT Chocolates Thin Italic'), local('TTChocolates-ThinItalic'),
+        url('TTChocolates-ThinItalic.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-ThinItalic.woff2') format('woff2'),
+        url('TTChocolates-ThinItalic.woff') format('woff'),
+        url('TTChocolates-ThinItalic.ttf') format('truetype');
+    font-weight: 100;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Bold.eot');
+    src: local('TT Chocolates Bold'), local('TTChocolates-Bold'),
+        url('TTChocolates-Bold.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Bold.woff2') format('woff2'),
+        url('TTChocolates-Bold.woff') format('woff'),
+        url('TTChocolates-Bold.ttf') format('truetype');
+    font-weight: bold;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-LightItalic.eot');
+    src: local('TT Chocolates Light Italic'), local('TTChocolates-LightItalic'),
+        url('TTChocolates-LightItalic.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-LightItalic.woff2') format('woff2'),
+        url('TTChocolates-LightItalic.woff') format('woff'),
+        url('TTChocolates-LightItalic.ttf') format('truetype');
+    font-weight: 300;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-BlackItalic.eot');
+    src: local('TT Chocolates Black Italic'), local('TTChocolates-BlackItalic'),
+        url('TTChocolates-BlackItalic.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-BlackItalic.woff2') format('woff2'),
+        url('TTChocolates-BlackItalic.woff') format('woff'),
+        url('TTChocolates-BlackItalic.ttf') format('truetype');
+    font-weight: 900;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-BoldItalic.eot');
+    src: local('TT Chocolates Bold Italic'), local('TTChocolates-BoldItalic'),
+        url('TTChocolates-BoldItalic.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-BoldItalic.woff2') format('woff2'),
+        url('TTChocolates-BoldItalic.woff') format('woff'),
+        url('TTChocolates-BoldItalic.ttf') format('truetype');
+    font-weight: bold;
+    font-style: italic;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Regular.eot');
+    src: local('TT Chocolates Regular'), local('TTChocolates-Regular'),
+        url('TTChocolates-Regular.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Regular.woff2') format('woff2'),
+        url('TTChocolates-Regular.woff') format('woff'),
+        url('TTChocolates-Regular.ttf') format('truetype');
+    font-weight: normal;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Light.eot');
+    src: local('TT Chocolates Light'), local('TTChocolates-Light'),
+        url('TTChocolates-Light.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Light.woff2') format('woff2'),
+        url('TTChocolates-Light.woff') format('woff'),
+        url('TTChocolates-Light.ttf') format('truetype');
+    font-weight: 300;
+    font-style: normal;
+}
+
+@font-face {
+    font-family: 'TT Chocolates';
+    src: url('TTChocolates-Italic.eot');
+    src: local('TT Chocolates Italic'), local('TTChocolates-Italic'),
+        url('TTChocolates-Italic.eot?#iefix') format('embedded-opentype'),
+        url('TTChocolates-Italic.woff2') format('woff2'),
+        url('TTChocolates-Italic.woff') format('woff'),
+        url('TTChocolates-Italic.ttf') format('truetype');
+    font-weight: normal;
+    font-style: italic;
+}
+
