@@ -2,28 +2,31 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasFactory, HasRoles;
+    use HasFactory, HasRoles, HasApiTokens, Notifiable;
 
-    // Связь со скидками
     public function discounts()
     {
-        return $this->belongsToMany(Discount::class)
-            ->withPivot(['is_used', 'activated_at']);
+        return $this->belongsToMany(Discount::class, 'discount_users')
+            ->withPivot(['is_used', 'activated_at']);  // использована ли, когда активирована?
     }
+    
 
     protected $fillable = [
         'name',
         'email',
         'password',
-        'timezone',       // Добавляем новые поля из миграции
-        'is_active',      // Добавляем новые поля из миграции
+        'phone',
+        'timezone',       
+        'is_active',      
     ];
 
     protected $hidden = [
@@ -33,12 +36,28 @@ class User extends Authenticatable
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'phone_verified_at' => 'datetime',
         'password' => 'hashed',
-        'is_active' => 'boolean',  // Добавляем приведение типа для нового поля
-        'deleted_at' => 'datetime', // Для softDeletes
+        'is_active' => 'boolean',  
+        'deleted_at' => 'datetime', 
     ];
 
-    protected $dates = [
-        'deleted_at'     // Для совместимости (если используете старую версию Laravel)
-    ];
+    public function profile()
+    {
+        return $this->hasOne(Profile::class);
+    }
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+    
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+    
+    public function phoneVerificationCodes()
+    {
+        return $this->hasMany(PhoneVerificationCode::class);
+    }
 }

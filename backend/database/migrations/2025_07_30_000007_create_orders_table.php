@@ -15,7 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
             $table->decimal('total_amount', 12, 2);
-            $table->enum('status', ['pending', 'processing', 'shipped', 'delivered', 'cancelled'])->default('pending');
+            $table->enum('status', ['cart','pending', 'processing', 'shipped', 'delivered', 'cancelled'])->default('cart');
             $table->string('tracking_number')->nullable();
             $table->timestamps();
         });

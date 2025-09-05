@@ -33,5 +33,13 @@ class Product extends Model
     {
         return $this->sub_subcategories->first();
     }
+     public function promotions()
+    {
+        return $this->belongsToMany(Promotion::class, 'product_promotions');
+    }
+    public function discounts()
+    {
+        return $this->belongsToMany(Discount::class, 'discount_products');
+    }
 }
 
