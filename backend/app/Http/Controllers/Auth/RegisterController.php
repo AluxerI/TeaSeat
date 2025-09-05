@@ -11,10 +11,10 @@ use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
-    public function __construct()
-    {
-        $this->middleware('guest');
-    }
+    // public function __construct()
+    // {
+    //     $this->middleware('guest');
+    // }
 
     public function showRegistrationForm()
     {
@@ -26,6 +26,7 @@ class RegisterController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
+            'phone' => ['required', 'string', 'unique:users,phone', 'regex:/^\+7\d{10}$/'],
             'password' => 'required|string|min:8|confirmed',
         ]);
 
@@ -33,6 +34,7 @@ class RegisterController extends Controller
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
+            'phone' => $request->phone,
             'is_active' => true,
         ]);
 

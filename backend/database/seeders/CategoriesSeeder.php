@@ -12,7 +12,8 @@ class CategoriesSeeder extends Seeder
 {
     public function run(): void
     {
-        // Для каждой подкатегории — 3 под-подкатегории
-        Sub_subcategory::factory()->count(3)->create();
+        Category::factory()->count(8)->create();
+        Subcategory::factory()->count(11)->create();
+        Sub_subcategory::factory()->count(120)->create();
     }
 }

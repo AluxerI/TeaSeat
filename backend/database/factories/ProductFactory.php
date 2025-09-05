@@ -16,6 +16,7 @@ class ProductFactory extends Factory
     {
         return [
             'name' => $this->faker->unique()->words(3, true), // "Элитный Зеленый Чай"
+            'ingredients' => $this->faker->unique()->words(15, true),
             'description' => $this->faker->paragraph,
             'brand_id' => Brand::factory(), // Связь с брендом
             'price' => $this->faker->numberBetween(100, 5000), // Случайная цена (100-5000 руб.)

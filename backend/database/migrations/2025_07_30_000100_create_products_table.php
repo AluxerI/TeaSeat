@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('products', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->text('ingredients')->nullable();
             $table->text('description')->nullable();
             $table->foreignId('brand_id')->constrained()->cascadeOnDelete();   // а где категория?
             $table->decimal('price', 10, 2);
