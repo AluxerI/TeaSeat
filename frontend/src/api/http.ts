@@ -29,6 +29,11 @@ export interface HttpRequestOptions {
     headers?: Record<string, string>;
     body?: any;
 }
+export interface HttpError extends Error{
+    message: string;
+    status?: number;
+    statusText?: string;
+}
 
 export interface HttpResponse<T = any> {
     status: number;
@@ -130,5 +135,9 @@ export const http = {
             ...options?.headers
 
     }),
-    
-    }
+    delete:<T>(url:string|URL,options?:HttpRequestOptions):Promise<HttpResponse<T>>=> request<T>(url,{...options,
+        headers:{},
+        method:'DELETE',
+            ...options?.headers
+    }),
+}
