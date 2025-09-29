@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PhoneVerificationController;
+use App\Http\Controllers\Auth\SocialAuthController;
 use App\Http\Controllers\UserController;
 
 
@@ -31,7 +32,10 @@ Route::prefix('auth')->group(function () {
     // Верификация телефона
     Route::post('/send-verification-code', [PhoneVerificationController::class, 'sendVerificationCode']);
     Route::post('/verify-phone', [PhoneVerificationController::class, 'verifyPhone']);
+
+    Route::post('/{provider}', [SocialAuthController::class, 'handleProviderCallback']);
 });
+
 
 
 Route::middleware('auth:sanctum')->group(function () {

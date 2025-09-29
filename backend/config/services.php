@@ -34,5 +34,24 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+        // config/services.php
+    'telegram' => [
+        'bot' => env('TELEGRAM_BOT_NAME'), // Имя бота
+        'client_id' => env('TELEGRAM_BOT_TOKEN'), // На самом деле токен бота
+        'client_secret' => env('TELEGRAM_BOT_SECRET'), // Для Telegram может не требоваться
+        'redirect' => env('TELEGRAM_REDIRECT_URI'),
+    ]   ,
+
+    'vkontakte' => [
+        'client_id' => env('VKONTAKTE_CLIENT_ID'),
+        'client_secret' => env('VKONTAKTE_CLIENT_SECRET'),
+        'redirect' => env('VKONTAKTE_REDIRECT_URI'),
+    ]   ,
+
+    'google' => [
+        'client_id' => env('GOOGLE_CLIENT_ID'),
+        'client_secret' => env('GOOGLE_CLIENT_SECRET'),
+        'redirect' => env('GOOGLE_REDIRECT_URI'),
+    ],
 
 ];
