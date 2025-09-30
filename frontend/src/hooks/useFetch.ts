@@ -2,8 +2,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { http, HttpError, HttpStatus } from "../api/http";
 
 function useFetch<T>(url:string){
+<<<<<<< Updated upstream
     const [data, setData] = useState<T | null>(null);
     const [error, setError] = useState<HttpError | null>(null);
+=======
+    const [response, setData] = useState<T | null>(null);
+    const [error, setError] = useState<Error | null>(null);
+>>>>>>> Stashed changes
     const [loading, setLoading] = useState<boolean>(true);
     const abortControllerRef = useRef<AbortController>(null);
 
@@ -15,6 +20,7 @@ function useFetch<T>(url:string){
         setLoading(true);
         setError(null);
 
+<<<<<<< Updated upstream
         try{
             const response = await http.get<T>(url,{})
         }
@@ -36,3 +42,8 @@ function useFetch<T>(url:string){
 
     return {data,error,loading};
 }
+=======
+}
+
+export default useFetch;
+>>>>>>> Stashed changes
