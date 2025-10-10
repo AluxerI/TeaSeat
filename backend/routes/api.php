@@ -1,21 +1,25 @@
 <?php
 
+use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\EmailVerificationNotificationController;
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\PhoneVerificationController;
 use App\Http\Controllers\Auth\SocialAuthController;
-use App\Http\Controllers\UserController;
+use App\Http\Controllers\User\ShowCurrentUserController;
+use App\Http\Controllers\Auth\DeleteAccountController;
+use App\Http\Controllers\Auth\LogoutFromAllDevicesController;
+use App\Http\Controllers\Auth\SessionController;
 
 
 Route::prefix('auth')->group(function () {
     // Основные эндпоинты
     Route::post('/register', [RegisteredUserController::class, 'store']);
     Route::post('/login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('/login/{provider}', [SocialAuthController::class, 'handleProviderCallback']); // для социального входа
     
     // Восстановление пароля
     Route::post('/forgot-password', [PasswordResetLinkController::class, 'store']);
@@ -33,20 +37,36 @@ Route::prefix('auth')->group(function () {
     Route::post('/send-verification-code', [PhoneVerificationController::class, 'sendVerificationCode']);
     Route::post('/verify-phone', [PhoneVerificationController::class, 'verifyPhone']);
 
-    Route::post('/{provider}', [SocialAuthController::class, 'handleProviderCallback']);
+    Route::delete('/account-delete', DeleteAccountController::class)->middleware('auth:sanctum');
 });
 
 
 
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout', [AuthenticatedSessionController::class, 'destroy']);
-    Route::get('/user', [UserController::class, 'show']);
+    Route::post('/auth/logout-all', [LogoutFromAllDevicesController::class, '__invoke']);
+    Route::get('/auth/sessions', [SessionController::class, '__invoke']);
+    Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
 });
 
-Route::group(['namespace' => 'App\Http\Controllers\Item'], function() {
-    Route::get('/item/{productId}', 'ShowController')->name('item.show');
-    Route::get('/catalog', 'CatalogController')->name('item.catalog');
+// Управление пользователями (только для админов)
+Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
+Route::get('/users', 'IndexController') -> name('user.index')
+    ->middleware(['auth:sanctum', 'permission:view users']);
+    
+Route::get('/users/{user}', 'ShowController') -> name('user.show')
+    ->middleware(['auth:sanctum', 'permission:view users']);
+        
+Route::put('/users/{user}', 'UpdateController') -> name('user.update')
+    ->middleware(['auth:sanctum', 'permission:manage users']);
+
+Route::put('/users/{user}/roles', 'UpdateRolesController') -> name('user.updateroles')
+    ->middleware(['auth:sanctum', 'permission:manage users']);
+
+Route::delete('/users-delete/{user}', 'DeleteUserController') -> name('user.delete')
+    ->middleware(['auth:sanctum', 'can:delete users']);
 });
+
 Route::group([
     'namespace' => 'App\Http\Controllers\Item',
     'middleware' => 'auth:sanctum'
