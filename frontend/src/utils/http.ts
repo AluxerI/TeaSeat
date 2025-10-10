@@ -28,6 +28,8 @@ export interface HttpRequestOptions {
     method?: HttpMethod;
     headers?: Record<string, string>;
     body?: any;
+    signal?: AbortSignal;
+    params?:Record<string, any>; 
 }
 export interface HttpError extends Error{
     message: string;
@@ -43,9 +45,19 @@ export interface HttpResponse<T = any> {
 }
 
 const request = async <T>(url:string|URL,options?:HttpRequestOptions):Promise<HttpResponse<T>> =>{
-    const response = await fetch(url.toString(),options);
+    const finalURL = url as URL;
+    if(options?.params){
+        Object.entries(options.params).forEach(([key,value])=>{
+            if(value !== undefined && value !== null){
+                finalURL.searchParams.append(key,value.toString());
+            }
+        })
+    }
+    
+    const response = await fetch(finalURL.toString(),options);
     const data = await response.json() as T;
 
+    
 
     return {
         status:response.status,
@@ -120,7 +132,7 @@ export const http = {
     }),
     post:<T>(url:string|URL,body?:any,options?:HttpRequestOptions):Promise<HttpResponse<T>>=> request<T>(url,{...options,
         headers:{
-            'Content-Type':whatContentType(body) ?? 'application/json',
+            'Content-Type':whatContentType(body)! ,
             'Content-Length':whatContentLength(body)?.toString()?? "", 
             ...options?.headers
         },
@@ -129,7 +141,7 @@ export const http = {
     }),
     put:<T>(url:string|URL,body?:any,options?:HttpRequestOptions):Promise<HttpResponse<T>>=> request<T>(url,{...options,
         headers:{
-            'Content-Type':whatContentType(body) ?? 'application/json',
+            'Content-Type':whatContentType(body)!,
             'Content-Length':whatContentLength(body)?.toString()?? "",},
         method:'PUT',
             ...options?.headers
@@ -140,4 +152,14 @@ export const http = {
         method:'DELETE',
             ...options?.headers
     }),
+    patch:<T>(url:string|URL,body?:any,options?:HttpRequestOptions):Promise<HttpResponse<T>>=> request<T>(url,{...options,
+        headers:{
+            'Content-Type':whatContentType(body)!,
+            'Content-Length':whatContentLength(body)!?.toString()
+        },
+        method: 'PATCH',
+        ...options?.headers
+    })
+
+    
 }
