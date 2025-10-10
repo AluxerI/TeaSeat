@@ -21,6 +21,10 @@ class RolePermissionSeeder extends Seeder
             'create orders',
             'edit orders',
             'delete orders',
+            'view users',
+            'create users',
+            'edit users',
+            'delete users',
             'manage users',
             'manage settings'
         ];

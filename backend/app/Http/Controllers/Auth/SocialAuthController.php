@@ -11,6 +11,25 @@ use App\Http\Resources\UserResource;
 
 class SocialAuthController extends Controller
 {
+        public function logout(Request $request)
+    {
+        try {
+            // Для аутентификации по API: удаляем все токены пользователя
+            $request->user()->tokens()->delete();
+
+            // Если используется веб-аутентификация (сессии), добавьте:
+            // Auth::guard('web')->logout();
+
+            return response()->json([
+                'message' => 'Успешный выход из системы.'
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'error' => 'Logout failed: ' . $e->getMessage()
+            ], 401);
+        }
+    }
     public function handleProviderCallback(Request $request, $provider)
     {
         try {
@@ -114,4 +133,6 @@ class SocialAuthController extends Controller
             'email' => null // Telegram не предоставляет email
         ];
     }
+
+
 }

@@ -13,14 +13,14 @@ return new class extends Migration {
             $table->string('name');
             $table->string('provider')->nullable();
             $table->string('provider_id')->nullable();
-            $table->string('email')->nullable()->change();
+            $table->string('email')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('phone')->nullable()->unique();
             $table->timestamp('phone_verified_at')->nullable();
             $table->string('password');
-            $table->rememberToken();
+            // $table->rememberToken();  // это для работы с куками. То есть это для браузера
             $table->string('timezone')->default('UTC');
-            $table->boolean('is_active')->default(true);
+            $table->boolean('is_active')->default(true);   // активен ли аккаунт? может он заблокирован?
             $table->timestamps();
             $table->softDeletes(); // Добавляем мягкое удаление
         });
