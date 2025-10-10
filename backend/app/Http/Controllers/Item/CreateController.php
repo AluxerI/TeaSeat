@@ -17,10 +17,10 @@ class CreateController extends Controller
             'message' => 'Form data for creating product',
             'fields' => [
                 'name' => 'required|string|max:255',
+                'ingredients' => 'nullable|string',
                 'description' => 'required|string',
                 'price' => 'required|numeric|min:0',
                 'weight_grams' => 'required|integer|min:0',
-                'ingredients' => 'nullable|string',
                 'brand_id' => 'nullable|exists:brands,id',
                 'sub_subcategory_ids' => 'array|exists:sub_subcategories,id'
             ]

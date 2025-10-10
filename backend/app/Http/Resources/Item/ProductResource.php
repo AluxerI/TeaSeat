@@ -19,6 +19,7 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'ingredients' => $this->ingredients,
             'description' => $this->description,
+            'image' => $this->image,
             'price' => $this->price,
             'pricing' => $priceData,
             'weight_grams' => $this->weight_grams,
@@ -27,8 +28,9 @@ class ProductResource extends JsonResource
             'inventory' => $this->getInventoryData(),
             'total_quantity' => $this->inventories->sum('quantity'),
             'is_available' => $this->inventories->sum('quantity') > 0,
+            'sold_count' => $this->sold_count,
             'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            'updated_at' => $this->updated_at, 
         ];
     }
 

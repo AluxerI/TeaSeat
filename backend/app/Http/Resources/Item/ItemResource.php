@@ -18,6 +18,7 @@ class ItemResource extends JsonResource
             'name' => $this->name,
             'ingredients' => $this->ingredients,
             'description' => $this->description,
+            'image' => $this->image,            
             'weight_grams' => $this->weight_grams,
             
             // Цены и скидки
@@ -37,6 +38,11 @@ class ItemResource extends JsonResource
             // Акции и скидки
             'promotions' => $this->getPromotionsData(),
             'available_discounts' => $this->getDiscountsData(),
+            'category_path' => $this->getCategoryPath(),
+            'is_available' => $this->inventories->sum('quantity') > 0,
+            'sold_count' => $this->sold_count,
+            'created_at' => $this->created_at,
+            'updated_at' => $this->updated_at,
         ];
     }
 
