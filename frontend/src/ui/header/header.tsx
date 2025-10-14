@@ -1,6 +1,6 @@
 //scss
 import Images from '../../utils/Images';
-import './../../scss/main.scss';
+import '../../../scss/main.scss';
 
 //files
 
