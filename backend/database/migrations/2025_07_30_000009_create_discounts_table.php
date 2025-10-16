@@ -6,22 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+    public function up()
     {
         Schema::create('discounts', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Например, "Летняя распродажа"
-            $table->string('code')->unique(); // Промокод (например, "SUMMER20")
-            $table->enum('type', ['percentage', 'fixed']); // Тип скидки (% или фикс. сумма)
-            $table->decimal('value', 10, 2); // Размер скидки (20% или 100 руб.)
-            $table->boolean('is_global')->default(false); 
-            $table->dateTime('start_at');
-            $table->dateTime('end_at');
+            
+            // Параметры скидки (совместимо с вашим сервисом)
+            $table->string('name');
+            $table->decimal('value', 5, 2); // Процент скидки
+            $table->boolean('is_global')->default(false);
             $table->boolean('is_active')->default(true);
-            $table->timestamps();
+            $table->timestamp('start_at')->nullable();
+            $table->timestamp('end_at')->nullable();
+            
+            // Тип скидки
+            $table->enum('type', [
+                'personal', 
+                'first_order', 
+                'loyalty', 
+                'referral'
+            ])->default('personal');
+            
+            // Дополнительные параметры
+            $table->decimal('min_order_amount', 10, 2)->nullable();
+            $table->integer('usage_limit')->default(1);
         });
     }
 

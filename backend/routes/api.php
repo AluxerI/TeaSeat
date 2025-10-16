@@ -47,24 +47,34 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout-all', [LogoutFromAllDevicesController::class, '__invoke']);
     Route::get('/auth/sessions', [SessionController::class, '__invoke']);
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
+    Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
+    
+    // Корзина
+    Route::group(['prefix' => 'cart', 'middleware' => 'auth:sanctum', 'namespace' => 'App\Http\Controllers\Cart'], function () {
+        Route::get('/', 'IndexController') -> name('cart.index');
+        Route::post('/add', 'AddController') -> name('cart.add');
+        Route::put('/update/{itemId}', 'UpdateItemController') -> name('cart.update');
+        Route::delete('/remove/{itemId}', 'RemoveItemController') -> name('cart.remove');
+        Route::delete('/clear', 'ClearCartController');
+    });
 });
 
 // Управление пользователями (только для админов)
 Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
-Route::get('/users', 'IndexController') -> name('user.index')
-    ->middleware(['auth:sanctum', 'permission:view users']);
-    
-Route::get('/users/{user}', 'ShowController') -> name('user.show')
-    ->middleware(['auth:sanctum', 'permission:view users']);
-        
-Route::put('/users/{user}', 'UpdateController') -> name('user.update')
-    ->middleware(['auth:sanctum', 'permission:manage users']);
+    Route::get('/users', 'IndexController') -> name('user.index')
+        ->middleware(['auth:sanctum', 'permission:view users']);
 
-Route::put('/users/{user}/roles', 'UpdateRolesController') -> name('user.updateroles')
-    ->middleware(['auth:sanctum', 'permission:manage users']);
+    Route::get('/users/{user}', 'ShowController') -> name('user.show')
+        ->middleware(['auth:sanctum', 'permission:view users']);
 
-Route::delete('/users-delete/{user}', 'DeleteUserController') -> name('user.delete')
-    ->middleware(['auth:sanctum', 'can:delete users']);
+    Route::put('/users/{user}', 'UpdateController') -> name('user.update')
+        ->middleware(['auth:sanctum', 'permission:manage users']);
+
+    Route::put('/users/{user}/roles', 'UpdateRolesController') -> name('user.updateroles')
+        ->middleware(['auth:sanctum', 'permission:manage users']);
+
+    Route::delete('/users-delete/{user}', 'DeleteUserController') -> name('user.delete')
+        ->middleware(['auth:sanctum', 'can:delete users']);
 });
 
 Route::group([

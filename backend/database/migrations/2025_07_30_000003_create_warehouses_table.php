@@ -14,7 +14,9 @@ return new class extends Migration
         Schema::create('warehouses', function (Blueprint $table) {
             $table->id();
             $table->string('name'); // Например, "Основной склад", "Склад №2"
-            $table->string('location')->nullable(); // Адрес или город
+            $table->string('city')->nullable();
+            $table->string('location')->nullable(); // Адрес
+            $table->boolean('is_active')->default(true);            
             $table->timestamps();
         });
     }

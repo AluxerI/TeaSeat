@@ -1,9 +1,10 @@
 <?php
 
-namespace App\Services; 
+namespace App\Services;
 
 use App\Models\Product;
 use App\Models\User;
+use App\Models\Promotion;
 use Illuminate\Support\Facades\Auth;
 
 class PriceCalculatorService
@@ -13,11 +14,11 @@ class PriceCalculatorService
         $user = $user ?? Auth::user();
         $basePrice = $product->price;
         
-        // Максимальная акция на товар
+        // Акции на товар (из promotions)
         $promotionDiscount = $this->getMaxPromotionDiscount($product);
         $priceWithPromotions = $this->applyDiscount($basePrice, $promotionDiscount);
         
-        // Персональная скидка пользователя (если есть)
+        // Персональная скидка пользователя (из discounts)
         $personalDiscount = $user ? $this->getPersonalDiscount($user, $product) : 0;
         $finalPrice = $this->applyDiscount($priceWithPromotions, $personalDiscount);
         
@@ -31,25 +32,63 @@ class PriceCalculatorService
         ];
     }
     
-    protected function getMaxPromotionDiscount(Product $product)
+  protected function getMaxPromotionDiscount(Product $product)
     {
-        return $product->promotions()
+        return Promotion::whereHas('products', function($query) use ($product) {
+                $query->where('product_id', $product->id);
+            })
             ->where('is_active', true)
-            ->where('start_date', '<=', now())
-            ->where('end_date', '>=', now())
+            ->where('type', 'product')
+            ->where(function($query) {
+                $query->whereNull('start_date')
+                      ->orWhere('start_date', '<=', now());
+            })
+            ->where(function($query) {
+                $query->whereNull('end_date')
+                      ->orWhere('end_date', '>=', now());
+            })
             ->max('discount_percent') ?? 0;
     }
     
-    protected function getPersonalDiscount(User $user, Product $product)
+   protected function getPersonalDiscount(User $user, Product $product)
     {
-        return $user->discounts()
-            ->where('is_active', true)
-            ->where('start_at', '<=', now())
-            ->where('end_at', '>=', now())
-            ->whereHas('products', function($query) use ($product) {
-                $query->where('product_id', $product->id);
-            })
-            ->value('value') ?? 0;
+        $activeDiscounts = $user->activeDiscounts()->get();
+        
+        $applicableDiscounts = $activeDiscounts->filter(function ($discount) use ($product) {
+            return $discount->appliesToProduct($product);
+        });
+        
+        if ($applicableDiscounts->isEmpty()) {
+            return 0;
+        }
+
+        // Возвращаем максимальную доступную скидку
+        return $applicableDiscounts->max('value') ?? 0;
+    }
+
+    /**
+     * Получить скидки пользователя для конкретного товара
+     */
+    public function getProductDiscounts(User $user, Product $product)
+    {
+        $discounts = $this->getUserDiscounts($user);
+        
+        return $discounts->filter(function ($discount) use ($product) {
+            return $discount->appliesToProduct($product);
+        });
+    }
+
+    /**
+     * Получить все активные скидки пользователя
+     */
+    public function getUserDiscounts(User $user)
+    {
+        return $user->activeDiscounts()
+            ->with(['products' => function($query) {
+                // Загружаем товары только для не-глобальных скидок
+                $query->where('is_global', false);
+            }])
+            ->get();
     }
     
     protected function applyDiscount($price, $discount)
