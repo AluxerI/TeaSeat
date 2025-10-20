@@ -13,6 +13,9 @@ use App\Http\Controllers\User\ShowCurrentUserController;
 use App\Http\Controllers\Auth\DeleteAccountController;
 use App\Http\Controllers\Auth\LogoutFromAllDevicesController;
 use App\Http\Controllers\Auth\SessionController;
+use App\Http\Controllers\cart\CheckoutController;
+use App\Http\Controllers\Order\Admin\AdminOrderActionController;
+use App\Http\Controllers\Order\Admin\AdminOrderController;
 
 
 Route::prefix('auth')->group(function () {
@@ -47,24 +50,76 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout-all', [LogoutFromAllDevicesController::class, '__invoke']);
     Route::get('/auth/sessions', [SessionController::class, '__invoke']);
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
+    Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
+
+    //Адреса
+    Route::group(['prefix' => 'addresses',  'namespace' => '\App\Http\Controllers\User\Address'], function () {
+    Route::get('/', action: 'IndexController')->name('address.index');
+    Route::post('/store', 'StoreController')->name('address.store');
+    });
+    
+    // Корзина
+    Route::group(['prefix' => 'cart',  'namespace' => 'App\Http\Controllers\Cart'], function () {
+        Route::get('/', 'IndexController') -> name('cart.index');
+        Route::post('/add', 'AddController') -> name('cart.add');
+        Route::put('/update/{itemId}', 'UpdateItemController') -> name('cart.update');
+        Route::delete('/remove/{itemId}', 'RemoveItemController') -> name('cart.remove');
+        Route::delete('/clear', 'ClearCartController');
+    });
+        // Оформление заказа
+    Route::prefix('checkout')->group(function () {
+        Route::post('/', [CheckoutController::class, '__invoke']);
+        Route::get('/delivery-methods/{addressId}', [CheckoutController::class, 'getDeliveryMethods']);
+    });
+    
+    // Управление заказами
+    Route::group(['prefix' => 'orders',  'namespace' => 'App\Http\Controllers\Order'], function () {
+        Route::get('/', 'IndexController') -> name('orders.index');
+        Route::get('/{order}', 'ShowController') -> name('orders.show');
+        Route::put('/{order}/cancel',  'CancelController')->name('cancel');
+    });
 });
 
 // Управление пользователями (только для админов)
 Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
-Route::get('/users', 'IndexController') -> name('user.index')
-    ->middleware(['auth:sanctum', 'permission:view users']);
+    Route::get('/users', 'IndexController') -> name('user.index')
+        ->middleware(['auth:sanctum', 'permission:view users']);
+
+    Route::get('/users/{user}', 'ShowController') -> name('user.show')
+        ->middleware(['auth:sanctum', 'permission:view users']);
+
+    Route::put('/users/{user}', 'UpdateController') -> name('user.update')
+        ->middleware(['auth:sanctum', 'permission:manage users']);
+
+    Route::put('/users/{user}/roles', 'UpdateRolesController') -> name('user.updateroles')
+        ->middleware(['auth:sanctum', 'permission:manage users']);
+
+    Route::delete('/users-delete/{user}', 'DeleteUserController') -> name('user.delete')
+        ->middleware(['auth:sanctum', 'can:delete users']);
+});
+
+//Управление заказов для менеджеров или админов
+Route::prefix('admin')->middleware(['auth:sanctum', 'permission:manage orders'])->group(function () {
     
-Route::get('/users/{user}', 'ShowController') -> name('user.show')
-    ->middleware(['auth:sanctum', 'permission:view users']);
+    // Управление заказами
+    Route::prefix('orders')->group(function () {
+        // Основные эндпоинты
+        Route::get('/', [AdminOrderController::class, 'index']);
+        Route::get('/stats', [AdminOrderController::class, 'stats']);
+        Route::get('/{order}', [AdminOrderController::class, 'show']);
+        Route::put('/{order}/status', [AdminOrderController::class, 'updateStatus']);
+        Route::put('/{order}/tracking', [AdminOrderController::class, 'updateTracking']);
+        Route::put('/{order}/internal-notes', [AdminOrderController::class, 'updateInternalNotes']);
         
-Route::put('/users/{user}', 'UpdateController') -> name('user.update')
-    ->middleware(['auth:sanctum', 'permission:manage users']);
-
-Route::put('/users/{user}/roles', 'UpdateRolesController') -> name('user.updateroles')
-    ->middleware(['auth:sanctum', 'permission:manage users']);
-
-Route::delete('/users-delete/{user}', 'DeleteUserController') -> name('user.delete')
-    ->middleware(['auth:sanctum', 'can:delete users']);
+        // Действия с заказами
+        Route::prefix('{order}')->group(function () {
+            Route::put('/cancel', [AdminOrderActionController::class, 'cancel']);
+            Route::put('/confirm', [AdminOrderActionController::class, 'confirm']);
+            Route::put('/ship', [AdminOrderActionController::class, 'markAsShipped']);
+            Route::put('/deliver', [AdminOrderActionController::class, 'markAsDelivered']);
+            Route::put('/delivery-method', [AdminOrderActionController::class, 'updateDeliveryMethod']);
+        });
+    });
 });
 
 Route::group([

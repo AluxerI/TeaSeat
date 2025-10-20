@@ -33,13 +33,27 @@ class Product extends Model
     {
         return $this->sub_subcategories->first();
     }
-     public function promotions()
+    public function promotions()
     {
         return $this->belongsToMany(Promotion::class, 'product_promotions');
     }
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_products');
+    }
+     public function scopeActive($query)
+    {
+        return $query->where('is_available', true);
+    }
+
+    /**
+     * Scope для товаров в наличии
+     */
+    public function scopeInStock($query)
+    {
+        return $query->whereHas('inventories', function($query) {
+            $query->where('quantity', '>', 0);
+        });
     }
 }
 
