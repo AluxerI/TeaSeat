@@ -23,7 +23,8 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
             RolePermissionSeeder::class,
             PromotionSeeder::class,
-            ProductPromotionSeeder::class
+            ProductPromotionSeeder::class,
+            DeliveryMethodSeeder::class
         ]);
     }
 }

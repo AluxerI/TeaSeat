@@ -43,10 +43,21 @@ return new class extends Migration
         $table->string('applied_promotion_code')->nullable(); // Примененный промокод
         
         // Информация о доставке
-        $table->string('shipping_method')->default('standard');
+        $table->foreignId('delivery_method_id')->nullable()->constrained('delivery_methods');
+        $table->enum('payment_method', ['cash', 'card', 'online'])->nullable();
         $table->string('tracking_number')->nullable();
         $table->text('customer_notes')->nullable();
         $table->text('internal_notes')->nullable();
+
+        //Заказ от склада на склад
+         $table->foreignId('parent_order_id')
+            ->nullable()
+            ->constrained('orders')
+            ->onDelete('cascade');
+
+        // Для поставщиков    
+        $table->foreignId('supplier_order_id')->nullable()->constrained('supplier_orders');
+        $table->boolean('is_supplier_order')->default(false);
         
         // Временные метки
         $table->timestamp('confirmed_at')->nullable();
