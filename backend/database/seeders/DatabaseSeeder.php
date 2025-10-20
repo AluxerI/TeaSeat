@@ -17,13 +17,14 @@ class DatabaseSeeder extends Seeder
         // ]);
         $this->call([
             // ProductSeeder::class,
-            // WarehouseSeeder::class,
+            WarehouseSeeder::class,
             CategoriesSeeder::class,
             InventorySeeder::class,
             ProductSeeder::class,
             RolePermissionSeeder::class,
             PromotionSeeder::class,
-            ProductPromotionSeeder::class
+            ProductPromotionSeeder::class,
+            DeliveryMethodSeeder::class
         ]);
     }
 }
