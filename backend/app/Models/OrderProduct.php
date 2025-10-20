@@ -14,9 +14,9 @@ class OrderProduct extends Model
         'product_id',
         'quantity',
         'unit_price',
-        'promotion_discount_percent',
-        'personal_discount_percent',
-        'final_unit_price',
+        'promotion_discount_percent',  //  ??
+        'personal_discount_percent',   // ??
+        'final_unit_price',            //  ??
         'total_price'
     ];
 
