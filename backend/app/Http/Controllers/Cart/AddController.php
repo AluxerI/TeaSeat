@@ -26,7 +26,8 @@ class AddController extends Controller
         $request->validate([
             'product_id' => 'required|exists:products,id',
             'quantity' => 'required|integer|min:1|max:100',
-            'city' => 'nullable|string' 
+            'city' => 'nullable|string',
+            'is_supplier_order' => 'boolean' 
         ]);
 
         try {
@@ -35,7 +36,8 @@ class AddController extends Controller
                 $userId,
                 $request->product_id,
                 $request->quantity,
-                $request->city 
+                $request->city ,
+                $request->boolean('is_supplier_order')
             );
 
             return new CartResource($cart);
