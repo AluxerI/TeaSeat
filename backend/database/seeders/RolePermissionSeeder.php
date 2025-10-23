@@ -26,7 +26,8 @@ class RolePermissionSeeder extends Seeder
             'edit users',
             'delete users',
             'manage users',
-            'manage settings'
+            'manage settings',
+            'manage orders'
         ];
 
         foreach ($permissions as $permission) {
@@ -47,7 +48,8 @@ class RolePermissionSeeder extends Seeder
             'create products',
             'edit products',
             'view orders',
-            'edit orders'
+            'edit orders',
+            'manage orders'
         ]);
 
         // Назначение прав покупателю
