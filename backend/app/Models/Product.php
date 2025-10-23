@@ -45,14 +45,63 @@ class Product extends Model
     {
         return $query->where('is_available', true);
     }
+     /**
+     * Связь с поставщиками
+     */
+        public function suppliers()
+    {
+        return $this->belongsToMany(Supplier::class, 'product_supplier')
+            ->withPivot(['cost_price', 'lead_time_days', 'min_order_quantity', 'is_active'])
+            ->where('product_supplier.is_active', true) // ← ЯВНО указываем таблицу pivot
+            ->where('suppliers.is_active', true) // ← ЯВНО указываем таблицу suppliers
+            ->withTimestamps();
+    }
 
     /**
-     * Scope для товаров в наличии
+     * Активные поставщики (alias для удобства)
+     */
+    public function activeSuppliers()
+    {
+        return $this->suppliers();
+    }
+
+    /**
+     * Scope для товаров в наличии (на складах)
      */
     public function scopeInStock($query)
     {
         return $query->whereHas('inventories', function($query) {
             $query->where('quantity', '>', 0);
+        });
+    }
+
+    /**
+     * Scope для товаров доступных у поставщиков
+     */
+    public function scopeAvailableFromSuppliers($query)
+    {
+        return $query->whereHas('suppliers', function($query) {
+            $query->where('product_supplier.is_active', true)
+                  ->where('suppliers.is_active', true);
+        });
+    }
+
+    /**
+     * Scope для товаров доступных в городе (склады + поставщики)
+     */
+    public function scopeAvailableInCity($query, string $city)
+    {
+        return $query->where(function($q) use ($city) {
+            // Товары на складах в городе
+            $q->whereHas('inventories.warehouse', function($query) use ($city) {
+                $query->where('city', $city)
+                      ->where('quantity', '>', 0);
+            })
+            // ИЛИ товары у поставщиков
+            ->orWhereHas('suppliers', function($query) {
+                $query->where('product_supplier.is_active', true)
+                      ->where('suppliers.is_active', true);
+            });
         });
     }
 }

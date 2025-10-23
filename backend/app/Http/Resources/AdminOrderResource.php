@@ -10,9 +10,9 @@ class AdminOrderResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'order_number' => $this->generateOrderNumber(),
+            'order_number' => $this->order_number,
             'status' => $this->status,
-            'status_name' => $this->getStatusName(),
+            'status_name' => $this->status_name,
             'order_type' => $this->is_supplier_order ? 'supplier' : 'regular',
             'order_type_name' => $this->is_supplier_order ? 'Заказ у поставщика' : 'Обычный заказ',
             
@@ -81,7 +81,7 @@ class AdminOrderResource extends JsonResource
             // Заказ у поставщика
             'supplier_order' => $this->when($this->is_supplier_order && $this->relationLoaded('supplierOrder'), function() {
                 return [
-                    'supplier' => $this->supplierOrder->supplier->supplier_name ?? 'Не указан',
+                    'supplier' => $this->supplierOrder->supplier->name ?? 'Не указан',
                     'scheduled_date' => $this->supplierOrder->scheduled_date ?? null,
                     'status' => $this->supplierOrder->status ?? null,
                 ];

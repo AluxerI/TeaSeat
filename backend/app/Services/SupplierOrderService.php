@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use App\Models\SupplierOrder;
-use App\Models\Warehouse;
+use App\Models\Supplier;
 use App\Models\SupplierOrderItem;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +13,7 @@ class SupplierOrderService
     /**
      * Найти или создать активный заказ поставщика
      */
-    public function getOrCreateActiveOrder(Warehouse $supplier): SupplierOrder
+    public function getOrCreateActiveOrder(Supplier $supplier): SupplierOrder
     {
         return DB::transaction(function () use ($supplier) {
             // Ищем активный заказ

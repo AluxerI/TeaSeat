@@ -2,13 +2,175 @@
 
 namespace App\Services;
 
-use App\Models\Warehouse;
 use App\Models\Product;
+use App\Models\Warehouse;
+use App\Models\Supplier;
 use Illuminate\Support\Facades\Cache;
-
+use Illuminate\Pagination\LengthAwarePaginator;
 
 class LocationService
 {
+    /**
+     * Получить товары доступные в конкретном городе
+     */
+    public function getProductsAvailableInCity(string $city, array $filters = [])
+    {         
+        $query = Product::with([
+            'brand', 
+            'sub_subcategories.subcategory.category',
+            'promotions', 
+            'inventories.warehouse',
+            'suppliers'
+        ]);
+
+        // 🎯 ФИЛЬТРАЦИЯ ПО ТИПУ ДОСТУПНОСТИ
+        if (!empty($filters['availability'])) {
+            if ($filters['availability'] === 'local') {
+                // Только товары на локальных складах
+                $warehouseIds = $this->getWarehouseIdsInCity($city);
+                $query->whereHas('inventories', function($query) use ($warehouseIds) {
+                    $query->whereIn('warehouse_id', $warehouseIds)
+                          ->where('quantity', '>', 0);
+                });
+            } elseif ($filters['availability'] === 'supplier') {
+                // Только товары у поставщиков
+                $query->whereHas('suppliers', function($query) {
+                    $query->where('product_supplier.is_active', true)
+                          ->where('suppliers.is_active', true);
+                });
+            }
+        } else {
+            // По умолчанию - все доступные товары
+            $warehouseIds = $this->getWarehouseIdsInCity($city);
+            $query->where(function($q) use ($warehouseIds) {
+                $q->whereHas('inventories', function($query) use ($warehouseIds) {
+                    $query->whereIn('warehouse_id', $warehouseIds)
+                          ->where('quantity', '>', 0);
+                })->orWhereHas('suppliers', function($query) {
+                    $query->where('product_supplier.is_active', true)
+                          ->where('suppliers.is_active', true);
+                });
+            });
+        }
+        
+        // СТАНДАРТНЫЕ ФИЛЬТРЫ
+        if (!empty($filters['category_id'])) {
+            $query->whereHas('sub_subcategories.subcategory.category', function($q) use ($filters) {
+                $q->where('id', $filters['category_id']);
+            });
+        }
+    
+        if (!empty($filters['brand_id'])) {
+            $query->where('brand_id', $filters['brand_id']);
+        }
+    
+        if (!empty($filters['search'])) {
+            $query->where('name', 'like', "%{$filters['search']}%");
+        }
+    
+        // ЛОГИКА ПАГИНАЦИИ
+        $totalProducts = $query->count();
+        $paginationThreshold = 1000;
+        
+        if ($totalProducts >= $paginationThreshold) {
+            $products = $query->paginate($filters['per_page'] ?? 24);
+            return $products;
+        } else {
+            $products = $query->get();
+            return $products;
+        }
+    }
+
+    /**
+     * Получить обогащенные продукты с информацией о доступности
+     */
+    public function getEnrichedProductsInCity(string $city, array $filters = [])
+    {
+        $products = $this->getProductsAvailableInCity($city, $filters);
+        
+        // Если это пагинация
+        if ($products instanceof LengthAwarePaginator) {
+            $products->getCollection()->transform(function($product) use ($city) {
+                return $this->enrichProductWithAvailability($product, $city);
+            });
+            return $products;
+        }
+        
+        // Если это коллекция
+        return $products->map(function($product) use ($city) {
+            return $this->enrichProductWithAvailability($product, $city);
+        });
+    }
+
+    /**
+     * Обогатить продукт информацией о доступности
+     */
+    public function enrichProductWithAvailability(Product $product, string $city): array
+    {
+        // 1. Наличие на складах (физическое)
+        $warehouseIds = $this->getWarehouseIdsInCity($city);
+        $localQuantity = $product->inventories()
+            ->whereIn('warehouse_id', $warehouseIds)
+            ->sum('quantity');
+        $isLocallyAvailable = $localQuantity > 0;
+
+        // 2. Наличие у поставщиков (виртуальное)
+        $suppliers = $product->suppliers;
+        $isSupplierAvailable = $suppliers->isNotEmpty();
+        $bestSupplier = $suppliers->sortBy('pivot.lead_time_days')->first();
+
+        return [
+            'product' => $product, // ← сохраняем оригинальную модель Product
+            'availability' => [
+                'is_available_locally' => $isLocallyAvailable,
+                'local_quantity' => $localQuantity,
+
+                'is_available_from_supplier' => $isSupplierAvailable,
+                'supplier_info' => $bestSupplier ? [
+                    'supplier_id' => $bestSupplier->id,
+                    'supplier_name' => $bestSupplier->name,
+                    'lead_time_days' => $bestSupplier->pivot->lead_time_days,
+                    'min_order_quantity' => $bestSupplier->pivot->min_order_quantity,
+                    'estimated_delivery' => $bestSupplier->pivot->lead_time_days . ' дней',
+                    'cost_price' => $bestSupplier->pivot->cost_price
+                ] : null,
+                
+                'is_available' => $isLocallyAvailable || $isSupplierAvailable,
+                'availability_type' => $isLocallyAvailable ? 'local' : ($isSupplierAvailable ? 'supplier' : 'none'),
+                'availability_description' => $this->getAvailabilityDescription($isLocallyAvailable, $isSupplierAvailable, $localQuantity, $bestSupplier),
+                'delivery_timeline' => $isLocallyAvailable ? '1-3 дня' : ($bestSupplier ? $bestSupplier->pivot->lead_time_days . ' дней' : 'недоступен')
+            ]
+        ];
+    }
+
+    /**
+     * Получить описание доступности
+     */
+    private function getAvailabilityDescription(bool $local, bool $supplier, int $localQty, ?Supplier $bestSupplier): string
+    {
+        if ($local) {
+            return "В наличии: {$localQty} шт.";
+        }
+
+        if ($supplier && $bestSupplier) {
+            $days = $bestSupplier->pivot->lead_time_days;
+            return "Под заказ ({$days} дней)";
+        }
+
+        return "Нет в наличии";
+    }
+
+    /**
+     * Получить ID складов в городе
+     */
+    private function getWarehouseIdsInCity(string $city): array
+    {
+        return Warehouse::where('city', $city)
+            ->active()
+            ->pluck('id')
+            ->toArray();
+    }
+
     /**
      * Получить все доступные города со складами
      */
@@ -24,63 +186,7 @@ class LocationService
     }
 
     /**
-     * Получить ID складов в указанном городе
-     */
-    public function getWarehouseIdsInCity(string $city): array
-    {
-        return Cache::remember("warehouses_in_city_{$city}", 3600, function () use ($city) {
-            return Warehouse::where('city', $city)
-                ->active()
-                ->pluck('id')
-                ->toArray();
-        });
-    }
-
-    /**
-     * Получить товары доступные в конкретном городе
-     */
-    public function getProductsAvailableInCity(string $city, array $filters = [])
-    {
-        $warehouseIds = $this->getWarehouseIdsInCity($city);
-    
-        $query = Product::with([
-                'brand', 
-                'sub_subcategories.subcategory.category',
-                'promotions', 
-                'inventories.warehouse'
-            ])
-            ->whereHas('inventories', function($query) use ($warehouseIds) {
-                $query->whereIn('warehouse_id', $warehouseIds)
-                      ->where('quantity', '>', 0);
-            });
-        
-        if (!empty($filters['category_id'])) {
-            $query->whereHas('sub_subcategories.subcategory.category', function($q) use ($filters) {
-                $q->where('id', $filters['category_id']);
-            });
-        }
-    
-        if (!empty($filters['brand_id'])) {
-            $query->where('brand_id', $filters['brand_id']);
-        }
-    
-        if (!empty($filters['search'])) {
-            $query->where('name', 'like', "%{$filters['search']}%");
-        }
-    
-        // Сохраняем твою логику пагинации по порогу
-        $totalProducts = $query->count();
-        $paginationThreshold = 1000;
-        
-        if ($totalProducts >= $paginationThreshold) {
-            return $query->paginate($filters['per_page'] ?? 24);
-        } else {
-            return $query->get();
-        }
-    }
-
-    /**
-     * Проверить доступность товара в городе
+     * Проверить доступность товара в городе (только локальные склады)
      */
     public function isProductAvailableInCity(Product $product, string $city): bool
     {
@@ -93,7 +199,7 @@ class LocationService
     }
 
     /**
-     * Получить общее количество товара в городе
+     * Получить общее количество товара в городе (только локальные склады)
      */
     public function getProductQuantityInCity(Product $product, string $city): int
     {
@@ -102,6 +208,26 @@ class LocationService
         return $product->inventories()
             ->whereIn('warehouse_id', $warehouseIds)
             ->sum('quantity');
-            
+    }
+
+    /**
+     * Проверить доступность товара у поставщиков
+     */
+    public function isProductAvailableFromSuppliers(Product $product): bool
+    {
+        return $product->suppliers()
+            ->where('is_active', true)
+            ->exists();
+    }
+
+    /**
+     * Получить лучшего поставщика для товара
+     */
+    public function getBestSupplierForProduct(Product $product): ?Supplier
+    {
+        return $product->suppliers()
+            ->where('is_active', true)
+            ->orderBy('pivot.lead_time_days')
+            ->first();
     }
 }

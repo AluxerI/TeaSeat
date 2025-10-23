@@ -34,7 +34,8 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'parent_order_id',
-        'supplier_order_id', 'is_supplier_order'
+        'supplier_order_id',  'supplier_order_id', // связь с консолидированным заказом
+        'is_supplier_order'
     ];
 
     protected $casts = [
@@ -133,6 +134,33 @@ class Order extends Model
     {
         return $this->belongsTo(Order::class, 'parent_order_id');
     }
+
+     /**
+     * Accessor для номера заказа
+     */
+    public function getOrderNumberAttribute(): string
+    {
+        return 'TE-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
+     * Accessor для названия статуса
+     */
+    public function getStatusNameAttribute(): string
+    {
+        $statuses = [
+            self::STATUS_CART => 'Корзина',
+            self::STATUS_PENDING => 'Ожидает подтверждения',
+            self::STATUS_CONFIRMED => 'Подтвержден',
+            self::STATUS_PROCESSING => 'Обрабатывается',
+            self::STATUS_SHIPPED => 'Отправлен',
+            self::STATUS_DELIVERED => 'Доставлен',
+            self::STATUS_CANCELLED => 'Отменен',
+        ];
+
+        return $statuses[$this->status] ?? 'Неизвестно';
+    }
+
 
     public function canBeCancelled(): bool
     {
