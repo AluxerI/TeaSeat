@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('supplier_orders', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('supplier_id')->constrained('warehouses');
+            $table->foreignId('supplier_id')->constrained();
             $table->date('scheduled_date');
             $table->date('delivery_date');
             $table->enum('status', ['consolidating', 'ordered', 'delivered'])->default('consolidating');

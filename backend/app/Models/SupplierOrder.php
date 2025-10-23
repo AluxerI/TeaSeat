@@ -33,7 +33,7 @@ class SupplierOrder extends Model
 
     public function supplier()
     {
-        return $this->belongsTo(Warehouse::class, 'supplier_id')->where('is_supplier', true);
+        return $this->belongsTo(Supplier::class);
     }
 
     public function customerOrders()

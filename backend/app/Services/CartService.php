@@ -39,33 +39,51 @@ class CartService
         ]);
     }
 
+    private function validateSupplierAvailability(Product $product, int $quantity): void
+    {
+        $suppliers = $product->activeSuppliers;
+        
+        if ($suppliers->isEmpty()) {
+            throw new \Exception("Этот товар недоступен для заказа у поставщиков");
+        }
+        
+        $supplier = $suppliers->first();
+        if ($quantity < $supplier->pivot->min_order_quantity) {
+            throw new \Exception("Минимальный заказ у поставщика: {$supplier->pivot->min_order_quantity} шт.");
+        }
+    }
+
+
     /**
      * Добавить товар в корзину
      */
-    public function addItem(int $userId, int $productId, int $quantity, ?string $city = null): Order
-    {
-        return DB::transaction(function () use ($userId, $productId, $quantity, $city) {
-            $cart = $this->getCart($userId);
-            $product = Product::with(['inventories.warehouse'])->findOrFail($productId);
+    public function addItem(int $userId, int $productId, int $quantity, ?string $city = null, bool $isSupplierOrder = false): Order
+{
+    return DB::transaction(function () use ($userId, $productId, $quantity, $city, $isSupplierOrder) {
+        $cart = $this->getCart($userId);
+        $product = Product::with(['inventories.warehouse'])->findOrFail($productId);
 
-            if ($city) {
-                $this->validateCityCompatibility($cart, $productId, $city);
-                $this->validateCityAvailability($productId, $city, $quantity);
-            }
+        if (!$isSupplierOrder && $city) {
+            $this->validateCityCompatibility($cart, $productId, $city);
+            $this->validateCityAvailability($productId, $city, $quantity);
+        }
 
+        // Для заказов у поставщика пропускаем проверку наличия
+        if (!$isSupplierOrder) {
             $this->validateGlobalAvailability($productId, $quantity);
+        }
 
-            $priceCalculation = $this->priceCalculator->calculateForProduct(
-                $product, 
-                User::find($userId)
-            );
-            
-            $this->upsertCartItem($cart, $product, $quantity, $priceCalculation);
-            $this->recalculateCart($cart);
+        $priceCalculation = $this->priceCalculator->calculateForProduct(
+            $product, 
+            User::find($userId)
+        );
+        
+        $this->upsertCartItem($cart, $product, $quantity, $priceCalculation);
+        $this->recalculateCart($cart);
 
-            return $cart->fresh(['items.product', 'items.product.promotions']);
-        });
-    }
+        return $cart->fresh(['items.product', 'items.product.promotions']);
+    });
+}
 
     /**
      * Обновить количество товара в корзине

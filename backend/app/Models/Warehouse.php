@@ -11,18 +11,10 @@ class Warehouse extends Model
 
      protected $fillable = [
         'name', 'city', 'location', 'is_active',
-        'is_supplier', 'supplier_name', 'supplier_contact',
-        'order_schedule', 'lead_time_days', 'min_order_quantity', 
-        'consolidation_period'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
-        'is_supplier' => 'boolean',
-        'order_schedule' => 'array',
-        'lead_time_days' => 'integer',
-        'min_order_quantity' => 'integer',
-        'consolidation_period' => 'integer'
     ];
 
     public function getNextOrderDate(): \Carbon\Carbon
@@ -60,14 +52,10 @@ class Warehouse extends Model
         return $query->where('is_supplier', true);
     }
 
-    /**
-     * Scope для обычных складов
-     */
-    public function scopeRegularWarehouses($query)
+    public function scopePhysicalWarehouses($query)
     {
         return $query->where('is_supplier', false);
     }
-
     /**
      * Scope для активных складов
      */
