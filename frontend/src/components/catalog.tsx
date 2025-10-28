@@ -1,5 +1,6 @@
-import React from "react"
+import React, { useEffect, useRef } from "react"
 import Images from "../utils/Images"
+import { useInterval, useSize } from "ahooks"
 
 export type typePic = 'svg' | 'jpeg' | 'png'
 type Picture = {
@@ -23,7 +24,7 @@ export const catalogItem: React.FC<catalogItemProp> = ({
     price
 }
 ) => {
-
+    
     const arrow_pic:Picture = {
         name:"arrow-left-buy",
         alt: "arrow-left-buy",
