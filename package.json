@@ -16,7 +16,9 @@
   },
   "dependencies": {
     "@material-ui/core": "^4.12.4",
+    "ahooks": "^3.9.5",
     "dotenv": "^17.2.2",
+    "react-grid-layout": "^1.5.2",
     "webpack": "^5.99.9"
   }
 }
