@@ -1,5 +1,5 @@
 
-import { PropTypes } from "@material-ui/core"
+import { GridClassKey, PropTypes } from "@material-ui/core"
 import { teaTypes } from "../types"
 import React, { JSX, useEffect, useRef } from "react";
 import { catalogItem } from "./catalog";
@@ -15,8 +15,16 @@ type MaxWidthType =
 
 type Direction = 'left'|'right'
 
-  interface GridProps<T>{
-    items:T[],
+interface GridItem<T>{
+  id:number,
+  data:T,
+  position?:{
+    row:number;
+    column:number;
+  };
+}
+interface GridProps<T>{
+    items: GridProps<T>[],
     cardWidth:number,
     cardHeight:number,
     gap:number,
@@ -29,6 +37,8 @@ type Direction = 'left'|'right'
 
 
     onClick?: (item:T,index:number) => void;
+    onItemsChange?: (items:GridItem<T>[]) => void;
+
 }
 
 const colSpanBuilder = (colSpan:number) => {
@@ -55,7 +65,8 @@ const Grid = <T,>(
 }:GridProps<T>
 ,
 position:number[]
-) =>{
+): React.ReactElement=>{
+  
   var colStart;
   var colEnd;
   if(Array.isArray(position)){
@@ -65,6 +76,7 @@ position:number[]
       colEnd = position[1] +1;
     }
   }
+  const containerSize = useSize(containerRef);
 
   const handleItemClick = (item:T,index:number):void => {
     onClick?.(item,index);
