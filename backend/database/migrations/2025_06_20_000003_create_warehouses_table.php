@@ -11,12 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('orders', function (Blueprint $table) {
+        Schema::create('warehouses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->decimal('total_amount', 12, 2);
-            $table->enum('status', ['cart','pending', 'processing', 'shipped', 'delivered', 'cancelled'])->default('cart');
-            $table->string('tracking_number')->nullable();
+            $table->string('name'); // Например, "Основной склад", "Склад №2"
+            $table->string('city')->nullable();
+            $table->string('location')->nullable(); // Адрес
+            $table->boolean('is_active')->default(true); 
             $table->timestamps();
         });
     }
@@ -26,6 +26,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('orders');
+        Schema::dropIfExists('warehouses');
     }
 };

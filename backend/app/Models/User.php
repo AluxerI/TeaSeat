@@ -17,7 +17,26 @@ class User extends Authenticatable implements MustVerifyEmail
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_users')
-            ->withPivot(['is_used', 'activated_at']);  // использована ли, когда активирована?
+            ->withPivot(['is_used', 'used_count', 'activated_at'])
+            ->withTimestamps();
+    }
+    public function activeDiscounts()
+    {
+        return $this->discounts()
+            ->where('discounts.is_active', true)
+            ->wherePivot('is_used', false)
+            ->where(function($query) {
+                $query->whereNull('discounts.start_at')
+                      ->orWhere('discounts.start_at', '<=', now());
+            })
+            ->where(function($query) {
+                $query->whereNull('discounts.end_at')
+                      ->orWhere('discounts.end_at', '>=', now());
+            });
+    }
+    public function usedDiscounts()
+    {
+        return $this->discounts()->wherePivot('is_used', true);
     }
     
     public function createTokenWithLimit($name = 'auth-token', $abilities = ['*'], $limit = 5)
@@ -94,13 +113,6 @@ class User extends Authenticatable implements MustVerifyEmail
         });
     }
 
-    /**
-     * Связь "один ко многим" с таблицей personal_access_tokens.
-     */
-    // public function tokens()
-    // {
-    //     return $this->hasMany(PersonalAccessToken::class);
-    // }
 
     /**
      * Связь "один ко многим" с таблицей сессий (если применимо).
@@ -109,5 +121,14 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         // Уточните имя модели и внешний ключ в соответствии с вашей структурой
         return $this->hasMany(Session::class, 'user_id'); 
+    }
+    public function cart()
+    {
+        return $this->hasOne(Order::class)->where('status', Order::STATUS_CART);
+    }
+
+    public function completedOrders()
+    {
+        return $this->hasMany(Order::class)->where('status', Order::STATUS_DELIVERED);
     }
 }
