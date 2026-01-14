@@ -185,3 +185,5 @@ export function useHttp<T>(config: UseHttpConfig<T>):UseHttpReturn<T>{
         }
     )
 }
+
+export{}
