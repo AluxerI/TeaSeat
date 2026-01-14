@@ -1,6 +1,6 @@
 
 
-
+/*
 const [activeItemIndex,setActiveItemIndex] = React.useState<number>(0);
   const [interval,setInterval] = React.useState<number|null>(timeInterval);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -36,3 +36,6 @@ const [activeItemIndex,setActiveItemIndex] = React.useState<number>(0);
       const currentDOM = containerRef.current?.children[activeItemIndex] as HTMLElement;
       if(containerSize?.height && currentDOM.offsetHeight)
     })
+      */
+
+      export{};

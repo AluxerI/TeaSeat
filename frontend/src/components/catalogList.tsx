@@ -6,7 +6,3 @@ interface catalogList{
     messendge:string,
     
 }
-const catalogList:React.FC<>=(catalogs:catalogItemProp[])=>{
-    
-    
-}

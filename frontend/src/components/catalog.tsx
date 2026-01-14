@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react"
 import Images from "../utils/Images"
-import { useInterval, useSize } from "ahooks"
+
 
 export type typePic = 'svg' | 'jpeg' | 'png'
 type Picture = {
@@ -75,3 +75,4 @@ export const catalogItem: React.FC<catalogItemProp> = ({
         </div>
     )
 }
+
