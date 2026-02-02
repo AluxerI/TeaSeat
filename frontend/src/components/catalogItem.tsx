@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Images from "../utils/Images";
+import zIndex from "@mui/material/styles/zIndex";
 
 export type typePic = 'svg' | 'jpeg' | 'png';
 
@@ -15,6 +16,7 @@ export interface CatalogItemProps {
   label: string;
   description: string;
   price: number;
+  filter_color?:string;
 }
 
 // Стили в виде констант CSSProperties
@@ -65,14 +67,16 @@ const styles = {
     margin: 0,
     padding: 0,
   },
-  
+  ////////
+  //
+  ////////
   image: {
     width: '100%',
     height: '100%',
     objectFit: 'cover' as const,
     transition: 'transform 0.3s ease',
     display: 'block',
-    backgroundColor:'rgba(76, 175, 80,0.3)',
+    
     margin: 0,
     padding: 0,
     border: 'none',
@@ -110,17 +114,19 @@ const styles = {
   labelText: {
     fontSize: '18px',
     fontWeight: 700,
-    color: '#2d3748',
+    color: '#ffffff',
     marginBottom: '8px',
     lineHeight: 1.3,
+    zIndex:2
   },
   
   description: {
-    color: '#718096',
+    color: '#ffffff',
     fontSize: '14px',
     lineHeight: 1.5,
     marginBottom: '20px',
     flexGrow: 1,
+    zIndex:2
   },
   
   priceContainer: {
@@ -129,14 +135,16 @@ const styles = {
     justifyContent: 'center',
     gap: '12px',
     marginTop: 'auto',
+    
   },
   
   price: {
     fontSize: '18px',
     fontWeight: 700,
-    color: '#2d3748',
+    color: '#ffffff',
     margin: 0,
     whiteSpace: 'nowrap' as const,
+    zIndex:2
   },
   
   arrowButton: {
@@ -161,7 +169,8 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
   picture_button,
   label,
   description,
-  price
+  price,
+  filter_color
 }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isImageHovered, setIsImageHovered] = useState(false);
@@ -172,6 +181,8 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
   const formatPrice = (price: number): string => {
     return price.toLocaleString('ru-RU');
   };
+
+  const new_style = {...styles.image,backgroundColor:filter_color}
 
   return (
     <div 
@@ -200,7 +211,7 @@ export const CatalogItem: React.FC<CatalogItemProps> = ({
             name={picture_part.name}
             type={picture_part.type}
             style={{
-              ...styles.image,
+              ...new_style,
               transform: isImageHovered ? 'scale(1.05)' : 'scale(1)',
             }}
           />
