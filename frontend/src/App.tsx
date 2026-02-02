@@ -4,6 +4,8 @@ import Header from './ui/header/header';
 import Footer  from './ui/footer/footer';
 import { Grid } from './components/Grid';
 import { CatalogItem, Picture } from './components/catalogItem';
+import { PageCatalog } from './pages/catalog';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
 
 interface Data {
   id: number;
@@ -17,25 +19,27 @@ interface ApiResponse {
   data: Data;
 }
 
-const picture_button_const: Picture = {name:"categories/details/img",alt:"image for details", type:'svg'}
-const picture_part_const: Picture = {name:"categories/tea_back",alt:"picture of background",type:"svg"}
+
 
 const App: React.FC = () => {
     
   
-
+  
   return (
     <>
-      <Header />
-      
-      <Footer />
-
-
-      <Grid>
-          <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
-
+      <BrowserRouter>
+        <Routes>
+          <Route path='catalog' Component={PageCatalog}/>
           
-      </Grid>
+          {/**
+          <Grid>
+              <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
+          
+              
+          </Grid>
+           */}
+        </Routes>
+      </BrowserRouter>
     </>
   );
 };

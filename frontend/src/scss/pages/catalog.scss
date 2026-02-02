@@ -1,0 +1,25 @@
+*{
+    color:#FEFAEF;
+}
+.location-descrip{
+    @include typography($body,300);
+    @include flex-centre();
+    color: #401F18;
+
+
+    $check:  _num-to-hex(51);
+    color: unquote(#401F18+"#{$check}");
+}
+
+.lines_and_names_shop{
+    @include flex-centre();
+}
+.line{
+  width:20%;
+  border: 1px solid #401F18;
+}
+
+.names{
+    @include typography($h3,400);
+    color: #401F18;
+}
