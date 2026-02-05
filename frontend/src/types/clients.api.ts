@@ -20,7 +20,7 @@ export interface User{
     updated_at:Date
 }
 
-export interface Item{
+export interface Product{
     id:number,
     name:string,
     description:string,
@@ -30,3 +30,16 @@ export interface Item{
     updated_at:Date
 }
 
+export interface Responce<T>{
+    data:T[],
+}
+
+export interface ProductFilters {
+    category_id?:number,
+    min_price?: number;
+    max_price?: number;
+    in_stock?: boolean;
+    sort_by?: 'name' | 'price' | 'created_at';
+    sort_order?: 'asc' | 'desc';
+
+}
