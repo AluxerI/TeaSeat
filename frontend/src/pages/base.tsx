@@ -7,7 +7,7 @@ import Images from "../utils/Images";
 
 
 
-export const PageCatalog = ()=>{
+export const PageBase = ()=>{
 
     const pictureButtonTeaConst: Picture = {name:"pages/catalog/details/tea",alt:"image for details", type:'svg'}
     const pictureButtonCoffeConst: Picture = {name:"pages/catalog/details/coffe",alt:"image for details", type:'svg'}
@@ -76,6 +76,7 @@ export const PageCatalog = ()=>{
                     <h6 className="guarantee-title">Гарантия качества</h6>
                     <p className="guarantee-descripe">Только оригинальные продукты от проверенных поставщиков</p>
                 </div>
+                
                 <div className="third-achiv">
                     <Images name="pages/catalog/achivment/gift" alt="beautiful packaging" type="svg"/>
                     <h6 className="packaging-title">Красивая упаковка</h6>
