@@ -1,5 +1,5 @@
 import { UseHttpConfig } from "../hooks/useHttp"
-import { Product, User } from "../types/clients.api"
+import { Item, User } from "../interfaces/clients.api"
 
 export const configUser: UseHttpConfig<User> = {
     url: '/user',
@@ -9,7 +9,7 @@ export const configUser: UseHttpConfig<User> = {
     onError:(error)=>{console.log(`Ошибка загрузки пользователя ${error.name} статус: ${error.status},(${error.statusText}). ${error.message}`)}
 }
 
-export const configItem:UseHttpConfig<Product>={
+export const configItem:UseHttpConfig<Item>={
     url:'/item',
     method:'GET',
     autoExecute:true,

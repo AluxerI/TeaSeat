@@ -10,6 +10,7 @@
     
     $check:  _num-to-hex(51);
     color: unquote(#401F18+"#{$check}");
+    margin-top: 10vh;
 }
 
 
@@ -30,6 +31,7 @@
     background-color: #FFFAEC;
     display: flex;
   flex-direction: column;
+  gap:5vh;
 }
 .grid-catalog{
     margin-bottom: 10vh;
@@ -40,7 +42,7 @@
     background-color: white;
     width: 80vw;
     align-self: anchor-center;
-    border: 5px;
+    border-radius: 16px;
     margin-bottom: 10vh;
     h6{
         @include typography(body,600);
@@ -68,4 +70,5 @@
     }
     
     height: 200px;
+    box-shadow: 0px 8px 3px -1px rgba(196, 187, 187, 0.6);
 }
