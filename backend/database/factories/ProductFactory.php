@@ -6,6 +6,7 @@ use App\Models\Brand;
 use App\Models\Product;
 use App\Models\Sub_subcategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use App\Models\ProductImage;
 
 /**
  * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Product>
@@ -18,7 +19,6 @@ class ProductFactory extends Factory
             'name' => $this->faker->unique()->words(3, true), // "Элитный Зеленый Чай"
             'ingredients' => $this->faker->unique()->words(15, true),
             'description' => $this->faker->paragraph(),
-            'image' => $this->faker->imageUrl(),
             'brand_id' => Brand::factory(), // Связь с брендом
             'price' => $this->faker->numberBetween(100, 5000), // Случайная цена (100-5000 руб.)
             'weight_grams' => $this->faker->numberBetween(50, 1000), // Вес в граммах
