@@ -1,5 +1,5 @@
 
-interface Catalog{
+export interface Category{
     id:number;
     name:string;
     subcategories:{
@@ -13,7 +13,7 @@ interface Catalog{
         }[]
     }[]
 }
-interface Product{
+export interface Product{
     id:number;
     name:string;
     ingredients:string;
@@ -46,4 +46,13 @@ interface Product{
     sold_count:number;
     created_at:string;
     update_at:string
+}
+export interface Meta{
+    total_products:number;
+    has_pagination:boolean;
+}
+export interface Catalog{
+    categories:Category[];
+    products:Product[];
+    meta:Meta;
 }
