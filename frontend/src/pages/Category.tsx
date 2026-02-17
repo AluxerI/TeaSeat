@@ -4,10 +4,12 @@ import Header from "../ui/header/header"
 import { useLocation } from 'react-router-dom';
 import { CatalogItem, Picture } from "../components/catalogItem";
 import Images from "../utils/Images";
+import { catalogApi } from "../api/catalogAPI";
+import { useAsync } from "../hooks/useAsync";
 
 
 
-export const PageBase = ()=>{
+export const PageCategory = ()=>{
 
     const pictureButtonTeaConst: Picture = {name:"pages/catalog/details/tea",alt:"image for details", type:'svg'}
     const pictureButtonCoffeConst: Picture = {name:"pages/catalog/details/coffe",alt:"image for details", type:'svg'}
@@ -23,14 +25,21 @@ export const PageBase = ()=>{
     
 
     const location = useLocation()
+    const catalog_Api = catalogApi;
+    const hookCategory = useAsync(()=>catalog_Api.getCategory(),true); 
+    const listCateggory = []
+    if(hookCategory.data)
+    for(const item of hookCategory.data){
+        listCateggory.push(`<CatalogItem description=${item.id} label=${item.name}`)
+    }
 
     return(
         <>
         <Header/>
 
         <div className="body-page">
-            {location.pathname==="/catalog"&&<p className="location-descrip">
-                Главная/Каталог
+            {location.pathname==="/category"&&<p className="location-descrip">
+                Главная/Категории
             </p>
             }
 
@@ -50,8 +59,10 @@ export const PageBase = ()=>{
             direction="row"
             justifyContent="center"
             alignItems="center"
-            className = "grid-catalog"
+            className = "grid-category"
             >
+                
+                
                 <CatalogItem description='Премиальные чаи из Китая и Японии' label='Чайный набор' picture_button={pictureButtonTeaConst} 
                 picture_part={picturePartTeaConst} price={20} filter_color="rgba(76, 175, 80,0.8)"/>
 
