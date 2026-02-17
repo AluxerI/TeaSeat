@@ -104,5 +104,92 @@ class Product extends Model
             });
         });
     }
+
+     /**
+     * Связь с изображениями
+     */
+   public function images()
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    /**
+     * Получить главное изображение
+     */
+    public function mainImage()
+    {
+        return $this->images()->where('is_main', true)->first();
+    }
+
+    /**
+     * Получить фоновое изображение
+     */
+    public function backgroundImage()
+    {
+        return $this->images()->where('is_background', true)->first();
+    }
+
+    /**
+     * Получить все изображения галереи
+     */
+    public function galleryImages()
+    {
+        return $this->images()
+            ->where('is_main', false)
+            ->where('is_background', false)
+            ->orderBy('sort_order');
+    }
+
+    /**
+     * Получить URL главного изображения
+     */
+    public function getMainImageUrlAttribute(): string
+    {
+        $mainImage = $this->mainImage();
+        return $mainImage ? $mainImage->url : '/images/default-product.jpg';
+    }
+
+    /**
+     * Получить URL фонового изображения
+     */
+    public function getBackgroundImageUrlAttribute(): string
+    {
+        $backgroundImage = $this->backgroundImage();
+        return $backgroundImage ? $backgroundImage->url : '/images/default-background.jpg';
+    }
+
+    /**
+     * Получить все URL изображений для галереи
+     */
+    public function getGalleryUrlsAttribute(): array
+    {
+        return $this->galleryImages->map(fn($img) => [
+            'url' => $img->url,
+            'alt' => $img->alt,
+            'title' => $img->title,
+            'sort_order' => $img->sort_order,
+        ])->values()->toArray();
+    }
+
+    /**
+     * Получить структурированные данные всех изображений
+     */
+    public function getImagesDataAttribute(): array
+    {
+        return [
+            'main' => $this->main_image_url,
+            'background' => $this->background_image_url,
+            'gallery' => $this->gallery_urls,
+            'all' => $this->images->map(fn($img) => [
+                'id' => $img->id,
+                'url' => $img->url,
+                'is_main' => $img->is_main,
+                'is_background' => $img->is_background,
+                'alt' => $img->alt,
+                'title' => $img->title,
+                'sort_order' => $img->sort_order,
+            ]),
+        ];
+    }
 }
 

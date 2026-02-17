@@ -19,7 +19,8 @@ class DatabaseSeeder extends Seeder
             SupplierSeeder::class,
             ProductSupplierSeeder::class,
             ProductPromotionSeeder::class,
-            DeliveryMethodSeeder::class
+            DeliveryMethodSeeder::class,
+            ProductImageSeeder::class
         ]);
     }
 }
