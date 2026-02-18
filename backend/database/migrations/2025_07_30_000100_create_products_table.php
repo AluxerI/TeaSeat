@@ -16,8 +16,7 @@ return new class extends Migration
             $table->string('name');
             $table->text('ingredients')->nullable();
             $table->text('description')->nullable();
-            $table->string('image')->nullable();
-            $table->foreignId('brand_id')->constrained()->cascadeOnDelete();   // а где категория?
+            $table->foreignId('brand_id')->constrained()->cascadeOnDelete(); 
             $table->decimal('price', 10, 2);
             $table->integer('weight_grams')->nullable(); // Вес в граммах
             $table->integer('sold_count')->default(0);

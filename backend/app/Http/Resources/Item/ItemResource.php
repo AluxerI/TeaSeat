@@ -18,7 +18,11 @@ class ItemResource extends JsonResource
             'name' => $this->name,
             'ingredients' => $this->ingredients,
             'description' => $this->description,
-            'image' => $this->image,            
+
+            // ИСПРАВЛЕНО: используем новые методы из модели
+            'image' => $this->main_image_url, // для обратной совместимости
+            'images' => $this->images_data,   // используем метод из модели
+           
             'weight_grams' => $this->weight_grams,
             
             // Цены и скидки
