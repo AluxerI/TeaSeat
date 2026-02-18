@@ -19,7 +19,19 @@ class ProductResource extends JsonResource
             'name' => $this->name,
             'ingredients' => $this->ingredients,
             'description' => $this->description,
-            'image' => $this->image,
+            
+            'image' => $this->main_image_url, // для обратной совместимости
+            'images' => [
+                'main' => $this->main_image_url,
+                'background' => $this->background_image_url,
+                // можно добавить все изображения, если нужно в каталоге
+                'all' => $this->images->map(fn($img) => [
+                    'url' => $img->url,
+                    'is_main' => $img->is_main,
+                    'is_background' => $img->is_background,
+                ]),
+            ],
+
             'price' => $this->price,
             'pricing' => $priceData,
             'weight_grams' => $this->weight_grams,

@@ -130,4 +130,7 @@ Route::group([
     Route::post('/items', 'StoreController')->name('item.store')->middleware('can:create products');
     Route::get('/items/{product}/edit', 'EditController')->name('item.edit')->middleware('can:edit products');
     Route::put('/items/{product}', 'UpdateController')->name('item.update')->middleware('can:edit products');
+    Route::post('/items/upload-images', action: 'Image\StoreController')->name('image.store')->middleware('can:edit products');
+    Route::delete('/items/images/{image}', 'Image\DeleteController')->name('image.delete')->middleware('can:edit products');
+    Route::post('/items/images/{image}/set-main', 'Image\SetmainController')->name('image.setMain')->middleware('can:edit products');
 });
