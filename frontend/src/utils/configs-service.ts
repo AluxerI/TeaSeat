@@ -1,5 +1,5 @@
 import { UseHttpConfig } from "../hooks/useHttp"
-import { Item, User } from "../types/clients.api"
+import { Item, User } from "../interfaces/clients.api"
 
 export const configUser: UseHttpConfig<User> = {
     url: '/user',

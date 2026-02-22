@@ -30,3 +30,23 @@ export interface Item{
     updated_at:Date
 }
 
+export interface FormItem{
+    name:string,
+    description:string,
+    price:number,
+    user_id:number,
+}
+
+export interface Responce<T>{
+    data:T[],
+}
+
+export interface ItemFilters {
+    category_id?:number,
+    min_price?: number;
+    max_price?: number;
+    in_stock?: boolean;
+    sort_by?: 'name' | 'price' | 'created_at';
+    sort_order?: 'asc' | 'desc';
+
+}
