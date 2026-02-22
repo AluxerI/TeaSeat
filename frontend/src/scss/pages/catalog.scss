@@ -1,0 +1,74 @@
+*{
+    
+    
+}
+.location-descrip{
+    @include typography($body,300);
+    @include flex-centre();
+    color: #401F18;
+
+    
+    $check:  _num-to-hex(51);
+    color: unquote(#401F18+"#{$check}");
+    margin-top: 10vh;
+}
+
+
+.lines_and_names_shop{
+    @include flex-centre();
+    
+}
+.line{
+  width:20%;
+  border: 1px solid #401F18;
+}
+
+.names{
+    @include typography($h3,400);
+    color: #401F18;
+}
+.body-page{
+    background-color: #FFFAEC;
+    display: flex;
+  flex-direction: column;
+  gap:5vh;
+}
+.grid-catalog{
+    margin-bottom: 10vh;
+}
+.achivments{
+    @include flex-centre();
+
+    background-color: white;
+    width: 80vw;
+    align-self: anchor-center;
+    border-radius: 16px;
+    margin-bottom: 10vh;
+    h6{
+        @include typography(body,600);
+    }
+    p{
+        @include typography(body-sm,400);
+        align-self: center;
+        text-align: center;
+    }
+    div{
+    align-items: center;
+
+    direction:row;
+    justify-content:center;
+    width:300px;
+    //height: 50px;
+    //margin: 90px;
+
+    max-width: 449px;
+
+
+    display: flex;
+    flex-direction: column;
+    flex: auto;
+    }
+    
+    height: 200px;
+    box-shadow: 0px 8px 3px -1px rgba(196, 187, 187, 0.6);
+}

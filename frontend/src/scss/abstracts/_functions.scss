@@ -49,6 +49,16 @@
 
     @return "#{$part1}#{$part2}#{$part3}";
 }
+@function _num-to-hex($num){
+    $hex-chars: "0123456789ABCDEF";
+    $num2:"";
+    @while $num>0{
+        $buf: $num%16;
+        $num2: $num2 + str-slice($string: $hex-chars, $start-at: $buf+1, $end-at: $buf+1);
+        $num: floor($number: $num / 16);
+    }
+    @return $num2
+}
 //////
 ///  Spacings
 //////

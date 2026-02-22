@@ -1,0 +1,58 @@
+
+export interface Category{
+    id:number;
+    name:string;
+    subcategories:{
+        id:number;
+        name:string;
+        category_id:number;
+        sub_subcategories:{
+            id:number;
+            name:string;
+            subcategory_id:number;
+        }[]
+    }[]
+}
+export interface Product{
+    id:number;
+    name:string;
+    ingredients:string;
+    description:string;
+    image:string;
+    price:string;
+    pricing:{
+        base_price: string;
+        price_with_promotions:number;
+        final_price:number;
+        promotion_discount:number;
+        personal_discount:number;
+        has_discount:boolean;
+    };
+    weight_grams:number;
+    brand:string;
+    category_path:{
+        category:string;
+        subcategory:string;
+        sub_subcategory:string;
+    };
+    inventory:{
+        warehous_id:number;
+        warehous_name:string;
+        quantity:number;
+        last_restock_date:string;
+    }[];
+    total_quantity:number;
+    is_available:boolean;
+    sold_count:number;
+    created_at:string;
+    update_at:string
+}
+export interface Meta{
+    total_products:number;
+    has_pagination:boolean;
+}
+export interface Catalog{
+    categories:Category[];
+    products:Product[];
+    meta:Meta;
+}
