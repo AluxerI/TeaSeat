@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('subcategory_id')->constrained()->cascadeOnDelete();
             $table->string('name'); // "Белый чай", "Чёрный"
+            $table->string('icon')->nullable()->after('name');
             $table->timestamps();
         });
     }

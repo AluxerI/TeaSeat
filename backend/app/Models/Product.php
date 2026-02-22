@@ -24,9 +24,14 @@ class Product extends Model
     }
 
     public function sub_subcategories()
-    {
-        return $this->belongsToMany(Sub_subcategory::class, 'sub_subcategory_products');
-    }
+        {
+            return $this->belongsToMany(
+                Sub_Subcategory::class,
+                'sub_subcategory_products',
+                'product_id',         
+                'sub_subcategory_id'    
+            );
+        }
 
     // Удобный метод для доступа к первой под-подкатегории
     public function getMainSubSubcategoryAttribute()
