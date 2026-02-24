@@ -12,7 +12,15 @@ export interface Category {
       name: string;
       subcategory_id: number;
     }[];
+<<<<<<< HEAD
   }[];
+=======
+    total_quantity:number;
+    is_available:boolean;
+    sold_count:number;
+    created_at: Date;
+    update_at: Date;
+>>>>>>> f092fd80 (Create component - category)
 }
 export interface Product {
   id: number;
