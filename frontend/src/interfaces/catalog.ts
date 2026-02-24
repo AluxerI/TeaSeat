@@ -44,8 +44,8 @@ export interface Product{
     total_quantity:number;
     is_available:boolean;
     sold_count:number;
-    created_at:string;
-    update_at:string
+    created_at: Date;
+    update_at: Date;
 }
 export interface Meta{
     total_products:number;
