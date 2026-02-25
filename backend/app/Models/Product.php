@@ -11,8 +11,13 @@ class Product extends Model
     // public $timestamps = false;
     protected $table = 'products';
     protected $guarded = false;
-    //     // что-то для оптимизации -_-
-    // protected $with = ['subSubcategory.subcategory.category', 'brand'];
+
+    protected $with = ['sub_subcategories.subcategory.category', 'brand'];
+
+    protected $hidden = [
+        'laravel_through_key',
+        // другие служебные поля
+    ];
 
     public function brand()
     {

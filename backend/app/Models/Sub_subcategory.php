@@ -21,6 +21,12 @@ class Sub_Subcategory extends Model
         return $this->belongsTo(Subcategory::class);
     }
 
+
+    protected $hidden = [
+        'laravel_through_key',
+        // другие служебные поля
+    ];
+
     public function products()
     {
         return $this->belongsToMany(

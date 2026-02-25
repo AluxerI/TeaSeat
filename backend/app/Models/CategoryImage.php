@@ -26,7 +26,11 @@ class CategoryImage extends Model
         'is_background' => 'boolean',
     ];
 
-    /**
+
+    protected $hidden = [
+        'laravel_through_key',
+        // другие служебные поля
+    ];    /**
      * Связь с категорией
      */
     public function category()

@@ -18,6 +18,10 @@ class Category extends Model
         return $this->hasMany(Subcategory::class);
     }
 
+        protected $hidden = [
+        'laravel_through_key',
+        // другие служебные поля
+    ];
     public function products()
     {
         return $this->hasManyThrough(
