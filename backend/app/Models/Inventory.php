@@ -21,4 +21,16 @@ class Inventory extends Model
         return $this->belongsTo(Warehouse::class, 'warehouse_id', 'id');
     }
 
+    // Создаем виртуальный ключ для Filament
+    public function getInventoryKeyAttribute(): string
+    {
+        return $this->product_id . '-' . $this->warehouse_id;
+    }
+
+    // Указываем, какой атрибут использовать как ключ для маршрутов
+    public function getRouteKeyName()
+    {
+        return 'inventory_key';
+    }
+
 }

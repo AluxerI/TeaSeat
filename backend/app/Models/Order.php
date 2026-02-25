@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Filament\Tables\Contracts\HasTable;
 
 class Order extends Model
 {
@@ -204,20 +205,24 @@ class Order extends Model
     }
 
     /**
-     * Получить название статуса
+     * Получить название статуса на русском
      */
-    public function getStatusName(): string
+    public static function getStatusName(?string $status = null): string|array
     {
-        return match($this->status) {
+        $statuses = [
             self::STATUS_CART => 'Корзина',
             self::STATUS_PENDING => 'Ожидает подтверждения',
             self::STATUS_CONFIRMED => 'Подтвержден',
-            self::STATUS_PROCESSING => 'Обрабатывается',
+            self::STATUS_PROCESSING => 'В обработке',
             self::STATUS_SHIPPED => 'Отправлен',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
-            default => 'Неизвестно'
-        };
+        ];
+    
+        if ($status === null) {
+            return $statuses;
+        }
+    
+        return $statuses[$status] ?? $status;
     }
-
 }

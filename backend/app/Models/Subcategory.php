@@ -14,6 +14,11 @@ class Subcategory extends Model
 
     protected $fillable = ['category_id', 'name', 'icon'];
 
+    protected $hidden = [
+        'laravel_through_key',
+        // другие служебные поля
+    ];
+
     public function category()
     {
         return $this->belongsTo(Category::class);
