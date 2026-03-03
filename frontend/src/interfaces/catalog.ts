@@ -1,3 +1,4 @@
+import { Warehouse } from "./warehouse";
 
 export interface Category{
     id:number;
@@ -18,8 +19,10 @@ export interface Product{
     name:string;
     ingredients:string;
     description:string;
-    image:string;
-    price:string;
+    image:{
+        background:string;
+        product:string;
+    }
     pricing:{
         base_price: string;
         price_with_promotions:number;
@@ -35,12 +38,7 @@ export interface Product{
         subcategory:string;
         sub_subcategory:string;
     };
-    inventory:{
-        warehous_id:number;
-        warehous_name:string;
-        quantity:number;
-        last_restock_date:string;
-    }[];
+    inventory: Warehouse[];
     total_quantity:number;
     is_available:boolean;
     sold_count:number;
