@@ -46013,6 +46013,9 @@ DETAIL:  Key (product_id, warehouse_id)=(2, 5) already exists. at /app/backend/v
 #58 {main}
 "} 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> ceb73d30 (Fix some problems with receiving data and start style card)
 [2026-03-03 09:50:52] local.ERROR: SQLSTATE[08006] [7] could not translate host name "pgsql" to address: No address associated with hostname (Connection: pgsql, SQL: select exists (select 1 from pg_class c, pg_namespace n where n.nspname = 'public' and c.relname = 'migrations' and c.relkind in ('r', 'p') and n.oid = c.relnamespace)) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 7): SQLSTATE[08006] [7] could not translate host name \"pgsql\" to address: No address associated with hostname (Connection: pgsql, SQL: select exists (select 1 from pg_class c, pg_namespace n where n.nspname = 'public' and c.relname = 'migrations' and c.relkind in ('r', 'p') and n.oid = c.relnamespace)) at /app/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php:825)
 [stacktrace]
 #0 /app/backend/vendor/laravel/framework/src/Illuminate/Database/Connection.php(979): Illuminate\\Database\\Connection->runQueryCallback('select exists (...', Array, Object(Closure))
@@ -46581,6 +46584,7 @@ DETAIL:  Key (product_id, warehouse_id)=(2, 5) already exists. at /app/backend/v
 #60 /app/backend/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #61 {main}
 "} 
+<<<<<<< HEAD
 [2026-03-04 16:48:44] local.ERROR: SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "sessions" does not exist
 LINE 1: select * from "sessions" where "id" = $1 limit 1
                       ^ (Connection: pgsql, SQL: select * from "sessions" where "id" = TSkpeceCW3QyFiLN67rj5H2xOWg0O80fFxh0vJkQ limit 1) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42P01): SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation \"sessions\" does not exist
@@ -47969,3 +47973,5 @@ LINE 1: select * from \"sessions\" where \"id\" = $1 limit 1
 "} 
 =======
 >>>>>>> f092fd80 (Create component - category)
+=======
+>>>>>>> ceb73d30 (Fix some problems with receiving data and start style card)
