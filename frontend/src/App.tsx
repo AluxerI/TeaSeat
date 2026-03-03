@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 
-import { CatalogItem, Picture } from './components/catalogItem';
+
 import { PageCategory } from './pages/Category';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ItemApi } from './api/productAPI';
@@ -9,6 +9,8 @@ import { ItemApi } from './api/productAPI';
 import { FormItem, Item } from './interfaces/clients.api'; 
 import { useAsync } from './hooks/useAsync';
 import { catalogApi } from './api/catalogAPI';
+import { ProductList } from './components/productList';
+import { PageCatalog } from './pages/Catalog';
 
 
 interface Data {
@@ -53,10 +55,9 @@ const App: React.FC = () => {
   //const data = useAsync(()=>check.getProduct(1),true);
   //const data = useAsync(()=> check.getAllItem())
   //const data = useAsync(()=>catalog_api.getProducts());
-  const data = catalog_api.getProducts()
-  const dataMeta = catalog_api.getMeta();
-  const dataCategory = useAsync(()=>catalogApi.getCategory());
-  console.log(dataCategory.data)
+  
+
+  
   
   //const chec =recursiveJsonRead(str);
   //console.log(history);
@@ -78,7 +79,10 @@ const App: React.FC = () => {
               
           </Grid>
            */}
+
+           <Route path='catalog' Component={PageCatalog}/>
         </Routes>
+        
       </BrowserRouter>
     </>
   );
