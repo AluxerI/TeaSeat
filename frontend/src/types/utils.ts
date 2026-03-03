@@ -5,3 +5,4 @@ export type Picture = {
   alt: string;
   type: typePic;
 };
+export type Json = {[key:string]: unknown}&Record<string,unknown>;
