@@ -19,9 +19,9 @@ export interface Product{
     name:string;
     ingredients:string;
     description:string;
-    image:{
+    images:{
         background:string;
-        product:string;
+        main:string;
     }
     pricing:{
         base_price: string;
