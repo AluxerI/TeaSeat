@@ -44,7 +44,7 @@ services:
     ports:
       - "5436:5432"
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
       - ./databases-files:/databases-files
     networks:
       - app
@@ -63,3 +63,7 @@ services:
 networks:
   app:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
