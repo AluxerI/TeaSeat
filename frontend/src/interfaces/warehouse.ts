@@ -1,7 +1,7 @@
 interface city{
     item: string;
 }
-interface Warehouse{
+export interface Warehouse{
     warehouse_id:number;
     warehouse_name:string;
     quantity:number;
