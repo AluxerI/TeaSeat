@@ -46584,7 +46584,6 @@ DETAIL:  Key (product_id, warehouse_id)=(2, 5) already exists. at /app/backend/v
 #60 /app/backend/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
 #61 {main}
 "} 
-<<<<<<< HEAD
 [2026-03-04 16:48:44] local.ERROR: SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation "sessions" does not exist
 LINE 1: select * from "sessions" where "id" = $1 limit 1
                       ^ (Connection: pgsql, SQL: select * from "sessions" where "id" = TSkpeceCW3QyFiLN67rj5H2xOWg0O80fFxh0vJkQ limit 1) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 42P01): SQLSTATE[42P01]: Undefined table: 7 ERROR:  relation \"sessions\" does not exist
@@ -47971,7 +47970,10 @@ LINE 1: select * from \"sessions\" where \"id\" = $1 limit 1
 #56 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php(23): require_once('/app/backend/pu...')
 #57 {main}
 "} 
+<<<<<<< HEAD
 =======
 >>>>>>> f092fd80 (Create component - category)
 =======
 >>>>>>> ceb73d30 (Fix some problems with receiving data and start style card)
+=======
+>>>>>>> d9e2bc27 (check)
