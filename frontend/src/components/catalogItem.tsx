@@ -1,14 +1,9 @@
 import React, { useState } from "react";
 import Images from "../utils/Images";
 import zIndex from "@mui/material/styles/zIndex";
+import { Picture } from "../types/utils";
 
-export type typePic = 'svg' | 'jpeg' | 'png';
 
-export type Picture = {
-  name: string;
-  alt: string;
-  type: typePic;
-};
 
 export interface CatalogItemProps {
   picture_part: Picture;
