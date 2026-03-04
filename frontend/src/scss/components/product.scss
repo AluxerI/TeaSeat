@@ -1,8 +1,45 @@
-.product-card {
-  width: 200px;
-  height: 200px;
-  background-color: aqua;
+// Цвета
+$color-bg-card:      #ffffff;
+$color-bg-image:     #2e2e2e;       // тёмный фон под картинкой товара
+$color-accent:       #f07b39;       // оранжевый — кнопка "В корзину"
+$color-accent-hover: #d9642a;       // темнее при наведении
+$color-success:      #52c41a;       // зелёный — "Добавлено ✓"
+$color-danger:       #ff4d4f;       // красный — бейдж скидки
+$color-text-primary: #1a1a1a;       // основной текст
+$color-text-muted:   #888888;       // второстепенный текст (бренд, счётчик)
+$color-text-old-price: #bbbbbb;     // перечёркнутая цена
+$color-star-active:  #ffb800;       // жёлтый — заполненная звезда
+$color-star-empty:   #e0e0e0;       // серый — пустая звезда
+$color-border:       #eeeeee;       // граница кнопки просмотра
+$color-wish-bg:      rgba(255, 255, 255, 0.15); // фон кнопки сердечка
 
+// Размеры карточки
+$card-width:         200px;
+$card-radius:        16px;
+$image-area-height:  170px;
+
+// Отступы
+$padding-body:       12px;
+
+// Шрифты
+$font-size-title:    13px;
+$font-size-brand:    11px;
+$font-size-price:    18px;
+$font-size-old:      13px;
+$font-size-btn:      13px;
+$font-size-badge:    11px;
+$font-size-star:     14px;
+
+// Анимации
+$transition-fast:    0.2s ease;
+$transition-normal:  0.25s ease;
+
+.product-card {
+  width: $card-width;
+  border-radius: $card-radius;
+  overflow: hidden;                   // скругление работает на дочерних
+  background: $color-bg-card;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
   display: flex;
   flex-direction: column;
 }
