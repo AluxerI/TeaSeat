@@ -42,16 +42,35 @@ $transition-normal:  0.25s ease;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
   display: flex;
   flex-direction: column;
+  position: relative;
+
+  &__head {
+    background: $color-bg-image;
+    position: relative;               // нужно для бейджа и сердечка
+    height: $image-area-height;
+
+    //@include flex-center;             // картинка по центру
+
+    overflow: hidden;
+  }
+   &__image {
+    width: 100%;
+  height: 100%;
+  object-fit: cover;       // заполняет контейнер, обрезает лишнее
+  object-position: center; // центрирует по умолчанию, можно менять
+  display: block;          // убирает лишний отступ снизу у img
+  transition: transform $transition-normal;
+
+    // При наведении на карточку — картинка чуть увеличивается
+    .product-card:hover & {
+      transform: scale(1.05);
+    }
+  }
 }
 .background-card {
   width: 150px;
 }
-.head-card {
-  overflow: hidden;
-  width: 50px;
-  height: 100px;
-  background-size: cover;
-}
+
 .background,
 .gramm-and-price {
   width: 150px;

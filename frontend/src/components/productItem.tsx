@@ -49,13 +49,14 @@ export const ProductItem = ({
   };
   return (
     <div className="product-card">
-      <div className="head-card">
+      <div className="product-card__head">
         <Images
           name={pic_product.name}
           alt={pic_product.alt}
           type={pic_product.type}
-          className="background-card"
+          className="product-card__image"
         ></Images>
+
       </div>
       <div className="body-card">
         <section className="section">
