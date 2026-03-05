@@ -51336,3 +51336,62 @@ LINE 1: ...\"sub_subcategories\" on \"sub_subcategories\".\"id\" = \"products\".
 #50 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php(23): require_once('/app/backend/pu...')
 #51 {main}
 "} 
+[2026-03-05 13:04:15] local.ERROR: The command "'/usr/local/bin/php' './vendor/bin/rr' 'get-binary' '-n' '--ansi'" failed.
+
+Exit Code: 1(General error)
+
+Working directory: /app/backend
+
+Output:
+================
+
+
+Error Output:
+================
+Could not open input file: ./vendor/bin/rr
+ {"exception":"[object] (Symfony\\Component\\Process\\Exception\\ProcessFailedException(code: 0): The command \"'/usr/local/bin/php' './vendor/bin/rr' 'get-binary' '-n' '--ansi'\" failed.
+
+Exit Code: 1(General error)
+
+Working directory: /app/backend
+
+Output:
+================
+
+
+Error Output:
+================
+Could not open input file: ./vendor/bin/rr
+ at /app/backend/vendor/symfony/process/Process.php:280)
+[stacktrace]
+#0 /app/backend/vendor/laravel/framework/src/Illuminate/Support/HigherOrderTapProxy.php(34): Symfony\\Component\\Process\\Process->mustRun(Object(Closure))
+#1 /app/backend/vendor/laravel/octane/src/Commands/Concerns/InstallsRoadRunnerDependencies.php(174): Illuminate\\Support\\HigherOrderTapProxy->__call('mustRun', Array)
+#2 /app/backend/vendor/laravel/octane/src/Commands/Concerns/InstallsRoadRunnerDependencies.php(108): Laravel\\Octane\\Commands\\InstallCommand->downloadRoadRunnerBinary()
+#3 /app/backend/vendor/laravel/octane/src/Commands/InstallCommand.php(115): Laravel\\Octane\\Commands\\InstallCommand->ensureRoadRunnerBinaryIsInstalled()
+#4 /app/backend/vendor/laravel/octane/src/Commands/InstallCommand.php(50): Laravel\\Octane\\Commands\\InstallCommand->installRoadRunnerServer()
+#5 /app/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(36): Laravel\\Octane\\Commands\\InstallCommand->handle()
+#6 /app/backend/vendor/laravel/framework/src/Illuminate/Container/Util.php(43): Illuminate\\Container\\BoundMethod::Illuminate\\Container\\{closure}()
+#7 /app/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(95): Illuminate\\Container\\Util::unwrapIfClosure(Object(Closure))
+#8 /app/backend/vendor/laravel/framework/src/Illuminate/Container/BoundMethod.php(35): Illuminate\\Container\\BoundMethod::callBoundMethod(Object(Illuminate\\Foundation\\Application), Array, Object(Closure))
+#9 /app/backend/vendor/laravel/framework/src/Illuminate/Container/Container.php(696): Illuminate\\Container\\BoundMethod::call(Object(Illuminate\\Foundation\\Application), Array, Array, NULL)
+#10 /app/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(213): Illuminate\\Container\\Container->call(Array)
+#11 /app/backend/vendor/symfony/console/Command/Command.php(341): Illuminate\\Console\\Command->execute(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#12 /app/backend/vendor/laravel/framework/src/Illuminate/Console/Command.php(182): Symfony\\Component\\Console\\Command\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Illuminate\\Console\\OutputStyle))
+#13 /app/backend/vendor/symfony/console/Application.php(1117): Illuminate\\Console\\Command->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#14 /app/backend/vendor/symfony/console/Application.php(356): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Octane\\Commands\\InstallCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#15 /app/backend/vendor/symfony/console/Application.php(195): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#16 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#17 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#18 /app/backend/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#19 {main}
+"} 
+[2026-03-05 13:12:19] local.ERROR: Undefined constant "Laravel\Octane\Commands\Concerns\SIGINT" {"exception":"[object] (Error(code: 0): Undefined constant \"Laravel\\Octane\\Commands\\Concerns\\SIGINT\" at /app/backend/vendor/laravel/octane/src/Commands/Concerns/InteractsWithServers.php:174)
+[stacktrace]
+#0 /app/backend/vendor/symfony/console/Application.php(1031): Laravel\\Octane\\Commands\\StartCommand->getSubscribedSignals()
+#1 /app/backend/vendor/symfony/console/Application.php(356): Symfony\\Component\\Console\\Application->doRunCommand(Object(Laravel\\Octane\\Commands\\StartCommand), Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#2 /app/backend/vendor/symfony/console/Application.php(195): Symfony\\Component\\Console\\Application->doRun(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#3 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php(198): Symfony\\Component\\Console\\Application->run(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#4 /app/backend/vendor/laravel/framework/src/Illuminate/Foundation/Application.php(1235): Illuminate\\Foundation\\Console\\Kernel->handle(Object(Symfony\\Component\\Console\\Input\\ArgvInput), Object(Symfony\\Component\\Console\\Output\\ConsoleOutput))
+#5 /app/backend/artisan(13): Illuminate\\Foundation\\Application->handleCommand(Object(Symfony\\Component\\Console\\Input\\ArgvInput))
+#6 {main}
+"} 
