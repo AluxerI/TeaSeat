@@ -11,11 +11,11 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-// use App\Traits\HasNavigationBadge;
+use App\Traits\HasNavigationBadge;
 
 class BrandResource extends Resource
 {
-    // use HasNavigationBadge;
+    use HasNavigationBadge;
     
     private static array $brandDataCache = [];
 

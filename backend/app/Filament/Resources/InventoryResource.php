@@ -11,37 +11,48 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\DatePicker;
+use App\Models\Product;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
-use Filament\Tables\Actions\Action;
+use App\Traits\HasNavigationBadge;
 
 class InventoryResource extends Resource
 {
+    use HasNavigationBadge;
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = Inventory::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-cube';
-
     protected static ?string $navigationGroup = 'Склад и поставщики';
-
     protected static ?string $navigationLabel = 'Остатки';
 
-    protected static ?string $modelLabel = 'Остаток';
+    private static function getData($record): array
+    {
+        $key = $record->product_id . '-' . $record->warehouse_id;
+        if (!isset(self::$dataCache[$key])) {
+            self::$dataCache[$key] = [
+                'product_name' => $record->product?->name,
+                'product_price' => $record->product?->price,
+                'warehouse_name' => $record->warehouse?->name,
+                'warehouse_city' => $record->warehouse?->city,
+                'quantity' => $record->quantity,
+                'last_restock_date' => $record->last_restock_date 
+                    ? (is_string($record->last_restock_date) 
+                        ? $record->last_restock_date 
+                        : $record->last_restock_date->format('d.m.Y'))
+                    : null,
+            ];
+        }
+        return self::$dataCache[$key];
+    }
 
-    protected static ?string $pluralModelLabel = 'Остатки';
-
-    // Указываем, что ключ - составной (но Filament будет использовать product_id)
     public static function getRecordRouteKeyName(): ?string
     {
         return 'inventory_key';
     }
 
-    // Переопределяем метод для разрешения модели по составному ключу
     public static function resolveRecordRouteBinding(int | string $key): ?Model
     {
         $query = parent::resolveRecordRouteBinding($key);
@@ -50,7 +61,6 @@ class InventoryResource extends Resource
             return $query;
         }
 
-        // Пытаемся найти по составному ключу
         $parts = explode('-', $key);
         if (count($parts) === 2) {
             return Inventory::where('product_id', $parts[0])
@@ -65,37 +75,40 @@ class InventoryResource extends Resource
     {
         return $form
             ->schema([
-                Section::make('Информация об остатке')
+                Forms\Components\Section::make('Информация об остатке')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                Select::make('warehouse_id')
+                                Forms\Components\Select::make('warehouse_id')
                                     ->label('Склад')
                                     ->relationship('warehouse', 'name')
                                     ->required()
                                     ->searchable()
                                     ->preload()
-                                    ->disabled(fn ($record) => $record !== null) // Нельзя менять склад при редактировании
-                                    ->helperText(fn ($record) => $record ? 'Нельзя изменить склад' : null),
+                                    ->disabled(fn ($record) => $record !== null),
                                 
-                                Select::make('product_id')
+                                Forms\Components\Select::make('product_id')
                                     ->label('Товар')
                                     ->relationship('product', 'name')
                                     ->required()
                                     ->searchable()
                                     ->preload()
-                                    ->disabled(fn ($record) => $record !== null) // Нельзя менять товар при редактировании
-                                    ->helperText(fn ($record) => $record ? 'Нельзя изменить товар' : null),
+                                    ->disabled(fn ($record) => $record !== null),
                                 
-                                TextInput::make('quantity')
+                                Forms\Components\TextInput::make('quantity')
                                     ->label('Количество')
                                     ->required()
                                     ->numeric()
                                     ->default(0)
                                     ->minValue(0)
-                                    ->suffix('шт.'),
+                                    ->suffix('шт.')
+                                    ->afterStateUpdated(function ($state, $record) {
+                                        if ($record) {
+                                            $record->product?->updateCacheFields();
+                                        }
+                                    }),
                                 
-                                DatePicker::make('last_restock_date')
+                                Forms\Components\DatePicker::make('last_restock_date')
                                     ->label('Дата последней поставки')
                                     ->nullable()
                                     ->maxDate(now()),
@@ -108,25 +121,31 @@ class InventoryResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('product.name')
+                TextColumn::make('product_name')
                     ->label('Товар')
-                    ->searchable()
-                    ->sortable()
+                    ->getStateUsing(fn ($record) => self::getData($record)['product_name'])
+                    ->searchable(query: fn ($query, $search) => $query->whereHas('product', fn ($q) => $q->where('name', 'like', "%{$search}%")))
+                    ->sortable(query: fn ($query, $direction) => $query->orderBy(
+                        Product::select('name')->whereColumn('products.id', 'inventories.product_id'), $direction
+                    ))
                     ->limit(40),
                 
-                TextColumn::make('product.price')
+                TextColumn::make('product_price')
                     ->label('Цена')
+                    ->getStateUsing(fn ($record) => self::getData($record)['product_price'])
                     ->money('RUB')
                     ->sortable()
                     ->toggleable(),
                 
-                TextColumn::make('warehouse.name')
+                TextColumn::make('warehouse_name')
                     ->label('Склад')
+                    ->getStateUsing(fn ($record) => self::getData($record)['warehouse_name'])
                     ->searchable()
                     ->sortable(),
                 
-                TextColumn::make('warehouse.city')
+                TextColumn::make('warehouse_city')
                     ->label('Город')
+                    ->getStateUsing(fn ($record) => self::getData($record)['warehouse_city'])
                     ->searchable()
                     ->sortable()
                     ->toggleable(),
@@ -140,18 +159,17 @@ class InventoryResource extends Resource
                 
                 TextColumn::make('last_restock_date')
                     ->label('Последняя поставка')
-                    ->date('d.m.Y')
+                    ->getStateUsing(fn ($record) => self::getData($record)['last_restock_date'])
                     ->sortable()
                     ->toggleable()
                     ->color(function ($record) {
-                        if (!$record->last_restock_date) {
-                            return 'default';
-                        }
-                        
-                        $thirtyDaysAgo = now()->subDays(30);
-                        $lastRestockDate = \Carbon\Carbon::parse($record->last_restock_date);
-                        
-                        return $lastRestockDate->lt($thirtyDaysAgo) ? 'warning' : 'default';
+                        if (!$record->last_restock_date) return 'default';
+
+                        $date = $record->last_restock_date instanceof \Carbon\Carbon 
+                            ? $record->last_restock_date 
+                            : \Carbon\Carbon::parse($record->last_restock_date);
+
+                        return $date->lt(now()->subDays(30)) ? 'warning' : 'default';
                     }),
                 
                 TextColumn::make('created_at')
@@ -189,12 +207,12 @@ class InventoryResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make()
-                    ->url(fn (Inventory $record): string => route('filament.admin.resources.inventories.view', [
+                    ->url(fn (Inventory $record): string => static::getUrl('view', [
                         'record' => $record->product_id . '-' . $record->warehouse_id
                     ])),
                 
                 Tables\Actions\EditAction::make()
-                    ->url(fn (Inventory $record): string => route('filament.admin.resources.inventories.edit', [
+                    ->url(fn (Inventory $record): string => static::getUrl('edit', [
                         'record' => $record->product_id . '-' . $record->warehouse_id
                     ])),
                 
@@ -205,14 +223,9 @@ class InventoryResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('last_restock_date', 'desc');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ->defaultSort('last_restock_date', 'desc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -224,9 +237,7 @@ class InventoryResource extends Resource
             'edit' => Pages\EditInventory::route('/{record}/edit'),
         ];
     }
-    
 
-    // Переопределяем глобальный запрос для правильной работы
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()

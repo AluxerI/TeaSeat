@@ -16,18 +16,16 @@ use Filament\Tables\Filters\Filter;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
 use Filament\Notifications\Notification;
+use App\Traits\HasNavigationBadge;
 
 class OrderResource extends Resource
 {
+    use HasNavigationBadge;
+    private static array $dataCache = []; 
     protected static ?string $model = Order::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
-
     protected static ?string $navigationGroup = 'Управление продажами';
-
-    protected static ?string $modelLabel = 'Заказ';
-
-    protected static ?string $pluralModelLabel = 'Заказы';
+    protected static ?string $navigationLabel = 'Заказы';
 
     protected static ?string $recordTitleAttribute = 'id';
 
@@ -465,13 +463,4 @@ class OrderResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('status', Order::STATUS_PENDING)->count() ?: null;
-    }
-
-    public static function getNavigationBadgeColor(): ?string
-    {
-        return 'warning';
-    }
 }

@@ -4,74 +4,75 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Product;
-use App\Models\Category;
-use App\Models\Subcategory;
-use App\Models\Sub_Subcategory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Models\Category; 
+use App\Models\Subcategory; 
+use App\Models\Sub_Subcategory;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\RichEditor;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use App\Traits\HasNavigationBadge;
 
 class ProductResource extends Resource
 {
+    use HasNavigationBadge;
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = Product::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-cube';
-
     protected static ?string $navigationGroup = 'Управление товарами';
+    protected static ?string $navigationLabel = 'Товары';
 
-    protected static ?string $modelLabel = 'Товар';
-
-    protected static ?string $pluralModelLabel = 'Товары';
-
-    protected static ?string $recordTitleAttribute = 'name';
+    private static function getData($record): array
+    {
+        $id = $record->id;
+        if (!isset(self::$dataCache[$id])) {
+            self::$dataCache[$id] = $record->getAllData();
+        }
+        return self::$dataCache[$id];
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Основная информация')
+                Forms\Components\Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                TextInput::make('name')
+                                Forms\Components\TextInput::make('name')
                                     ->label('Название товара')
                                     ->required()
                                     ->maxLength(255),
                                 
-                                TextInput::make('price')
+                                Forms\Components\TextInput::make('price')
                                     ->label('Цена')
                                     ->required()
                                     ->numeric()
                                     ->prefix('₽')
-                                    ->step(0.01),
+                                    ->step(0.01)
+                                    ->afterStateUpdated(fn ($record) => $record?->clearCache()),
                                 
-                                Select::make('brand_id')
+                                Forms\Components\Select::make('brand_id')
                                     ->label('Бренд')
                                     ->relationship('brand', 'name')
                                     ->searchable()
-                                    ->preload(),
+                                    ->preload()
+                                    ->afterStateUpdated(fn ($record) => $record?->clearCache()),
                                 
-                                TextInput::make('weight_grams')
+                                Forms\Components\TextInput::make('weight_grams')
                                     ->label('Вес (грамм)')
                                     ->numeric()
                                     ->suffix('г'),
                                 
-                                TextInput::make('sold_count')
+                                Forms\Components\TextInput::make('sold_count')
                                     ->label('Продано')
                                     ->numeric()
                                     ->default(0)
@@ -79,27 +80,27 @@ class ProductResource extends Resource
                                     ->dehydrated(false),
                             ]),
                         
-                        RichEditor::make('description')
+                        Forms\Components\RichEditor::make('description')
                             ->label('Описание')
                             ->columnSpanFull(),
                         
-                        Textarea::make('ingredients')
+                        Forms\Components\Textarea::make('ingredients')
                             ->label('Ингредиенты/Состав')
                             ->rows(3)
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Категория')
+                Forms\Components\Section::make('Категория')
                     ->schema([
-                        Grid::make(3)
+                        Forms\Components\Grid::make(3)
                             ->schema([
-                                Select::make('category_id')
+                                Forms\Components\Select::make('category_id')
                                     ->label('Категория')
-                                    ->options(Category::pluck('name', 'id'))
+                                    ->options(fn () => Category::pluck('name', 'id'))
                                     ->reactive()
                                     ->afterStateUpdated(fn (callable $set) => $set('subcategory_id', null)),
                                 
-                                Select::make('subcategory_id')
+                                Forms\Components\Select::make('subcategory_id')
                                     ->label('Подкатегория')
                                     ->options(function (callable $get) {
                                         $categoryId = $get('category_id');
@@ -112,7 +113,7 @@ class ProductResource extends Resource
                                     ->reactive()
                                     ->afterStateUpdated(fn (callable $set) => $set('sub_subcategory_id', null)),
                                 
-                                Select::make('sub_subcategory_id')
+                                Forms\Components\Select::make('sub_subcategory_id')
                                     ->label('Под-подкатегория')
                                     ->options(function (callable $get) {
                                         $subcategoryId = $get('subcategory_id');
@@ -122,13 +123,14 @@ class ProductResource extends Resource
                                         }
                                         return [];
                                     })
-                                    ->required(),
+                                    ->required()
+                                    ->afterStateUpdated(fn ($record) => $record?->clearCache()),
                             ]),
                     ]),
 
-                Section::make('Изображения')
+                Forms\Components\Section::make('Изображения')
                     ->schema([
-                        FileUpload::make('images')
+                        Forms\Components\FileUpload::make('images')
                             ->label('Изображения товара')
                             ->image()
                             ->multiple()
@@ -138,14 +140,13 @@ class ProductResource extends Resource
                             ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                             ->reorderable()
                             ->appendFiles()
+                            ->afterStateUpdated(fn ($record) => $record?->clearCache())
                             ->columnSpanFull(),
                         
                         Forms\Components\Placeholder::make('existing_images')
                             ->label('Текущие изображения')
                             ->content(function ($record) {
-                                if (!$record || $record->images->isEmpty()) {
-                                    return 'Нет изображений';
-                                }
+                                if (!$record || $record->images->isEmpty()) return 'Нет изображений';
                                 
                                 $html = '<div class="grid grid-cols-4 gap-4">';
                                 foreach ($record->images as $image) {
@@ -167,28 +168,29 @@ class ProductResource extends Resource
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Склад и остатки')
+                Forms\Components\Section::make('Склад и остатки')
                     ->schema([
-                        Repeater::make('inventories')
+                        Forms\Components\Repeater::make('inventories')
                             ->relationship()
                             ->schema([
-                                Grid::make(3)
+                                Forms\Components\Grid::make(3)
                                     ->schema([
-                                        Select::make('warehouse_id')
+                                        Forms\Components\Select::make('warehouse_id')
                                             ->label('Склад')
                                             ->relationship('warehouse', 'name')
                                             ->required()
-                                            ->searchable(),
+                                            ->searchable()
+                                            ->afterStateUpdated(fn ($record) => $record?->product?->clearCache()),
                                         
-                                        TextInput::make('quantity')
+                                        Forms\Components\TextInput::make('quantity')
                                             ->label('Количество')
                                             ->numeric()
                                             ->required()
-                                            ->default(0),
+                                            ->default(0)
+                                            ->afterStateUpdated(fn ($record) => $record?->product?->updateCacheFields()),
                                         
-                                        TextInput::make('last_restock_date')
-                                            ->label('Дата последней поставки')
-                                            ->date(),
+                                        Forms\Components\DatePicker::make('last_restock_date')
+                                            ->label('Дата последней поставки'),
                                     ]),
                             ])
                             ->defaultItems(0)
@@ -196,29 +198,29 @@ class ProductResource extends Resource
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Поставщики')
+                Forms\Components\Section::make('Поставщики')
                     ->schema([
-                        Repeater::make('suppliers')
+                        Forms\Components\Repeater::make('suppliers')
                             ->relationship()
                             ->schema([
-                                Grid::make(4)
+                                Forms\Components\Grid::make(4)
                                     ->schema([
-                                        Select::make('supplier_id')
+                                        Forms\Components\Select::make('supplier_id')
                                             ->label('Поставщик')
                                             ->relationship('supplier', 'name')
                                             ->required()
                                             ->searchable(),
                                         
-                                        TextInput::make('cost_price')
+                                        Forms\Components\TextInput::make('cost_price')
                                             ->label('Закупочная цена')
                                             ->numeric()
                                             ->prefix('₽'),
                                         
-                                        TextInput::make('lead_time_days')
+                                        Forms\Components\TextInput::make('lead_time_days')
                                             ->label('Срок поставки (дней)')
                                             ->numeric(),
                                         
-                                        TextInput::make('min_order_quantity')
+                                        Forms\Components\TextInput::make('min_order_quantity')
                                             ->label('Мин. заказ')
                                             ->numeric()
                                             ->default(1),
@@ -239,29 +241,25 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                ImageColumn::make('main_image_url')
+                ImageColumn::make('main_image')
                     ->label('Фото')
                     ->circular()
+                    ->getStateUsing(fn ($record) => self::getData($record)['main_image'])
                     ->defaultImageUrl(url('/images/default-product.jpg')),
                 
                 TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
                     ->sortable()
-                    ->limit(30),
+                    ->limit(30)
+                    ->weight('bold'),
                 
                 TextColumn::make('category_path')
                     ->label('Категория')
-                    ->formatStateUsing(function ($record) {
-                        $path = $record->getMainSubSubcategoryAttribute();
-                        if ($path && $path->subcategory && $path->subcategory->category) {
-                            return $path->subcategory->category->name . ' → ' .
-                                   $path->subcategory->name . ' → ' .
-                                   $path->name;
-                        }
-                        return '—';
+                    ->getStateUsing(function ($record) {
+                        $path = self::getData($record)['category_path'];
+                        return $path ? $path['category'] . ' → ' . $path['subcategory'] . ' → ' . $path['sub_subcategory'] : '—';
                     })
-                    ->searchable(false)
                     ->toggleable(),
                 
                 TextColumn::make('price')
@@ -271,18 +269,20 @@ class ProductResource extends Resource
                 
                 TextColumn::make('total_quantity')
                     ->label('Остаток')
-                    ->getStateUsing(fn ($record) => $record->inventories->sum('quantity'))
+                    ->getStateUsing(fn ($record) => self::getData($record)['total_quantity'])
                     ->sortable()
-                    ->color(fn ($state) => $state > 0 ? 'success' : 'danger'),
+                    ->color(fn ($state) => $state > 0 ? 'success' : 'danger')
+                    ->badge(),
                 
                 TextColumn::make('sold_count')
                     ->label('Продано')
+                    ->getStateUsing(fn ($record) => self::getData($record)['sold_count'])
                     ->sortable()
                     ->toggleable(),
                 
                 TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y')
+                    ->getStateUsing(fn ($record) => self::getData($record)['created_at'])
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -309,21 +309,13 @@ class ProductResource extends Resource
                 
                 Filter::make('created_at')
                     ->form([
-                        Forms\Components\DatePicker::make('created_from')
-                            ->label('С даты'),
-                        Forms\Components\DatePicker::make('created_until')
-                            ->label('По дату'),
+                        Forms\Components\DatePicker::make('created_from')->label('С даты'),
+                        Forms\Components\DatePicker::make('created_until')->label('По дату'),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
                         return $query
-                            ->when(
-                                $data['created_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
-                            )
-                            ->when(
-                                $data['created_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
-                            );
+                            ->when($data['created_from'], fn ($q, $date) => $q->whereDate('created_at', '>=', $date))
+                            ->when($data['created_until'], fn ($q, $date) => $q->whereDate('created_at', '<=', $date));
                     }),
             ])
             ->actions([
@@ -336,14 +328,9 @@ class ProductResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('created_at', 'desc');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ->defaultSort('created_at', 'desc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -356,8 +343,4 @@ class ProductResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::whereHas('inventories', fn ($q) => $q->where('quantity', '>', 0))->count() ?: null;
-    }
 }

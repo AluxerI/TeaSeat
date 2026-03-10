@@ -20,15 +20,15 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use App\Traits\HasNavigationBadge;
 
 class DiscountResource extends Resource
 {
+    use HasNavigationBadge;
+    private static array $dataCache = [];
     protected static ?string $model = Discount::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-gift';
-
     protected static ?string $navigationGroup = 'Маркетинг';
-
     protected static ?string $navigationLabel = 'Персональные скидки';
 
     protected static ?string $modelLabel = 'Скидка';
@@ -295,12 +295,4 @@ class DiscountResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereNull('end_at')->orWhere('end_at', '>=', now());
-            })
-            ->count() ?: null;
-    }
 }

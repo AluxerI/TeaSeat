@@ -178,10 +178,11 @@ class CategoryResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 
+                // ИЗОБРАЖЕНИЕ - используем main_image_url (URL для отображения)
                 ImageColumn::make('main_image')
                     ->label('Изображение')
                     ->circular()
-                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['main_image'])
+                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['main_image_url'] ?? null)
                     ->defaultImageUrl(url('/images/default-category.jpg')),
                 
                 TextColumn::make('name')
@@ -189,6 +190,13 @@ class CategoryResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
+                
+                // ИКОНКА - используем icon_url из трейта HasIcon
+                ImageColumn::make('icon')
+                    ->label('Иконка')
+                    ->circular()
+                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['icon_url'] ?? null)
+                    ->defaultImageUrl(url('/images/default-icon.png')),
                 
                 TextColumn::make('subcategories_count')
                     ->label('Подкатегории')
@@ -242,5 +250,4 @@ class CategoryResource extends Resource
             'view' => Pages\ViewCategory::route('/{record}'),
         ];
     }
-
 }
