@@ -2,204 +2,276 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use App\Traits\ClearsModelCache;
+use App\Traits\ResetsAdminBadges;
 
 class Product extends Model
 {
-    use HasFactory;
-    // public $timestamps = false;
+    use HasFactory, ClearsModelCache, ResetsAdminBadges;
+
     protected $table = 'products';
     protected $guarded = false;
 
-    protected $with = ['sub_subcategories.subcategory.category', 'brand'];
-
-    protected $hidden = [
-        'laravel_through_key',
-        // другие служебные поля
+    protected $casts = [
+        'price' => 'decimal:2',
+        'is_available' => 'boolean',
+        'total_quantity' => 'integer',
+        'cached_data' => 'array',
     ];
 
+    /**
+     * Отношения
+     */
     public function brand()
     {
-        return $this->belongsTo(Brand::class, 'brand_id', 'id');
+        return $this->belongsTo(Brand::class)->select(['id', 'name']);
     }
+
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class)->select([
+            'id', 'product_id', 'url', 'is_main', 'is_background', 'sort_order'
+        ]);
+    }
+
     public function inventories()
     {
-        return $this->hasMany(Inventory::class, 'product_id', 'id');
+        return $this->hasMany(Inventory::class)->select([
+            'product_id', 'warehouse_id', 'quantity'
+        ]);
     }
 
     public function sub_subcategories()
-        {
-            return $this->belongsToMany(
-                Sub_Subcategory::class,
-                'sub_subcategory_products',
-                'product_id',         
-                'sub_subcategory_id'    
-            );
-        }
-
-    // Удобный метод для доступа к первой под-подкатегории
-    public function getMainSubSubcategoryAttribute()
     {
-        return $this->sub_subcategories->first();
+        return $this->belongsToMany(
+            Sub_Subcategory::class,
+            'sub_subcategory_products',
+            'product_id',
+            'sub_subcategory_id'
+        )->select(['sub_subcategories.id', 'sub_subcategories.name', 'sub_subcategories.subcategory_id']);
     }
+
+    // Тяжелые отношения - используем только где нужно
     public function promotions()
     {
         return $this->belongsToMany(Promotion::class, 'product_promotions');
     }
+
     public function discounts()
     {
         return $this->belongsToMany(Discount::class, 'discount_products');
     }
-     public function scopeActive($query)
-    {
-        return $query->where('is_available', true);
-    }
-     /**
-     * Связь с поставщиками
-     */
-        public function suppliers()
+
+    public function suppliers()
     {
         return $this->belongsToMany(Supplier::class, 'product_supplier')
             ->withPivot(['cost_price', 'lead_time_days', 'min_order_quantity', 'is_active'])
-            ->where('product_supplier.is_active', true) // ← ЯВНО указываем таблицу pivot
-            ->where('suppliers.is_active', true) // ← ЯВНО указываем таблицу suppliers
+            ->where('product_supplier.is_active', true)
+            ->where('suppliers.is_active', true)
             ->withTimestamps();
     }
 
     /**
-     * Активные поставщики (alias для удобства)
+     * Приватные методы для получения данных
      */
-    public function activeSuppliers()
+    private function getMainImage(): ?string
     {
-        return $this->suppliers();
+        $key = "product.{$this->id}.main_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_main', true)
+                ->value('url');
+        });
+    }
+
+    private function getBackgroundImage(): ?string
+    {
+        $key = "product.{$this->id}.background_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_background', true)
+                ->value('url');
+        });
+    }
+
+    private function getGallery(): array
+    {
+        $key = "product.{$this->id}.gallery";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_main', false)
+                ->where('is_background', false)
+                ->orderBy('sort_order')
+                ->get(['url', 'alt', 'title', 'sort_order'])
+                ->toArray();
+        });
+    }
+
+    private function getCategoryPath(): ?array
+    {
+        $key = "product.{$this->id}.category_path";
+        
+        return Cache::remember($key, 3600, function () {
+            $subSubcategory = $this->sub_subcategories()
+                ->with(['subcategory.category' => function($q) {
+                    $q->select(['id', 'name']);
+                }])
+                ->first();
+            
+            if (!$subSubcategory) return null;
+            
+            return [
+                'category' => $subSubcategory->subcategory->category->name ?? null,
+                'subcategory' => $subSubcategory->subcategory->name ?? null,
+                'sub_subcategory' => $subSubcategory->name,
+            ];
+        });
+    }
+
+    private function getTotalQuantity(): int
+    {
+        $key = "product.{$this->id}.total_quantity";
+        
+        return Cache::remember($key, 300, function () {
+            return (int) $this->inventories()->sum('quantity');
+        });
     }
 
     /**
-     * Scope для товаров в наличии (на складах)
+     * Главный метод - все данные одним ключом
+     */
+    public function getAllData(): array
+    {
+        $key = "product.{$this->id}.all";
+        
+        return Cache::remember($key, 3600, function () {
+            return [
+                'id' => $this->id,
+                'name' => $this->name,
+                'price' => (float) $this->price,
+                'main_image' => $this->getMainImage(),
+                'background_image' => $this->getBackgroundImage(),
+                'gallery' => $this->getGallery(),
+                'category_path' => $this->getCategoryPath(),
+                'total_quantity' => $this->getTotalQuantity(),
+                'sold_count' => $this->sold_count,
+                'is_available' => $this->is_available,
+                'created_at' => $this->created_at?->format('d.m.Y'),
+            ];
+        });
+    }
+
+    /**
+     * Данные для таблицы
+     */
+    public function getTableRow(): array
+    {
+        $key = "product.{$this->id}.table";
+        
+        return Cache::remember($key, 3600, function () {
+            $data = $this->getAllData();
+            
+            return [
+                'id' => $data['id'],
+                'name' => $data['name'],
+                'price' => $data['price'],
+                'main_image' => $data['main_image'],
+                'category' => $data['category_path']['category'] ?? '—',
+                'total_quantity' => $data['total_quantity'],
+                'is_available' => $data['is_available'],
+            ];
+        });
+    }
+
+    /**
+     * Детальные данные для карточки товара
+     */
+    public function getDetailedData(): array
+    {
+        $key = "product.{$this->id}.detailed";
+        
+        return Cache::remember($key, 3600, function () {
+            return array_merge($this->getAllData(), [
+                'description' => $this->description,
+                'ingredients' => $this->ingredients,
+                'weight_grams' => $this->weight_grams,
+                'brand_name' => $this->brand?->name,
+            ]);
+        });
+    }
+
+    /**
+     * Очистка кеша
+     */
+    protected function getCacheKeys(): array
+    {
+        return [
+            "product.{$this->id}.all",
+            "product.{$this->id}.table",
+            "product.{$this->id}.detailed",
+            "product.{$this->id}.main_image",
+            "product.{$this->id}.background_image",
+            "product.{$this->id}.gallery",
+            "product.{$this->id}.category_path",
+            "product.{$this->id}.total_quantity",
+        ];
+    }
+
+    /**
+     * Обновление кешированных полей
+     */
+    public function updateCacheFields(): void
+    {
+        $totalQuantity = $this->getTotalQuantity();
+        
+        $this->updateQuietly([
+            'total_quantity' => $totalQuantity,
+            'is_available' => $totalQuantity > 0,
+        ]);
+        
+        $this->clearCache();
+    }
+
+    /**
+     * События модели
+     */
+    protected static function booted()
+    {
+        static::saved(function ($product) {
+            $product->updateCacheFields();
+        });
+
+        static::deleted(function ($product) {
+            $product->clearCache();
+            // Очищаем кеши страниц
+            for ($i = 1; $i <= 10; $i++) {
+                Cache::forget("products.page.{$i}.ids");
+            }
+        });
+    }
+
+    /**
+     * Scopes
      */
     public function scopeInStock($query)
     {
-        return $query->whereHas('inventories', function($query) {
-            $query->where('quantity', '>', 0);
-        });
+        return $query->where('is_available', true);
     }
 
-    /**
-     * Scope для товаров доступных у поставщиков
-     */
-    public function scopeAvailableFromSuppliers($query)
-    {
-        return $query->whereHas('suppliers', function($query) {
-            $query->where('product_supplier.is_active', true)
-                  ->where('suppliers.is_active', true);
-        });
-    }
-
-    /**
-     * Scope для товаров доступных в городе (склады + поставщики)
-     */
     public function scopeAvailableInCity($query, string $city)
     {
         return $query->where(function($q) use ($city) {
-            // Товары на складах в городе
             $q->whereHas('inventories.warehouse', function($query) use ($city) {
-                $query->where('city', $city)
-                      ->where('quantity', '>', 0);
+                $query->where('city', $city)->where('quantity', '>', 0);
             })
-            // ИЛИ товары у поставщиков
-            ->orWhereHas('suppliers', function($query) {
-                $query->where('product_supplier.is_active', true)
-                      ->where('suppliers.is_active', true);
-            });
+            ->orWhereHas('suppliers');
         });
     }
-
-     /**
-     * Связь с изображениями
-     */
-   public function images()
-    {
-        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
-    }
-
-    /**
-     * Получить главное изображение
-     */
-    public function mainImage()
-    {
-        return $this->images()->where('is_main', true)->first();
-    }
-
-    /**
-     * Получить фоновое изображение
-     */
-    public function backgroundImage()
-    {
-        return $this->images()->where('is_background', true)->first();
-    }
-
-    /**
-     * Получить все изображения галереи
-     */
-    public function galleryImages()
-    {
-        return $this->images()
-            ->where('is_main', false)
-            ->where('is_background', false)
-            ->orderBy('sort_order');
-    }
-
-    /**
-     * Получить URL главного изображения
-     */
-    public function getMainImageUrlAttribute(): string
-    {
-        $mainImage = $this->mainImage();
-        return $mainImage ? $mainImage->url : '/images/default-product.jpg';
-    }
-
-    /**
-     * Получить URL фонового изображения
-     */
-    public function getBackgroundImageUrlAttribute(): string
-    {
-        $backgroundImage = $this->backgroundImage();
-        return $backgroundImage ? $backgroundImage->url : '/images/default-background.jpg';
-    }
-
-    /**
-     * Получить все URL изображений для галереи
-     */
-    public function getGalleryUrlsAttribute(): array
-    {
-        return $this->galleryImages->map(fn($img) => [
-            'url' => $img->url,
-            'alt' => $img->alt,
-            'title' => $img->title,
-            'sort_order' => $img->sort_order,
-        ])->values()->toArray();
-    }
-
-    /**
-     * Получить структурированные данные всех изображений
-     */
-    public function getImagesDataAttribute(): array
-    {
-        return [
-            'main' => $this->main_image_url,
-            'background' => $this->background_image_url,
-            'gallery' => $this->gallery_urls,
-            'all' => $this->images->map(fn($img) => [
-                'id' => $img->id,
-                'url' => $img->url,
-                'is_main' => $img->is_main,
-                'is_background' => $img->is_background,
-                'alt' => $img->alt,
-                'title' => $img->title,
-                'sort_order' => $img->sort_order,
-            ]),
-        ];
-    }
 }
-

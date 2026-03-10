@@ -1,89 +1,179 @@
 <?php
-// app/Models/Category.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use App\Traits\ClearsModelCache;
+use App\Traits\ResetsAdminBadges;
 use App\Traits\HasIcon;
 
 class Category extends Model
 {
-    use HasFactory, HasIcon;
+    use HasFactory, HasIcon, ClearsModelCache, ResetsAdminBadges;
 
-    protected $fillable = ['name', 'icon'];
+    protected $fillable = [
+        'name', 
+        'icon',
+        'slug',
+        'promo_title',
+        'promo_subtitle',
+        'promo_description',
+        'promo_button_text',
+        'promo_button_link',
+        'promo_settings',
+    ];
 
+    protected $casts = [
+        'promo_settings' => 'array',
+    ];
+
+    protected $hidden = [
+        'laravel_through_key',
+    ];
+
+    /**
+     * Отношения
+     */
     public function subcategories()
     {
         return $this->hasMany(Subcategory::class);
     }
 
-        protected $hidden = [
-        'laravel_through_key',
-        // другие служебные поля
-    ];
-    public function products()
-    {
-        return $this->hasManyThrough(
-            Product::class,
-            Sub_Subcategory::class,
-            'subcategory_id',
-            'sub_subcategory_id',
-            'id',
-            'id'
-        );
-    }
-
-    /**
-     * Связь с изображениями категории
-     */
     public function images()
     {
         return $this->hasMany(CategoryImage::class);
     }
 
     /**
+     * Получить количество товаров в категории (оптимизировано)
+     */
+    public function getProductsCount(): int
+    {
+        $key = "category.{$this->id}.products_count";
+        
+        return Cache::remember($key, 3600, function () {
+            return DB::table('products')
+                ->join('sub_subcategory_products', 'products.id', '=', 'sub_subcategory_products.product_id')
+                ->join('sub_subcategories', 'sub_subcategory_products.sub_subcategory_id', '=', 'sub_subcategories.id')
+                ->join('subcategories', 'sub_subcategories.subcategory_id', '=', 'subcategories.id')
+                ->where('subcategories.category_id', $this->id)
+                ->distinct('products.id')
+                ->count('products.id');
+        });
+    }
+
+    /**
+     * Получить количество подкатегорий
+     */
+    public function getSubcategoriesCount(): int
+    {
+        $key = "category.{$this->id}.subcategories_count";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->subcategories()->count();
+        });
+    }
+
+    /**
      * Получить главное изображение
      */
-    public function mainImage()
+    public function getMainImage(): ?string
     {
-        return $this->images()->where('is_main', true)->first();
+        $key = "category.{$this->id}.main_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_main', true)
+                ->value('path');
+        });
     }
 
     /**
      * Получить фоновое изображение
      */
-    public function backgroundImage()
+    public function getBackgroundImage(): ?string
     {
-        return $this->images()->where('is_background', true)->first();
+        $key = "category.{$this->id}.background_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_background', true)
+                ->value('path');
+        });
     }
 
     /**
-     * Получить URL главного изображения
+     * ВСЕ ДАННЫЕ ОДНИМ КЛЮЧОМ
      */
-    public function getMainImageUrlAttribute(): ?string
+    public function getAllData(): array
     {
-        $mainImage = $this->mainImage();
-        return $mainImage ? $mainImage->url : null;
+        $key = "category.{$this->id}.all";
+        
+        return Cache::remember($key, 3600, function () {
+            return [
+                'id' => $this->id,
+                'name' => $this->name,
+                'slug' => $this->slug,
+                'icon' => $this->icon,
+                'main_image' => $this->getMainImage(),
+                'background_image' => $this->getBackgroundImage(),
+                'subcategories_count' => $this->getSubcategoriesCount(),
+                'products_count' => $this->getProductsCount(),
+                'created_at' => $this->created_at?->format('d.m.Y'),
+            ];
+        });
     }
 
     /**
-     * Получить URL фонового изображения
+     * Данные для таблицы
      */
-    public function getBackgroundImageUrlAttribute(): ?string
+    public function getTableRow(): array
     {
-        $backgroundImage = $this->backgroundImage();
-        return $backgroundImage ? $backgroundImage->url : null;
+        $key = "category.{$this->id}.table";
+        
+        return Cache::remember($key, 3600, function () {
+            $data = $this->getAllData();
+            
+            return [
+                'id' => $data['id'],
+                'name' => $data['name'],
+                'icon' => $data['icon'],
+                'main_image' => $data['main_image'],
+                'subcategories_count' => $data['subcategories_count'],
+                'products_count' => $data['products_count'],
+            ];
+        });
     }
 
     /**
-     * Получить структурированные данные изображений (только main и background)
+     * Ключи кеша для очистки
      */
-    public function getImagesDataAttribute(): array
+    protected function getCacheKeys(): array
     {
         return [
-            'main' => $this->main_image_url,
-            'background' => $this->background_image_url,
+            "category.{$this->id}.all",
+            "category.{$this->id}.table",
+            "category.{$this->id}.main_image",
+            "category.{$this->id}.background_image",
+            "category.{$this->id}.products_count",
+            "category.{$this->id}.subcategories_count",
         ];
+    }
+
+    /**
+     * События модели
+     */
+    protected static function booted()
+    {
+        static::saved(function ($category) {
+            $category->clearCache();
+        });
+
+        static::deleted(function ($category) {
+            $category->clearCache();
+        });
     }
 }

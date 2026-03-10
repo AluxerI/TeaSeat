@@ -9,57 +9,56 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Repeater;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
-use Filament\Tables\Columns\IconColumn;
-use Illuminate\Support\Facades\Storage;
+use App\Traits\HasNavigationBadge;
 
 class CategoryResource extends Resource
 {
+    use HasNavigationBadge;
+    
+    private static array $categoryDataCache = [];
+
     protected static ?string $model = Category::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
     protected static ?string $navigationGroup = 'Управление каталогом';
-
     protected static ?string $navigationLabel = 'Категории';
 
-    protected static ?string $modelLabel = 'Категория';
-
-    protected static ?string $pluralModelLabel = 'Категории';
-
-    protected static ?string $recordTitleAttribute = 'name';
+    /**
+     * Получить данные категории с кешированием в памяти
+     */
+    private static function getCategoryData($record): array
+    {
+        $id = $record->id;
+        if (!isset(self::$categoryDataCache[$id])) {
+            self::$categoryDataCache[$id] = $record->getAllData();
+        }
+        return self::$categoryDataCache[$id];
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Основная информация')
+                Forms\Components\Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                TextInput::make('name')
+                                Forms\Components\TextInput::make('name')
                                     ->label('Название категории')
                                     ->required()
                                     ->maxLength(255)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn ($state, callable $set) => $set('slug', str($state)->slug())),
                                 
-                                TextInput::make('slug')
+                                Forms\Components\TextInput::make('slug')
                                     ->label('URL-алиас')
                                     ->required()
                                     ->maxLength(255)
                                     ->unique(ignoreRecord: true)
                                     ->helperText('Автоматически генерируется из названия'),
                                 
-                                FileUpload::make('icon')
+                                Forms\Components\FileUpload::make('icon')
                                     ->label('Иконка')
                                     ->image()
                                     ->directory('category-icons/categories')
@@ -70,11 +69,11 @@ class CategoryResource extends Resource
                             ]),
                     ]),
 
-                Section::make('Изображения')
+                Forms\Components\Section::make('Изображения')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                FileUpload::make('main_image')
+                                Forms\Components\FileUpload::make('main_image')
                                     ->label('Главное изображение')
                                     ->image()
                                     ->directory('category-images/categories')
@@ -91,10 +90,11 @@ class CategoryResource extends Resource
                                                     'is_main' => true,
                                                 ]
                                             );
+                                            $record->clearCache();
                                         }
                                     }),
                                 
-                                FileUpload::make('background_image')
+                                Forms\Components\FileUpload::make('background_image')
                                     ->label('Фоновое изображение')
                                     ->image()
                                     ->directory('category-images/categories')
@@ -111,6 +111,7 @@ class CategoryResource extends Resource
                                                     'is_background' => true,
                                                 ]
                                             );
+                                            $record->clearCache();
                                         }
                                     }),
                             ]),
@@ -141,19 +142,19 @@ class CategoryResource extends Resource
                             ->columnSpanFull(),
                     ]),
 
-                Section::make('Подкатегории')
+                Forms\Components\Section::make('Подкатегории')
                     ->schema([
-                        Repeater::make('subcategories')
+                        Forms\Components\Repeater::make('subcategories')
                             ->relationship()
                             ->schema([
-                                Grid::make(2)
+                                Forms\Components\Grid::make(2)
                                     ->schema([
-                                        TextInput::make('name')
+                                        Forms\Components\TextInput::make('name')
                                             ->label('Название')
                                             ->required()
                                             ->maxLength(255),
                                         
-                                        FileUpload::make('icon')
+                                        Forms\Components\FileUpload::make('icon')
                                             ->label('Иконка')
                                             ->image()
                                             ->directory('category-icons/subcategories')
@@ -175,33 +176,35 @@ class CategoryResource extends Resource
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
-                ImageColumn::make('main_image_url')
+                ImageColumn::make('main_image')
                     ->label('Изображение')
                     ->circular()
+                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['main_image'])
                     ->defaultImageUrl(url('/images/default-category.jpg')),
                 
                 TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
                 
                 TextColumn::make('subcategories_count')
                     ->label('Подкатегории')
-                    ->counts('subcategories')
+                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['subcategories_count'])
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->badge()
+                    ->color('info'),
                 
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->getStateUsing(function ($record) {
-                        return \App\Models\Product::whereHas('sub_subcategories.subcategory', function ($query) use ($record) {
-                            $query->where('category_id', $record->id);
-                        })->count();
-                    })
+                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['products_count'])
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->badge()
+                    ->color('success'),
                 
                 TextColumn::make('created_at')
                     ->label('Дата')
@@ -209,9 +212,7 @@ class CategoryResource extends Resource
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->filters([
-                //
-            ])
+            ->filters([])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
@@ -222,14 +223,14 @@ class CategoryResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('name', 'asc');
+            ->defaultSort('name', 'asc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
@@ -242,8 +243,4 @@ class CategoryResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count() ?: null;
-    }
 }

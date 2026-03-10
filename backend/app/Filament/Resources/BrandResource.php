@@ -9,51 +9,49 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\FileUpload;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Columns\ImageColumn;
+use Filament\Tables\Filters\SelectFilter;
+// use App\Traits\HasNavigationBadge;
 
 class BrandResource extends Resource
 {
+    // use HasNavigationBadge;
+    
+    private static array $brandDataCache = [];
+
     protected static ?string $model = Brand::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
-
     protected static ?string $navigationGroup = 'Управление каталогом';
-
     protected static ?string $navigationLabel = 'Бренды';
 
-    protected static ?string $modelLabel = 'Бренд';
-
-    protected static ?string $pluralModelLabel = 'Бренды';
-
-    protected static ?string $recordTitleAttribute = 'name';
+    private static function getBrandData($record): array
+    {
+        $id = $record->id;
+        if (!isset(self::$brandDataCache[$id])) {
+            self::$brandDataCache[$id] = $record->getAllData();
+        }
+        return self::$brandDataCache[$id];
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Информация о бренде')
+                Forms\Components\Section::make('Информация о бренде')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                TextInput::make('name')
+                                Forms\Components\TextInput::make('name')
                                     ->label('Название бренда')
                                     ->required()
-                                    ->maxLength(255)
-                                    ->live(onBlur: true),
+                                    ->maxLength(255),
                                 
-                                TextInput::make('country')
+                                Forms\Components\TextInput::make('country')
                                     ->label('Страна')
                                     ->maxLength(100)
-                                    ->placeholder('Например: Россия, Китай, Индия')
-                                    ->helperText('Страна происхождения бренда'),
+                                    ->placeholder('Например: Россия, Китай, Индия'),
                                 
-                                FileUpload::make('logo')
+                                Forms\Components\FileUpload::make('logo')
                                     ->label('Логотип бренда')
                                     ->image()
                                     ->directory('brands')
@@ -62,30 +60,6 @@ class BrandResource extends Resource
                                     ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp'])
                                     ->columnSpanFull(),
                             ]),
-                    ]),
-
-                Section::make('Статистика')
-                    ->schema([
-                        Grid::make(3)
-                            ->schema([
-                                Forms\Components\Placeholder::make('products_count')
-                                    ->label('Товаров бренда')
-                                    ->content(fn ($record) => $record?->products()->count() ?? 0)
-                                    ->extraAttributes(['class' => 'text-xl font-bold']),
-                                
-                                Forms\Components\Placeholder::make('total_sold')
-                                    ->label('Продано товаров')
-                                    ->content(fn ($record) => $record?->products->sum('sold_count') ?? 0)
-                                    ->extraAttributes(['class' => 'text-xl font-bold']),
-                                
-                                Forms\Components\Placeholder::make('avg_price')
-                                    ->label('Средняя цена')
-                                    ->content(fn ($record) => $record?->products->avg('price') 
-                                        ? number_format($record->products->avg('price'), 2) . ' ₽' 
-                                        : '—')
-                                    ->extraAttributes(['class' => 'text-xl font-bold']),
-                            ])
-                            ->visible(fn ($record) => $record !== null),
                     ]),
             ]);
     }
@@ -96,8 +70,7 @@ class BrandResource extends Resource
             ->columns([
                 TextColumn::make('id')
                     ->label('ID')
-                    ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 TextColumn::make('name')
                     ->label('Название')
@@ -110,12 +83,11 @@ class BrandResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->badge()
-                    ->color('info')
-                    ->toggleable(),
+                    ->color('info'),
                 
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->counts('products')
+                    ->getStateUsing(fn ($record) => self::getBrandData($record)['products_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
@@ -123,36 +95,19 @@ class BrandResource extends Resource
                 
                 TextColumn::make('total_sold')
                     ->label('Продано')
-                    ->getStateUsing(fn ($record) => $record->products->sum('sold_count'))
+                    ->getStateUsing(fn ($record) => self::getBrandData($record)['total_sold'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('warning'),
-                
-                TextColumn::make('created_at')
-                    ->label('Добавлен')
-                    ->dateTime('d.m.Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\Filter::make('has_products')
-                    ->label('Есть товары')
-                    ->query(fn (Builder $query): Builder => $query->has('products')),
-                
-                Tables\Filters\Filter::make('no_products')
-                    ->label('Нет товаров')
-                    ->query(fn (Builder $query): Builder => $query->doesntHave('products')),
-                
-                Tables\Filters\SelectFilter::make('country')
+                SelectFilter::make('country')
                     ->label('Страна')
-                    ->options(function () {
-                        return Brand::distinct()->pluck('country', 'country')->filter()->toArray();
-                    })
+                    ->options(fn () => Brand::distinct()->whereNotNull('country')->pluck('country', 'country'))
                     ->multiple(),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
             ])
@@ -161,14 +116,8 @@ class BrandResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('name', 'asc');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ->defaultSort('name', 'asc')
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -177,12 +126,6 @@ class BrandResource extends Resource
             'index' => Pages\ListBrands::route('/'),
             'create' => Pages\CreateBrand::route('/create'),
             'edit' => Pages\EditBrand::route('/{record}/edit'),
-            'view' => Pages\ViewBrand::route('/{record}'),
         ];
-    }
-
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count() ?: null;
     }
 }

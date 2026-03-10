@@ -1,4 +1,5 @@
 <?php
+
 // app/Traits/HasIcon.php
 
 namespace App\Traits;
@@ -13,13 +14,17 @@ trait HasIcon
      */
     public function uploadIcon(UploadedFile $file, string $disk = 'public'): string
     {
+        // Определяем путь в зависимости от типа модели
         $type = $this->getIconFolderType();
         $path = "category-icons/{$type}/{$this->id}";
         
+        // Генерируем уникальное имя файла
         $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
         
+        // Сохраняем файл
         $filePath = $file->storeAs($path, $filename, $disk);
         
+        // Обновляем поле icon в модели
         $this->icon = $filePath;
         $this->save();
         
@@ -42,7 +47,7 @@ trait HasIcon
     }
 
     /**
-     * Определяет тип папки для иконок
+     * Определяет тип папки для иконок в зависимости от класса модели
      */
     protected function getIconFolderType(): string
     {
@@ -68,51 +73,15 @@ trait HasIcon
         $type = $this->getIconFolderType();
         $path = "category-icons/{$type}/{$this->id}";
         
+        // Получаем имя файла из временного пути
         $filename = basename($tempPath);
         
-        Storage::disk('public')->makeDirectory($path);
+        // Копируем файл
         Storage::disk('public')->copy($tempPath, $path . '/' . $filename);
         
         $this->icon = $path . '/' . $filename;
         $this->save();
         
         return $this->icon;
-    }
-
-    public function getIconUrlAttribute(): ?string
-    {
-        if (!$this->icon) {
-            return null;
-        }
-        
-        return $this->getIconUrl();
-    }
-
-    public function getIconUrl(): ?string
-    {
-        if (!$this->icon) {
-            return null;
-        }
-
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk('public');
-        
-        try {
-            return $disk->url($this->icon);
-        } catch (\Exception $e) {
-            // Запасной вариант
-            return '/storage/' . $this->icon;
-        }
-    }
-
-
-    public function getImageIconUrlAttribute(): ?string
-    {
-        if (!$this->icon) {
-            return null;
-        }
-
-        // Для public диска используем asset() как в ProductImage
-        return asset('storage/' . $this->icon);
     }
 }

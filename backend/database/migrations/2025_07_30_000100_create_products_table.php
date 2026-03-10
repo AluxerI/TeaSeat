@@ -6,9 +6,6 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('products', function (Blueprint $table) {
@@ -16,17 +13,28 @@ return new class extends Migration
             $table->string('name');
             $table->text('ingredients')->nullable();
             $table->text('description')->nullable();
-            $table->foreignId('brand_id')->constrained()->cascadeOnDelete(); 
+            $table->foreignId('brand_id')->constrained()->cascadeOnDelete();
             $table->decimal('price', 10, 2);
-            $table->integer('weight_grams')->nullable(); // Вес в граммах
+            $table->integer('weight_grams')->nullable();
             $table->integer('sold_count')->default(0);
+            
+            // ПОЛЯ ДЛЯ КЕШИРОВАНИЯ (добавляем)
+            $table->boolean('is_available')->default(false)->index();
+            $table->integer('total_quantity')->default(0);
+            $table->json('cached_data')->nullable(); // Для дополнительных кешированных данных
+            
             $table->timestamps();
+            
+            // Индексы для оптимизации
+            $table->index('name');
+            $table->index('price');
+            $table->index('sold_count');
+            $table->index('created_at');
+            $table->index(['brand_id', 'price']);
+            $table->index(['is_available', 'price']);
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('products');
