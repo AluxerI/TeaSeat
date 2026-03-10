@@ -6,23 +6,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('sub_subcategories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('subcategory_id')->constrained()->cascadeOnDelete();
-            $table->string('name'); // "Белый чай", "Чёрный"
-            $table->string('icon')->nullable()->after('name');
+            $table->string('name');
+            $table->string('icon')->nullable();
             $table->timestamps();
+            
+            // Добавляем индекс
+            $table->index('name');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('sub_subcategories');
