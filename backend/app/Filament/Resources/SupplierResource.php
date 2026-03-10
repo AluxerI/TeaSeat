@@ -10,123 +10,130 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\KeyValue;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use App\Traits\HasNavigationBadge;
 
 class SupplierResource extends Resource
 {
+    use HasNavigationBadge;
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = Supplier::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-truck';
-
     protected static ?string $navigationGroup = 'Склад и поставщики';
-
     protected static ?string $navigationLabel = 'Поставщики';
 
-    protected static ?string $modelLabel = 'Поставщик';
-
-    protected static ?string $pluralModelLabel = 'Поставщики';
-
-    protected static ?string $recordTitleAttribute = 'name';
+    private static function getData($record): array
+    {
+        $id = $record->id;
+        if (!isset(self::$dataCache[$id])) {
+            self::$dataCache[$id] = [
+                'name' => $record->name,
+                'contact_person' => $record->contact_person,
+                'city' => $record->city,
+                'is_active' => $record->is_active,
+                'products_count' => $record->products()->count(),
+                'active_products_count' => $record->products()->wherePivot('is_active', true)->count(),
+                'orders_count' => $record->supplierOrders()->count(),
+                'lead_time_days' => $record->lead_time_days,
+                'created_at' => $record->created_at?->format('d.m.Y'),
+            ];
+        }
+        return self::$dataCache[$id];
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Основная информация')
+                Forms\Components\Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                TextInput::make('name')
+                                Forms\Components\TextInput::make('name')
                                     ->label('Название компании')
                                     ->required()
                                     ->maxLength(255),
                                 
-                                TextInput::make('contact_person')
+                                Forms\Components\TextInput::make('contact_person')
                                     ->label('Контактное лицо')
                                     ->maxLength(255),
                                 
-                                TextInput::make('email')
+                                Forms\Components\TextInput::make('email')
                                     ->label('Email')
                                     ->email()
                                     ->maxLength(255),
                                 
-                                TextInput::make('phone')
+                                Forms\Components\TextInput::make('phone')
                                     ->label('Телефон')
                                     ->tel()
                                     ->maxLength(20),
                                 
-                                TextInput::make('city')
+                                Forms\Components\TextInput::make('city')
                                     ->label('Город')
                                     ->maxLength(255),
                                 
-                                Textarea::make('address')
+                                Forms\Components\Textarea::make('address')
                                     ->label('Адрес')
                                     ->rows(2)
                                     ->columnSpanFull(),
                                 
-                                Toggle::make('is_active')
+                                Forms\Components\Toggle::make('is_active')
                                     ->label('Активен')
-                                    ->default(true)
-                                    ->helperText('Неактивные поставщики не участвуют в заказах'),
+                                    ->default(true),
                             ]),
                     ]),
 
-                Section::make('Параметры заказа')
+                Forms\Components\Section::make('Параметры заказа')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                TextInput::make('lead_time_days')
+                                Forms\Components\TextInput::make('lead_time_days')
                                     ->label('Срок поставки')
                                     ->numeric()
                                     ->default(7)
                                     ->suffix('дней'),
                                 
-                                TextInput::make('min_order_quantity')
+                                Forms\Components\TextInput::make('min_order_quantity')
                                     ->label('Минимальный заказ')
                                     ->numeric()
                                     ->default(1)
                                     ->suffix('шт.'),
                                 
-                                TextInput::make('consolidation_period')
+                                Forms\Components\TextInput::make('consolidation_period')
                                     ->label('Период консолидации')
                                     ->numeric()
                                     ->default(3)
                                     ->suffix('дня'),
                                 
-                                KeyValue::make('order_schedule')
+                                Forms\Components\KeyValue::make('order_schedule')
                                     ->label('График заказов')
                                     ->keyLabel('Параметр')
                                     ->valueLabel('Значение')
                                     ->default(['days' => [8, 18, 28], 'type' => 'monthly'])
-                                    ->helperText('Например: {"days":[8,18,28],"type":"monthly"}')
                                     ->columnSpanFull(),
                             ]),
                     ]),
 
-                Section::make('Статистика')
+                Forms\Components\Section::make('Статистика')
                     ->schema([
-                        Grid::make(3)
+                        Forms\Components\Grid::make(3)
                             ->schema([
                                 Forms\Components\Placeholder::make('products_count')
                                     ->label('Товаров')
-                                    ->content(fn ($record) => $record?->products()->count() ?? 0),
+                                    ->content(fn ($record) => $record ? self::getData($record)['products_count'] : 0),
                                 
                                 Forms\Components\Placeholder::make('active_products_count')
                                     ->label('Активных товаров')
-                                    ->content(fn ($record) => $record?->products()->wherePivot('is_active', true)->count() ?? 0),
+                                    ->content(fn ($record) => $record ? self::getData($record)['active_products_count'] : 0),
                                 
                                 Forms\Components\Placeholder::make('orders_count')
                                     ->label('Заказов поставщику')
-                                    ->content(fn ($record) => $record?->supplierOrders()->count() ?? 0),
+                                    ->content(fn ($record) => $record ? self::getData($record)['orders_count'] : 0),
                             ])
                             ->visible(fn ($record) => $record !== null),
                     ]),
@@ -140,53 +147,58 @@ class SupplierResource extends Resource
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 TextColumn::make('name')
                     ->label('Поставщик')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
                 
                 TextColumn::make('contact_person')
                     ->label('Контакт')
+                    ->getStateUsing(fn ($record) => self::getData($record)['contact_person'])
                     ->searchable()
                     ->toggleable(),
                 
                 TextColumn::make('city')
                     ->label('Город')
+                    ->getStateUsing(fn ($record) => self::getData($record)['city'])
                     ->searchable()
                     ->sortable(),
                 
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->counts('products')
+                    ->getStateUsing(fn ($record) => self::getData($record)['products_count'])
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->badge()
+                    ->color('info'),
                 
                 IconColumn::make('is_active')
                     ->label('Активен')
+                    ->getStateUsing(fn ($record) => self::getData($record)['is_active'])
                     ->boolean()
                     ->trueColor('success')
                     ->falseColor('danger'),
                 
                 TextColumn::make('lead_time_days')
                     ->label('Срок')
+                    ->getStateUsing(fn ($record) => self::getData($record)['lead_time_days'])
                     ->suffix(' дн.')
                     ->alignCenter()
                     ->toggleable(),
                 
                 TextColumn::make('created_at')
                     ->label('Дата')
-                    ->dateTime('d.m.Y')
+                    ->getStateUsing(fn ($record) => self::getData($record)['created_at'])
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('city')
                     ->label('Город')
-                    ->options(function () {
-                        return Supplier::distinct()->pluck('city', 'city')->filter()->toArray();
-                    })
+                    ->options(fn () => Supplier::distinct()->pluck('city', 'city')->filter()->toArray())
                     ->multiple(),
                 
                 Filter::make('is_active')
@@ -207,14 +219,9 @@ class SupplierResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('name', 'asc');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ->defaultSort('name', 'asc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -225,10 +232,5 @@ class SupplierResource extends Resource
             'edit' => Pages\EditSupplier::route('/{record}/edit'),
             'view' => Pages\ViewSupplier::route('/{record}'),
         ];
-    }
-
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('is_active', true)->count() ?: null;
     }
 }

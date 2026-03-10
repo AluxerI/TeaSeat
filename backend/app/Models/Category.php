@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Traits\ClearsModelCache;
 use App\Traits\ResetsAdminBadges;
 use App\Traits\HasIcon;
@@ -48,7 +49,68 @@ class Category extends Model
     }
 
     /**
-     * Получить количество товаров в категории (оптимизировано)
+     * Получить главное изображение (путь)
+     */
+    public function getMainImage(): ?string
+    {
+        $key = "category.{$this->id}.main_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_main', true)
+                ->value('path');
+        });
+    }
+
+    public function getMainImageUrl(): ?string
+    {
+        $path = $this->getMainImage();
+        if (!$path) return null;
+
+        // Для публичного диска используем asset
+        return asset('storage/' . $path);
+    }
+
+
+
+    /**
+     * Получить фоновое изображение (путь)
+     */
+    public function getBackgroundImage(): ?string
+    {
+        $key = "category.{$this->id}.background_image";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->images()
+                ->where('is_background', true)
+                ->value('path');
+        });
+    }
+
+    /**
+     * Получить URL фонового изображения
+     */
+    public function getBackgroundImageUrl(): ?string
+    {
+        $path = $this->getBackgroundImage();
+        if (!$path) return null;
+        
+        return asset('storage/' . $path);
+    }
+    /**
+     * Получить количество подкатегорий
+     */
+    public function getSubcategoriesCount(): int
+    {
+        $key = "category.{$this->id}.subcategories_count";
+        
+        return Cache::remember($key, 3600, function () {
+            return $this->subcategories()->count();
+        });
+    }
+
+    /**
+     * Получить количество товаров в категории
      */
     public function getProductsCount(): int
     {
@@ -66,46 +128,6 @@ class Category extends Model
     }
 
     /**
-     * Получить количество подкатегорий
-     */
-    public function getSubcategoriesCount(): int
-    {
-        $key = "category.{$this->id}.subcategories_count";
-        
-        return Cache::remember($key, 3600, function () {
-            return $this->subcategories()->count();
-        });
-    }
-
-    /**
-     * Получить главное изображение
-     */
-    public function getMainImage(): ?string
-    {
-        $key = "category.{$this->id}.main_image";
-        
-        return Cache::remember($key, 3600, function () {
-            return $this->images()
-                ->where('is_main', true)
-                ->value('path');
-        });
-    }
-
-    /**
-     * Получить фоновое изображение
-     */
-    public function getBackgroundImage(): ?string
-    {
-        $key = "category.{$this->id}.background_image";
-        
-        return Cache::remember($key, 3600, function () {
-            return $this->images()
-                ->where('is_background', true)
-                ->value('path');
-        });
-    }
-
-    /**
      * ВСЕ ДАННЫЕ ОДНИМ КЛЮЧОМ
      */
     public function getAllData(): array
@@ -118,8 +140,11 @@ class Category extends Model
                 'name' => $this->name,
                 'slug' => $this->slug,
                 'icon' => $this->icon,
+                'icon_url' => $this->icon_url, // из трейта HasIcon
                 'main_image' => $this->getMainImage(),
+                'main_image_url' => $this->getMainImageUrl(),
                 'background_image' => $this->getBackgroundImage(),
+                'background_image_url' => $this->getBackgroundImageUrl(), // ← ДОБАВИТЬ
                 'subcategories_count' => $this->getSubcategoriesCount(),
                 'products_count' => $this->getProductsCount(),
                 'created_at' => $this->created_at?->format('d.m.Y'),
@@ -140,8 +165,8 @@ class Category extends Model
             return [
                 'id' => $data['id'],
                 'name' => $data['name'],
-                'icon' => $data['icon'],
-                'main_image' => $data['main_image'],
+                'icon_url' => $data['icon_url'],
+                'main_image_url' => $data['main_image_url'],
                 'subcategories_count' => $data['subcategories_count'],
                 'products_count' => $data['products_count'],
             ];

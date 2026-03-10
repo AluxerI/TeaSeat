@@ -26,16 +26,19 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
 use Spatie\Permission\Models\Role;
+use App\Traits\HasNavigationBadge;
 
 class UserResource extends Resource
 {
+    use HasNavigationBadge; 
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = User::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-users';
-
     protected static ?string $navigationGroup = 'Управление пользователями';
+    protected static ?string $navigationLabel = 'Пользователи';
 
-    protected static ?string $modelLabel = 'Пользователь';
 
     protected static ?string $pluralModelLabel = 'Пользователи';
 
@@ -487,8 +490,4 @@ class UserResource extends Resource
             ]);
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('is_active', true)->count() ?: null;
-    }
 }

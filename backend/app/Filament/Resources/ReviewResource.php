@@ -22,15 +22,17 @@ use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Actions\Action;
+use App\Traits\HasNavigationBadge;
 
 class ReviewResource extends Resource
 {
+    use HasNavigationBadge; 
+    
+    private static array $dataCache = []; 
+
     protected static ?string $model = Review::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
-
     protected static ?string $navigationGroup = 'Модерация';
-
     protected static ?string $navigationLabel = 'Отзывы';
 
     protected static ?string $modelLabel = 'Отзыв';
@@ -276,8 +278,4 @@ class ReviewResource extends Resource
             ->with(['user', 'product']);
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count() ?: null;
-    }
 }

@@ -4,67 +4,65 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\SubcategoryResource\Pages;
 use App\Models\Subcategory;
-use App\Models\Category;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Forms\Components\Section;
-use Filament\Forms\Components\Grid;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Repeater;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
+use App\Traits\HasNavigationBadge;
 
 class SubcategoryResource extends Resource
 {
+    use HasNavigationBadge;
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = Subcategory::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-folder';
-
     protected static ?string $navigationGroup = 'Управление каталогом';
-
     protected static ?string $navigationLabel = 'Подкатегории';
 
-    protected static ?string $modelLabel = 'Подкатегория';
-
-    protected static ?string $pluralModelLabel = 'Подкатегории';
-
-    protected static ?string $recordTitleAttribute = 'name';
+    private static function getData($record): array
+    {
+        $id = $record->id;
+        if (!isset(self::$dataCache[$id])) {
+            self::$dataCache[$id] = $record->getAllData();
+        }
+        return self::$dataCache[$id];
+    }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                Section::make('Основная информация')
+                Forms\Components\Section::make('Основная информация')
                     ->schema([
-                        Grid::make(2)
+                        Forms\Components\Grid::make(2)
                             ->schema([
-                                Select::make('category_id')
+                                Forms\Components\Select::make('category_id')
                                     ->label('Родительская категория')
                                     ->relationship('category', 'name')
                                     ->required()
                                     ->searchable()
                                     ->preload(),
                                 
-                                TextInput::make('name')
+                                Forms\Components\TextInput::make('name')
                                     ->label('Название подкатегории')
                                     ->required()
                                     ->maxLength(255)
                                     ->live(onBlur: true)
                                     ->afterStateUpdated(fn ($state, callable $set) => $set('slug', str($state)->slug())),
                                 
-                                TextInput::make('slug')
+                                Forms\Components\TextInput::make('slug')
                                     ->label('URL-алиас')
                                     ->required()
                                     ->maxLength(255)
                                     ->unique(ignoreRecord: true),
                                 
-                                FileUpload::make('icon')
+                                Forms\Components\FileUpload::make('icon')
                                     ->label('Иконка')
                                     ->image()
                                     ->directory('category-icons/subcategories')
@@ -74,19 +72,19 @@ class SubcategoryResource extends Resource
                             ]),
                     ]),
 
-                Section::make('Под-подкатегории')
+                Forms\Components\Section::make('Под-подкатегории')
                     ->schema([
-                        Repeater::make('sub_subcategories')
+                        Forms\Components\Repeater::make('sub_subcategories')
                             ->relationship()
                             ->schema([
-                                Grid::make(2)
+                                Forms\Components\Grid::make(2)
                                     ->schema([
-                                        TextInput::make('name')
+                                        Forms\Components\TextInput::make('name')
                                             ->label('Название')
                                             ->required()
                                             ->maxLength(255),
                                         
-                                        FileUpload::make('icon')
+                                        Forms\Components\FileUpload::make('icon')
                                             ->label('Иконка')
                                             ->image()
                                             ->directory('category-icons/sub-subcategories')
@@ -108,37 +106,40 @@ class SubcategoryResource extends Resource
                 TextColumn::make('id')
                     ->label('ID')
                     ->sortable()
-                    ->toggleable(),
+                    ->toggleable(isToggledHiddenByDefault: true),
                 
                 TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
                 
-                TextColumn::make('category.name')
+                TextColumn::make('category_name')
                     ->label('Категория')
+                    ->getStateUsing(fn ($record) => self::getData($record)['category_name'])
                     ->searchable()
                     ->sortable(),
                 
                 TextColumn::make('sub_subcategories_count')
                     ->label('Под-подкатегории')
-                    ->counts('sub_subcategories')
+                    ->getStateUsing(fn ($record) => self::getData($record)['sub_subcategories_count'])
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->badge()
+                    ->color('info'),
                 
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->getStateUsing(function ($record) {
-                        return \App\Models\Product::whereHas('sub_subcategories', function ($query) use ($record) {
-                            $query->whereIn('sub_subcategories.id', $record->sub_subcategories->pluck('id'));
-                        })->count();
-                    })
+                    ->getStateUsing(fn ($record) => self::getData($record)['products_count'])
                     ->sortable()
-                    ->alignCenter(),
+                    ->alignCenter()
+                    ->badge()
+                    ->color('success'),
                 
-                ImageColumn::make('icon_url')
+                ImageColumn::make('icon')
                     ->label('Иконка')
                     ->circular()
+                    ->getStateUsing(fn ($record) => self::getData($record)['icon_url'])
                     ->defaultImageUrl(url('/images/default-icon.png')),
                 
                 TextColumn::make('created_at')
@@ -164,14 +165,9 @@ class SubcategoryResource extends Resource
                     Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
-            ->defaultSort('name', 'asc');
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
+            ->defaultSort('name', 'asc')
+            ->paginated([10, 25, 50, 100])
+            ->defaultPaginationPageOption(25);
     }
 
     public static function getPages(): array
@@ -182,10 +178,5 @@ class SubcategoryResource extends Resource
             'edit' => Pages\EditSubcategory::route('/{record}/edit'),
             'view' => Pages\ViewSubcategory::route('/{record}'),
         ];
-    }
-
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::count() ?: null;
     }
 }

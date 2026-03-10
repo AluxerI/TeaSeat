@@ -21,15 +21,17 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
+use App\Traits\HasNavigationBadge;
 
 class PromotionResource extends Resource
 {
+    use HasNavigationBadge; // ← ДОБАВИТЬ
+    
+    private static array $dataCache = [];
+
     protected static ?string $model = Promotion::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-tag';
-
     protected static ?string $navigationGroup = 'Маркетинг';
-
     protected static ?string $navigationLabel = 'Акции';
 
     protected static ?string $modelLabel = 'Акция';
@@ -289,12 +291,4 @@ class PromotionResource extends Resource
         ];
     }
 
-    public static function getNavigationBadge(): ?string
-    {
-        return static::getModel()::where('is_active', true)
-            ->where(function ($q) {
-                $q->whereNull('end_date')->orWhere('end_date', '>=', now());
-            })
-            ->count() ?: null;
-    }
 }
