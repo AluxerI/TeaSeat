@@ -56,27 +56,21 @@ export const ProductItem = ({
           type={pic_product.type}
           className="product-card__image"
         ></Images>
-
       </div>
-      <div className="body-card">
+      <div
+        className="product-card__body"
+        style={
+          background.name
+            ? { backgroundImage: `url(${background.name}.${background.type})` }
+            : undefined
+        }
+      >
         <section className="section">
           <h5 className="label-product">{label}</h5>
           <div className="gramm-and-price">
             <form action="" className="grams-form">
-              <Images
-                className="background"
-                name={background.name}
-                alt={background.alt}
-                type={background.type}
-              ></Images>
               <p className="count-gramms">{weight}</p>
-              <button type="button" onClick={upWeight}>
-                <Images
-                  name="https://cdn-icons-png.flaticon.com/512/271/271239"
-                  type="png"
-                  alt="icon-up"
-                ></Images>
-              </button>
+              <button type="button" onClick={upWeight}></button>
               <button type="button" onClick={downWeight}>
                 <Images
                   name="https://cdn-icons-png.flaticon.com/512/271/271210"
