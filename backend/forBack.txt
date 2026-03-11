@@ -59,14 +59,13 @@ php artisan route:cache
 php artisan view:cache
 php artisan filament:cache-components
 
-# 4. ПРОВЕРЯЕМ ПРАВА
-chmod -R 775 storage
-chmod -R 775 public/storage
-chmod -R 775 bootstrap/cache
 
-# 5. ОПТИМИЗИРУЕМ АВТОЗАГРУЗКУ
+# 4. ОПТИМИЗИРУЕМ АВТОЗАГРУЗКУ
 composer dump-autoload -o
 
 # Выйди
 exit
 ------------------------------------
+
+php artisan octane:reload    - обновить код на сервере
+
