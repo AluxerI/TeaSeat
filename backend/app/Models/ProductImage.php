@@ -1,15 +1,16 @@
 <?php
-// app/Models/ProductImage.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\ClearsModelCache;
+use App\Traits\HasImage;  // ← Добавляем
 
 class ProductImage extends Model
 {
-    use HasFactory;
+    use HasFactory, ClearsModelCache, HasImage;  // ← Добавляем HasImage
 
     protected $fillable = [
         'product_id',
@@ -28,60 +29,19 @@ class ProductImage extends Model
         'sort_order' => 'integer',
     ];
 
-    /**
-     * Связь с товаром
-     */
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * Получить полный URL изображения
-     */
-    public function getUrlAttribute(): string
-    {
-        return $this->getUrl();
-    }
-
-    /**
-     * Метод для получения URL
-     */
-    public function getUrl(): string
-    {
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk($this->disk);
-        
-        try {
-            // @phpstan-ignore-next-line
-            return $disk->url($this->path);
-        } catch (\Exception $e) {
-            return '/storage/' . $this->path;
-        }
-    }
-
-    /**
-     * Получить путь для вставки в img src
-     */
-    public function getImageUrlAttribute(): string
-    {
-        if ($this->disk === 'public') {
-            return asset('storage/' . $this->path);
-        }
-        
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk($this->disk);
-        
-        // @phpstan-ignore-next-line
-        return $disk->url($this->path);
-    }
-
-    /**
-     * Удаление файла при удалении модели
-     */
     protected static function booted()
     {
-        static::deleting(function ($image) {
+        static::saved(function ($image) {
+            $image->product?->clearCache();
+        });
+
+        static::deleted(function ($image) {
+            $image->product?->clearCache();
             Storage::disk($image->disk)->delete($image->path);
         });
     }
