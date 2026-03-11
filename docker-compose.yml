@@ -8,7 +8,7 @@ services:
       - "8000:8000"
       - "6001:6001" 
     volumes:
-      - ./backend:/app/backend
+      - ./backend:/app/backend:cached
       - /app/backend/vendor  
     environment:
       - OCTANE_SERVER=roadrunner

@@ -4,10 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Traits\ClearsModelCache;
+use App\Traits\HasImage;  // ← Добавляем
 
 class CategoryImage extends Model
 {
-    use ClearsModelCache;
+    use ClearsModelCache, HasImage;  // ← Добавляем HasImage
 
     protected $fillable = [
         'category_id',

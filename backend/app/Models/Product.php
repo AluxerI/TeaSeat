@@ -34,7 +34,7 @@ class Product extends Model
     public function images()
     {
         return $this->hasMany(ProductImage::class)->select([
-            'id', 'product_id', 'url', 'is_main', 'is_background', 'sort_order'
+            'id', 'product_id', 'path', 'is_main', 'is_background', 'sort_order'
         ]);
     }
 
@@ -76,44 +76,93 @@ class Product extends Model
     }
 
     /**
-     * Приватные методы для получения данных
+     * Получить путь к главному изображению
      */
-    private function getMainImage(): ?string
+    private function getMainImagePath(): ?string
     {
-        $key = "product.{$this->id}.main_image";
-        
+        $key = "product.{$this->id}.main_image_path";
+
         return Cache::remember($key, 3600, function () {
             return $this->images()
                 ->where('is_main', true)
-                ->value('url');
+                ->value('path');
         });
     }
 
-    private function getBackgroundImage(): ?string
+    /**
+     * Получить URL главного изображения
+     */
+    private function getMainImageUrl(): ?string
     {
-        $key = "product.{$this->id}.background_image";
-        
+        $key = "product.{$this->id}.main_image_url";
+
+        return Cache::remember($key, 3600, function () {
+            $image = $this->images()
+                ->where('is_main', true)
+                ->first();
+
+            return $image?->image_url;
+        });
+    }
+
+    /**
+     * Получить фоновое изображение (путь)
+     */
+    private function getBackgroundImagePath(): ?string
+    {
+        $key = "product.{$this->id}.background_image_path";
+
         return Cache::remember($key, 3600, function () {
             return $this->images()
                 ->where('is_background', true)
-                ->value('url');
+                ->value('path');
         });
     }
 
-    private function getGallery(): array
+    /**
+     * Получить URL фонового изображения
+     */
+    private function getBackgroundImageUrl(): ?string
     {
-        $key = "product.{$this->id}.gallery";
-        
+        $key = "product.{$this->id}.background_image_url";
+
+        return Cache::remember($key, 3600, function () {
+            $image = $this->images()
+                ->where('is_background', true)
+                ->first();
+
+            return $image?->image_url;
+        });
+    }
+
+    /**
+     * Получить данные галереи
+     */
+    private function getGalleryData(): array
+    {
+        $key = "product.{$this->id}.gallery_data";
+
         return Cache::remember($key, 3600, function () {
             return $this->images()
                 ->where('is_main', false)
                 ->where('is_background', false)
                 ->orderBy('sort_order')
-                ->get(['url', 'alt', 'title', 'sort_order'])
+                ->get()
+                ->map(fn($img) => [
+                    'path' => $img->path,
+                    'url' => $img->image_url,
+                    'alt' => $img->alt,
+                    'title' => $img->title,
+                    'sort_order' => $img->sort_order,
+                ])
+                ->values()
                 ->toArray();
         });
     }
 
+    /**
+     * Получить путь по категориям
+     */
     private function getCategoryPath(): ?array
     {
         $key = "product.{$this->id}.category_path";
@@ -135,6 +184,9 @@ class Product extends Model
         });
     }
 
+    /**
+     * Получить общее количество на складах
+     */
     private function getTotalQuantity(): int
     {
         $key = "product.{$this->id}.total_quantity";
@@ -145,20 +197,22 @@ class Product extends Model
     }
 
     /**
-     * Главный метод - все данные одним ключом
+     * Получить все данные товара одним ключом
      */
     public function getAllData(): array
     {
         $key = "product.{$this->id}.all";
-        
+
         return Cache::remember($key, 3600, function () {
             return [
                 'id' => $this->id,
                 'name' => $this->name,
                 'price' => (float) $this->price,
-                'main_image' => $this->getMainImage(),
-                'background_image' => $this->getBackgroundImage(),
-                'gallery' => $this->getGallery(),
+                'main_image_path' => $this->getMainImagePath(),
+                'main_image_url' => $this->getMainImageUrl(),
+                'background_image_path' => $this->getBackgroundImagePath(),
+                'background_image_url' => $this->getBackgroundImageUrl(),
+                'gallery_data' => $this->getGalleryData(),
                 'category_path' => $this->getCategoryPath(),
                 'total_quantity' => $this->getTotalQuantity(),
                 'sold_count' => $this->sold_count,
@@ -182,7 +236,7 @@ class Product extends Model
                 'id' => $data['id'],
                 'name' => $data['name'],
                 'price' => $data['price'],
-                'main_image' => $data['main_image'],
+                'main_image' => $data['main_image_url'],
                 'category' => $data['category_path']['category'] ?? '—',
                 'total_quantity' => $data['total_quantity'],
                 'is_available' => $data['is_available'],
@@ -208,7 +262,7 @@ class Product extends Model
     }
 
     /**
-     * Очистка кеша
+     * Ключи кеша для очистки
      */
     protected function getCacheKeys(): array
     {
@@ -216,9 +270,11 @@ class Product extends Model
             "product.{$this->id}.all",
             "product.{$this->id}.table",
             "product.{$this->id}.detailed",
-            "product.{$this->id}.main_image",
-            "product.{$this->id}.background_image",
-            "product.{$this->id}.gallery",
+            "product.{$this->id}.main_image_path",
+            "product.{$this->id}.main_image_url",
+            "product.{$this->id}.background_image_path",
+            "product.{$this->id}.background_image_url",
+            "product.{$this->id}.gallery_data",
             "product.{$this->id}.category_path",
             "product.{$this->id}.total_quantity",
         ];
