@@ -49,6 +49,8 @@ $transition-normal: 0.25s ease;
   flex-direction: column;
   position: relative;
 
+  @include typography($body-sm, 400);
+
   &__head {
     background: $color-bg-image;
     position: relative; // нужно для бейджа и сердечка
@@ -104,10 +106,11 @@ $transition-normal: 0.25s ease;
         border: none;
         width: 100%;
         height: auto;
-        padding: 5%;
+        padding: 3%;
         border-radius: calc($button-radius/4);
         background-color: $color-accent;
         color: #f0f0f0;
+        @include typography($body-sm, 400);
       }
       .quickView {
         width: calc($button-check-preview * 2);
@@ -147,10 +150,11 @@ $transition-normal: 0.25s ease;
   display: flex;
   flex-direction: row;
   align-items: baseline;
-  background-color: #f0f0f0;
-  width: 45%;
+
+  width: 60%;
   margin-bottom: $padding-body;
   @include flex-any(space-between, center);
+
   button {
     width: $button-height;
     height: $button-height;
