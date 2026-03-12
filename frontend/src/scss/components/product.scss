@@ -1,5 +1,3 @@
-@use "../abstracts" as *;
-
 // Цвета
 $color-bg-card: #ffffff;
 $color-bg-image: #2e2e2e; // тёмный фон под картинкой товара
@@ -97,10 +95,9 @@ $transition-normal: 0.25s ease;
       height: auto;
       width: $button-sell-width;
 
-      display: flex;
-      align-items: center;
       margin-bottom: $padding-body;
       gap: $padding-at-percent;
+      @include flex-centre();
 
       .at-cart {
         text-decoration: none;
@@ -142,7 +139,7 @@ $transition-normal: 0.25s ease;
 
 .background,
 .gramm-and-price {
-  width: 150px;
+  width: 85%;
   height: auto;
 }
 
@@ -151,7 +148,9 @@ $transition-normal: 0.25s ease;
   flex-direction: row;
   align-items: baseline;
   background-color: #f0f0f0;
-  width: 100%;
+  width: 45%;
+  margin-bottom: $padding-body;
+  @include flex-any(space-between, center);
   button {
     width: $button-height;
     height: $button-height;
