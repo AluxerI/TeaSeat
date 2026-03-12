@@ -1,3 +1,5 @@
+@use "../abstracts" as *;
+
 // Цвета
 $color-bg-card: #ffffff;
 $color-bg-image: #2e2e2e; // тёмный фон под картинкой товара
@@ -18,8 +20,13 @@ $card-width: 200px;
 $card-radius: 16px;
 $image-area-height: 170px;
 
+$button-height: 10px;
+$button-sell-width: 90%;
+$button-check-preview: 10%;
+$button-radius: 20px;
 // Отступы
 $padding-body: 12px;
+$padding-at-percent: 2%;
 
 // Шрифты
 $font-size-title: 13px;
@@ -85,10 +92,52 @@ $transition-normal: 0.25s ease;
       position: relative;
       z-index: 1;
     }
+
+    .button-for-buy {
+      height: auto;
+      width: $button-sell-width;
+
+      display: flex;
+      align-items: center;
+      margin-bottom: $padding-body;
+      gap: $padding-at-percent;
+
+      .at-cart {
+        text-decoration: none;
+        border: none;
+        width: 100%;
+        height: auto;
+        padding: 5%;
+        border-radius: calc($button-radius/4);
+        background-color: $color-accent;
+        color: #f0f0f0;
+      }
+      .quickView {
+        width: calc($button-check-preview * 2);
+        height: calc($button-check-preview * 8);
+
+        border-color: none;
+        border-radius: 20%;
+        text-decoration: none;
+        border: none;
+
+        img {
+          position: relative;
+          width: 100%;
+          height: 30px;
+          object-fit: cover;
+        }
+      }
+    }
   }
 }
 .background-card {
   width: 150px;
+}
+.section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .background,
@@ -99,16 +148,23 @@ $transition-normal: 0.25s ease;
 
 .grams-form {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: baseline;
+  background-color: #f0f0f0;
+  width: 100%;
   button {
-    width: 100%;
-    height: 30px;
+    width: $button-height;
+    height: $button-height;
+    display: inherit;
     background-color: #f0f0f0;
+    background: none;
     border: none;
+    padding: 0;
     cursor: pointer;
-    Images {
-      width: 100%;
+    img {
+      width: $button-height;
       height: auto;
+      display: block;
     }
   }
 }
