@@ -40,7 +40,7 @@
 
     // Соберём список src-источников: сначала локальная проверка
     $src-list: local(unquote($font-name));
-    $fmt-type:'';
+    $fmt-type: "";
     // Пробегаемся по всем указанным форматам и добавляем url(... format(...))
     @each $fmt in $formats {
       @if $fmt == "woff2" {
@@ -59,7 +59,10 @@
       }
 
       // Добавляем запись в список src‐источников через запятую
-      $src-list: append($src-list, url("#{$font-path}.#{$fmt}") format("#{$fmt-type}"));
+      $src-list: append(
+        $src-list,
+        url("#{$font-path}.#{$fmt}") format("#{$fmt-type}")
+      );
     }
 
     // Прописываем итоговое src
@@ -76,6 +79,11 @@
   display: flex;
   justify-content: center;
   align-items: center;
+}
+@mixin flex-any($justify: center, $align: center) {
+  display: flex;
+  justify-content: $justify;
+  align-items: $align;
 }
 
 //——————————————————————————————
@@ -100,30 +108,30 @@
   }
 }
 
-
 //——————————————————————————————
 // стили заголовка
 //——————————————————————————————
 //@@ NOT RELISED
 
-
-@mixin removed(){
-  ul { list-style: none; }
-  a{
-    text-decoration:none;
-    color:white;
-    user-select:none;
+@mixin removed() {
+  ul {
+    list-style: none;
+  }
+  a {
+    text-decoration: none;
+    color: white;
+    user-select: none;
   }
 
   details {
     // Убираем стандартный стиль стрелочки
-    user-select:none;
-    color:white;
-   
+    user-select: none;
+    color: white;
+
     &::-webkit-details-marker {
       display: none;
     }
-    &::marker{
+    &::marker {
       display: none;
     }
 
@@ -137,24 +145,23 @@
       // Убираем стандартное отступление
       padding-left: 0;
       // Убираем стандартный outline
-      outline: none;}
-      
+      outline: none;
     }
-    
+  }
 }
 
-@mixin linearGradient($dir,$from,$to){
+@mixin linearGradient($dir, $from, $to) {
   background-color: $to;
-  background-image: -webkit-linear-gradient($dir,$from,$to);
-  background-image: -webkit-gradient($dir,$from,$to);
-  }
+  background-image: -webkit-linear-gradient($dir, $from, $to);
+  background-image: -webkit-gradient($dir, $from, $to);
+}
 
-@mixin typography($size:"body", $weight: 400, $lh: 1.5) {
-    $fc-value: font-size($size);
-    
-    font-size: $fc-value;
-    font-weight: $weight;
-    line-height: $lh;
+@mixin typography($size: "body", $weight: 400, $lh: 1.5) {
+  $fc-value: font-size($size);
+
+  font-size: $fc-value;
+  font-weight: $weight;
+  line-height: $lh;
 }
 
 @mixin smooth-transition($properties: all, $duration: 0.4s) {
@@ -164,7 +171,7 @@
 //——————————————————————————————
 // стили ховер
 //——————————————————————————————
-@mixin a-hover($color){
-  color:$color;
+@mixin a-hover($color) {
+  color: $color;
   @include smooth-transition(color);
 }
