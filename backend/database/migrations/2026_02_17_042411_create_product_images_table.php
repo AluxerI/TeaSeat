@@ -28,6 +28,9 @@ return new class extends Migration
             // для быстрого поиска главного фото по товару
             $table->index(['product_id', 'is_main']);
             $table->index(['product_id', 'is_background']);
+            $table->index(['product_id', 'sort_order']); // для сортировки галереи
+            $table->index(['product_id', 'is_main', 'sort_order']); // для главного фото с сортировкой
+            $table->index(['product_id', 'is_background', 'sort_order']); // для фонового фото
         });
     }
 

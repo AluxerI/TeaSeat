@@ -8,6 +8,8 @@ use App\Services\AdminDashboardService;
 
 class StatsOverview extends BaseWidget
 {
+    protected static ?int $sort = 1;
+
     protected function getStats(): array
     {
         $service = app(AdminDashboardService::class);

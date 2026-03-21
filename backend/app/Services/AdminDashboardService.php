@@ -7,16 +7,73 @@ use Illuminate\Support\Facades\Cache;
 
 class AdminDashboardService
 {
-    public function getStats(): array
+    public function getStats(?int $warehouseId = null): array
     {
-        return Cache::remember('admin.dashboard.stats', 300, function () {
+        $cacheKey = 'admin.dashboard.stats' . ($warehouseId ? ".warehouse.{$warehouseId}" : '');
+        
+        return Cache::remember($cacheKey, 300, function () use ($warehouseId) {
             return [
                 'products' => $this->getProductStats(),
                 'orders' => $this->getOrderStats(),
-                'inventory' => $this->getInventoryStats(),
+                'inventory' => $this->getInventoryStats($warehouseId),
                 'customers' => $this->getCustomerStats(),
+                'low_stock' => $this->getLowStockProducts($warehouseId),
             ];
         });
+    }
+
+    // Изменяем visibility с private на public
+    public function getLowStockProducts(?int $warehouseId = null)
+    {
+        $query = DB::table('inventories')
+            ->join('products', 'inventories.product_id', '=', 'products.id')
+            ->join('warehouses', 'inventories.warehouse_id', '=', 'warehouses.id')
+            ->select(
+                'products.id',
+                'products.name',
+                'products.price',
+                'inventories.quantity',
+                'warehouses.name as warehouse_name',
+                'warehouses.id as warehouse_id'
+            )
+            ->where('inventories.quantity', '>', 0)
+            ->where('inventories.quantity', '<', 10)
+            ->orderBy('inventories.quantity', 'asc');
+
+        if ($warehouseId) {
+            $query->where('inventories.warehouse_id', $warehouseId);
+        }
+
+        return $query->limit(10)->get();
+    }
+
+    public function getWarehousesList(): array
+    {
+        return DB::table('warehouses')
+            ->select('id', 'name', 'city')
+            ->orderBy('city')
+            ->orderBy('name')
+            ->get()
+            ->mapWithKeys(fn ($item) => [$item->id => "{$item->name} ({$item->city})"])
+            ->toArray();
+    }
+
+    // Добавляем недостающий параметр в getInventoryStats
+    private function getInventoryStats(?int $warehouseId = null): array
+    {
+        $inventoryQuery = DB::table('inventories');
+        
+        if ($warehouseId) {
+            $inventoryQuery->where('warehouse_id', $warehouseId);
+        }
+
+        return [
+            'low_stock' => $this->getLowStockProducts($warehouseId),
+            'out_of_stock' => DB::table('products')
+                ->where('is_available', false)
+                ->count(),
+            'total_items' => $inventoryQuery->sum('quantity'),
+        ];
     }
 
     private function getProductStats(): array
@@ -39,7 +96,7 @@ class AdminDashboardService
                     DB::raw('COUNT(reviews.product_id) as reviews_count')
                 )
                 ->groupBy('products.id', 'products.name')
-                ->having(DB::raw('COUNT(reviews.product_id)'), '>', 0)  // ← ИСПРАВЛЕНО
+                ->having(DB::raw('COUNT(reviews.product_id)'), '>', 0)
                 ->orderBy('avg_rating', 'desc')
                 ->limit(10)
                 ->get(),
@@ -72,29 +129,6 @@ class AdminDashboardService
             ->sum('final_total');
 
         return $stats;
-    }
-
-    private function getInventoryStats(): array
-    {
-        return [
-            'low_stock' => DB::table('inventories')
-                ->join('products', 'inventories.product_id', '=', 'products.id')
-                ->select(
-                    'products.id', 
-                    'products.name', 
-                    DB::raw('SUM(inventories.quantity) as total')
-                )
-                ->groupBy('products.id', 'products.name')
-                ->having(DB::raw('SUM(inventories.quantity)'), '<', 10)  // ← ИСПРАВЛЕНО
-                ->having(DB::raw('SUM(inventories.quantity)'), '>', 0)   // ← ИСПРАВЛЕНО
-                ->orderBy('total', 'asc')
-                ->limit(20)
-                ->get(),
-            'out_of_stock' => DB::table('products')
-                ->where('is_available', false)
-                ->count(),
-            'total_items' => DB::table('inventories')->sum('quantity'),
-        ];
     }
 
     private function getCustomerStats(): array

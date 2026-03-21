@@ -14,6 +14,20 @@ class Product extends Model
     use HasFactory, ClearsModelCache, ResetsAdminBadges;
 
     protected $table = 'products';
+
+
+    protected $fillable = [
+        'name',
+        'ingredients',
+        'description',
+        'brand_id',
+        'price',
+        'weight_grams',
+        'sold_count',
+        'is_available',
+        'total_quantity',
+        'cached_data',
+    ];
     protected $guarded = false;
 
     protected $casts = [
@@ -89,6 +103,18 @@ class Product extends Model
         });
     }
 
+
+    public function sub_subcategory()
+    {
+        return $this->belongsToMany(Sub_Subcategory::class, 'sub_subcategory_products', 'product_id', 'sub_subcategory_id');
+    }
+
+    public function orders()
+    {
+        return $this->belongsToMany(Order::class, 'order_products')
+            ->withPivot(['quantity', 'unit_price', 'final_unit_price', 'total_price'])
+            ->withTimestamps();
+    }
     /**
      * Получить URL главного изображения
      */
@@ -295,30 +321,66 @@ class Product extends Model
         $this->clearCache();
     }
 
-    /**
-     * События модели
-     */
+    public function mutateFormDataBeforeCreate(array $data): array
+    {
+        // Убираем поле с категорией из данных для сохранения
+        $this->sub_category_id = $data['selected_sub_subcategory_id'] ?? null;
+        unset($data['selected_sub_subcategory_id']);
+        unset($data['sub_subcategory_id']);
+        
+        return $data;
+    }
+    
+    public function afterCreate(): void
+    {
+        if ($this->sub_category_id) {
+            $this->record->sub_subcategories()->sync([$this->sub_category_id]);
+        }
+    }
+
+
     protected static function booted()
     {
-        static::saved(function ($product) {
-            $product->updateCacheFields();
+        parent::booted();
+
+        static::creating(function ($product) {
+            // Удаляем поле sub_subcategory_id из данных, если оно есть
+            if (isset($product->sub_subcategory_id)) {
+                $product->sub_subcategory_id = null;
+            }
         });
 
-        static::deleted(function ($product) {
-            $product->clearCache();
-            // Очищаем кеши страниц
-            for ($i = 1; $i <= 10; $i++) {
-                Cache::forget("products.page.{$i}.ids");
+        static::created(function ($product) {
+            // Если есть ID под-подкатегории в запросе, привязываем
+            if (request()->has('sub_subcategory_id') && request()->input('sub_subcategory_id')) {
+                $product->sub_subcategories()->sync([request()->input('sub_subcategory_id')]);
+            }
+        });
+
+        static::updating(function ($product) {
+            // Удаляем поле sub_subcategory_id из данных, если оно есть
+            if (isset($product->sub_subcategory_id)) {
+                unset($product->sub_subcategory_id);
+            }
+        });
+
+        static::updated(function ($product) {
+            // Если есть ID под-подкатегории в запросе, обновляем связь
+            if (request()->has('sub_subcategory_id') && request()->input('sub_subcategory_id')) {
+                $product->sub_subcategories()->sync([request()->input('sub_subcategory_id')]);
             }
         });
     }
-
     /**
      * Scopes
      */
     public function scopeInStock($query)
     {
         return $query->where('is_available', true);
+    }
+    public function scopeForSelect($query)
+    {
+        return $query->select('id', 'name');
     }
 
     public function scopeAvailableInCity($query, string $city)

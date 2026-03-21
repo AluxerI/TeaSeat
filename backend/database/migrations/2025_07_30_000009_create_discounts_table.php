@@ -6,14 +6,14 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('discounts', function (Blueprint $table) {
             $table->id();
             
-            // Параметры скидки (совместимо с вашим сервисом)
+            // Параметры скидки
             $table->string('name');
-            $table->decimal('value', 5, 2); // Процент скидки
+            $table->decimal('value', 5, 2);
             $table->boolean('is_global')->default(false);
             $table->boolean('is_active')->default(true);
             $table->timestamp('start_at')->nullable();
@@ -24,18 +24,20 @@ return new class extends Migration
                 'personal', 
                 'first_order', 
                 'loyalty', 
-                'referral'
+                'referral',
+                'category',
+                'subcategory',
+                'sub_subcategory'
             ])->default('personal');
             
             // Дополнительные параметры
             $table->decimal('min_order_amount', 10, 2)->nullable();
             $table->integer('usage_limit')->default(1);
+            
+            $table->timestamps(); // создаст created_at и updated_at
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('discounts');

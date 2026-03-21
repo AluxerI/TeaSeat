@@ -17,6 +17,8 @@ return new class extends Migration
             
             // Добавляем индекс
             $table->index('name');
+            $table->index('created_at'); // для сортировки
+            $table->index(['subcategory_id', 'name']); // для фильтрации по подкатегории + поиск
         });
     }
 

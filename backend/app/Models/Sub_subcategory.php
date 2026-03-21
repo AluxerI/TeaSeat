@@ -127,14 +127,14 @@ class Sub_Subcategory extends Model
 
     protected static function booted()
     {
-        static::saved(function ($sub_subcategory) {
-            $sub_subcategory->clearCache();
-            $sub_subcategory->subcategory?->clearCache(); // Очищаем кеш родительской подкатегории
+        static::saved(function ($subSubcategory) {
+            $subSubcategory->moveIconToFolder();
+            $subSubcategory->clearCache();
         });
-
-        static::deleted(function ($sub_subcategory) {
-            $sub_subcategory->clearCache();
-            $sub_subcategory->subcategory?->clearCache();
+    
+        static::deleted(function ($subSubcategory) {
+            $subSubcategory->deleteIconDirectory();
+            $subSubcategory->clearCache();
         });
     }
 }

@@ -49,4 +49,5 @@ class AddressClient extends Model
     {
         return $this->city . ($this->street ? ', ' . $this->street : '');
     }
+    
 }

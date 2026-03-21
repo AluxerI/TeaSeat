@@ -17,6 +17,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('icon')->nullable()->after('name');
             $table->timestamps();
+
+            $table->index('name'); // для поиска
+            $table->index('created_at'); // для сортировки
+            $table->index(['category_id', 'name']); // для фильтрации по категории + поиск
         });
     }
 

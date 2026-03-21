@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\WarehouseResource\Pages;
 use App\Models\Warehouse;
+use App\Models\Inventory;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -19,29 +20,21 @@ use App\Traits\HasNavigationBadge;
 class WarehouseResource extends Resource
 {
     use HasNavigationBadge;
-    
-    private static array $dataCache = [];
 
     protected static ?string $model = Warehouse::class;
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
     protected static ?string $navigationGroup = 'Склад и поставщики';
     protected static ?string $navigationLabel = 'Склады';
 
-    private static function getData($record): array
+    public static function getEloquentQuery(): Builder
     {
-        $id = $record->id;
-        if (!isset(self::$dataCache[$id])) {
-            self::$dataCache[$id] = [
-                'name' => $record->name,
-                'city' => $record->city,
-                'is_supplier' => $record->is_supplier,
-                'is_active' => $record->is_active,
-                'inventories_count' => $record->inventories()->count(),
-                'total_quantity' => $record->inventories()->sum('quantity'),
-                'created_at' => $record->created_at?->format('d.m.Y'),
-            ];
-        }
-        return self::$dataCache[$id];
+        return parent::getEloquentQuery()
+            ->with(['inventories'])
+            ->withCount(['inventories']) // 👈 Добавляем подсчет количества товаров
+            ->addSelect([
+                'total_quantity' => Inventory::selectRaw('COALESCE(SUM(quantity), 0)')
+                    ->whereColumn('warehouse_id', 'warehouses.id')
+            ]);
     }
 
     public static function form(Form $form): Form
@@ -133,54 +126,50 @@ class WarehouseResource extends Resource
                     ->searchable()
                     ->sortable()
                     ->weight('bold'),
-                
+
                 TextColumn::make('city')
                     ->label('Город')
-                    ->getStateUsing(fn ($record) => self::getData($record)['city'])
                     ->searchable()
                     ->sortable(),
-                
+
                 IconColumn::make('is_supplier')
                     ->label('Поставщик')
-                    ->getStateUsing(fn ($record) => self::getData($record)['is_supplier'])
                     ->boolean()
                     ->trueIcon('heroicon-o-truck')
                     ->falseIcon('heroicon-o-building-storefront')
                     ->trueColor('warning')
                     ->falseColor('gray'),
-                
+
                 IconColumn::make('is_active')
                     ->label('Активен')
-                    ->getStateUsing(fn ($record) => self::getData($record)['is_active'])
                     ->boolean()
                     ->trueColor('success')
                     ->falseColor('danger'),
-                
+
+                // 👈 ИСПРАВЛЕНО: теперь сортировка работает через withCount
                 TextColumn::make('inventories_count')
                     ->label('Товаров на складе')
-                    ->getStateUsing(fn ($record) => self::getData($record)['inventories_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('info'),
                 
+                // 👈 ИСПРАВЛЕНО: теперь сортировка работает через addSelect
                 TextColumn::make('total_quantity')
                     ->label('Единиц товара')
-                    ->getStateUsing(fn ($record) => self::getData($record)['total_quantity'])
                     ->sortable()
-                    ->alignCenter()
-                    ->color(fn ($state) => $state > 0 ? 'success' : 'danger'),
-                
+                    ->alignCenter(),
+
                 TextColumn::make('created_at')
                     ->label('Дата')
-                    ->getStateUsing(fn ($record) => self::getData($record)['created_at'])
+                    ->date('d.m.Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('city')
                     ->label('Город')
-                    ->options(fn () => Warehouse::distinct()->pluck('city', 'city')->filter()->toArray())
+                    ->options(fn () => Warehouse::distinct()->whereNotNull('city')->pluck('city', 'city')->toArray())
                     ->multiple(),
                 
                 Filter::make('is_supplier')

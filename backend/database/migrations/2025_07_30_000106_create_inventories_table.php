@@ -9,11 +9,18 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('inventories', function (Blueprint $table) {
+            // 👈 Добавляем ID как первичный ключ
+            $table->id();
+            
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('warehouse_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity')->default(0);
             $table->date('last_restock_date')->nullable();
-            $table->primary(['product_id', 'warehouse_id']);
+
+            
+            // 👈 Добавляем уникальность для пары товар-склад
+            $table->unique(['product_id', 'warehouse_id'], 'inventories_product_warehouse_unique');
+            
             $table->timestamps();
             
             // Индексы для оптимизации

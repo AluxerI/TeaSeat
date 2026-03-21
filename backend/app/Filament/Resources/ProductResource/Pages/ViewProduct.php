@@ -23,19 +23,6 @@ class ViewProduct extends ViewRecord
         ];
     }
 
-    protected function mutateFormDataBeforeFill(array $data): array
-    {
-        $mainSubSubcategory = $this->record->getMainSubSubcategoryAttribute();
-        
-        if ($mainSubSubcategory) {
-            $data['sub_subcategory_id'] = $mainSubSubcategory->id;
-            $data['subcategory_id'] = $mainSubSubcategory->subcategory->id;
-            $data['category_id'] = $mainSubSubcategory->subcategory->category->id;
-        }
-        
-        return $data;
-    }
-
     protected function getFormSchema(): array
     {
         return [
@@ -91,19 +78,19 @@ class ViewProduct extends ViewRecord
                                 ->label('Категория')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->default(fn ($record) => $record->getMainSubSubcategoryAttribute()?->subcategory?->category?->name ?? '—'),
+                                ->default(fn ($record) => $record->sub_subcategories->first()?->subcategory?->category?->name ?? '—'),
                             
                             TextInput::make('subcategory_name')
                                 ->label('Подкатегория')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->default(fn ($record) => $record->getMainSubSubcategoryAttribute()?->subcategory?->name ?? '—'),
+                                ->default(fn ($record) => $record->sub_subcategories->first()?->subcategory?->name ?? '—'),
                             
                             TextInput::make('sub_subcategory_name')
                                 ->label('Под-подкатегория')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->default(fn ($record) => $record->getMainSubSubcategoryAttribute()?->name ?? '—'),
+                                ->default(fn ($record) => $record->sub_subcategories->first()?->name ?? '—'),
                         ]),
                 ]),
 
@@ -124,7 +111,7 @@ class ViewProduct extends ViewRecord
                                 $typeLabel = $type ? ' (' . implode(', ', $type) . ')' : '';
                                 
                                 $html .= '<div class="border rounded p-2">';
-                                $html .= '<img src="/storage/' . $image->path . '" class="w-full h-32 object-cover mb-2">';
+                                $html .= '<img src="' . $image->image_url . '" class="w-full h-32 object-cover mb-2">';
                                 $html .= '<div class="text-xs text-center">' . $typeLabel . '</div>';
                                 $html .= '<div class="text-xs text-center text-gray-500">порядок: ' . $image->sort_order . '</div>';
                                 $html .= '</div>';

@@ -9,6 +9,7 @@ use App\Services\AdminDashboardService;
 
 class TopProductsTable extends BaseWidget
 {
+    protected static ?int $sort = 2;
     protected int | string | array $columnSpan = 'full';
 
     public function table(Table $table): Table
@@ -23,8 +24,7 @@ class TopProductsTable extends BaseWidget
             )
             ->columns([
                 Tables\Columns\TextColumn::make('name')
-                    ->label('Товар')
-                    ->searchable(),
+                    ->label('Товар'),
                 Tables\Columns\TextColumn::make('sold_count')
                     ->label('Продано')
                     ->sortable(),
@@ -36,6 +36,7 @@ class TopProductsTable extends BaseWidget
                     ->badge()
                     ->color(fn ($state) => $state > 0 ? 'success' : 'danger'),
             ])
-            ->heading('Топ-10 товаров по продажам');
+            ->heading('Топ-10 товаров по продажам')
+            ->paginated(false);
     }
 }

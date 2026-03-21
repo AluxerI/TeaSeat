@@ -115,13 +115,13 @@ class Subcategory extends Model
     protected static function booted()
     {
         static::saved(function ($subcategory) {
+            $subcategory->moveIconToFolder();
             $subcategory->clearCache();
-            $subcategory->category?->clearCache(); // Очищаем кеш родительской категории
         });
-
+    
         static::deleted(function ($subcategory) {
+            $subcategory->deleteIconDirectory();
             $subcategory->clearCache();
-            $subcategory->category?->clearCache();
         });
     }
 }

@@ -23,9 +23,9 @@ return new class extends Migration
             
             $table->timestamps();
             
-            // Индексы
             $table->index('name');
-            $table->index('promo_title');
+            $table->index('created_at'); // для сортировки
+            $table->index(['name', 'created_at']); // составной для фильтров
         });
     }
 

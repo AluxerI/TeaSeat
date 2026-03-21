@@ -16,7 +16,6 @@ return new class extends Migration
             $table->boolean('is_active')->default(true);
             $table->timestamps();
             
-            // Добавляем индекс для is_active (нужно для бейджей)
             $table->index('is_active');
         });
     }

@@ -18,7 +18,6 @@ class Category extends Model
     protected $fillable = [
         'name', 
         'icon',
-        'slug',
         'promo_title',
         'promo_subtitle',
         'promo_description',
@@ -70,8 +69,6 @@ class Category extends Model
         // Для публичного диска используем asset
         return asset('storage/' . $path);
     }
-
-
 
     /**
      * Получить фоновое изображение (путь)
@@ -194,10 +191,12 @@ class Category extends Model
     protected static function booted()
     {
         static::saved(function ($category) {
+            $category->moveIconToFolder();
             $category->clearCache();
         });
 
         static::deleted(function ($category) {
+            $category->deleteIconDirectory();
             $category->clearCache();
         });
     }
