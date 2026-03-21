@@ -5,17 +5,18 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\DB;
-
+use App\Traits\ClearsModelCache;
+use App\Traits\HasDiscountRelations;
 
 class Discount extends Model
 {
-    use HasFactory;
+    use HasFactory, ClearsModelCache, HasDiscountRelations;
 
     protected $fillable = [
         'name',
         'value', 
         'is_active',
-        'is_global', // ← НОВОЕ ПОЛЕ
+        'is_global', 
         'start_at',
         'end_at',
         'type',
@@ -27,7 +28,7 @@ class Discount extends Model
         'value' => 'decimal:2',
         'min_order_amount' => 'decimal:2',
         'is_active' => 'boolean',
-        'is_global' => 'boolean', // ← НОВОЕ ПРИВЕДЕНИЕ ТИПА
+        'is_global' => 'boolean',
         'start_at' => 'datetime',
         'end_at' => 'datetime',
         'usage_limit' => 'integer',
@@ -38,23 +39,40 @@ class Discount extends Model
     const TYPE_LOYALTY = 'loyalty';
     const TYPE_REFERRAL = 'referral';
 
-    /**
-     * Пользователи, имеющие эту скидку
-     */
-    public function users()
-    {
-        return $this->belongsToMany(User::class, 'discount_users')
-            ->withPivot(['is_used', 'activated_at', 'used_count'])
-            ->withTimestamps();
-    }
+    // 👇 ЭТИ МЕТОДЫ УЖЕ ЕСТЬ В ТРЕЙТЕ, НО ОНИ ПЕРЕОПРЕДЕЛЕНЫ ЗДЕСЬ
+    // Нужно их удалить или закомментировать
 
-    /**
-     * Товары, на которые распространяется скидка (только для не-глобальных)
-     */
-    public function products()
-    {
-        return $this->belongsToMany(Product::class, 'discount_product');
-    }
+    // public function products()
+    // {
+    //     return $this->belongsToMany(Product::class, 'discount_products', 'discount_id', 'product_id')
+    //         ->withPivot(['is_used', 'activated_at'])
+    //         ->withTimestamps();
+    // }
+
+    // public function categories()
+    // {
+    //     return $this->belongsToMany(Category::class, 'discount_categories', 'discount_id', 'category_id')
+    //         ->withTimestamps();
+    // }
+
+    // public function subcategories()
+    // {
+    //     return $this->belongsToMany(Subcategory::class, 'discount_subcategories', 'discount_id', 'subcategory_id')
+    //         ->withTimestamps();
+    // }
+
+    // public function subSubcategories()
+    // {
+    //     return $this->belongsToMany(Sub_Subcategory::class, 'discount_sub_subcategories', 'discount_id', 'sub_subcategory_id')
+    //         ->withTimestamps();
+    // }
+
+    // public function users()
+    // {
+    //     return $this->belongsToMany(User::class, 'discount_users', 'discount_id', 'user_id')
+    //         ->withPivot(['is_used', 'used_count', 'activated_at'])
+    //         ->withTimestamps();
+    // }
 
     /**
      * Проверить, применяется ли скидка к товару
@@ -66,7 +84,7 @@ class Discount extends Model
             return true;
         }
         
-        // Для не-глобальных проверяем связь с товаром
+        // Для не-глобальных проверяем связь с товаром через полиморфную связь
         return $this->products()->where('product_id', $product->id)->exists();
     }
 
@@ -171,5 +189,20 @@ class Discount extends Model
     public function scopeOfType($query, string $type)
     {
         return $query->where('type', $type);
+    }
+    
+    /**
+     * Ключи кеша для очистки
+     */
+    protected function getCacheKeys(): array
+    {
+        return [
+            "discount.{$this->id}",
+            "discount.{$this->id}.users",
+            "discount.{$this->id}.products",
+            "discount.{$this->id}.categories",
+            "discount.{$this->id}.subcategories",
+            "discount.{$this->id}.subSubcategories",
+        ];
     }
 }

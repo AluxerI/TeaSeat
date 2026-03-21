@@ -6,11 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
 use App\Traits\ClearsModelCache;
-use App\Traits\HasImage;  // ← Добавляем
+use App\Traits\HasImage;
 
 class ProductImage extends Model
 {
-    use HasFactory, ClearsModelCache, HasImage;  // ← Добавляем HasImage
+    use HasFactory, ClearsModelCache, HasImage;
 
     protected $fillable = [
         'product_id',
@@ -34,7 +34,18 @@ class ProductImage extends Model
         return $this->belongsTo(Product::class);
     }
 
-    protected static function booted()
+    /**
+     * Получить путь к файлу с учетом ID товара
+     */
+    public static function getProductDirectory(Product $product): string
+    {
+        return 'products/' . $product->id;
+    }
+
+    /**
+     * Переопределяем сохранение файла
+     */
+    public static function booted()
     {
         static::saved(function ($image) {
             $image->product?->clearCache();

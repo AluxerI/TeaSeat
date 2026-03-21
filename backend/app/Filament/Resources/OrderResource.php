@@ -4,30 +4,54 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\OrderResource\Pages;
 use App\Models\Order;
-use App\Models\OrderStatusHistory;
+use App\Models\Product;
+use App\Models\User;
+use App\Models\AddressClient;
+use App\Models\Inventory;
+use App\Services\PriceCalculatorService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
-use Filament\Tables\Filters\Filter;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Hidden;
 use Filament\Notifications\Notification;
 use App\Traits\HasNavigationBadge;
+use Illuminate\Support\Facades\Auth;
 
 class OrderResource extends Resource
 {
     use HasNavigationBadge;
-    private static array $dataCache = []; 
+
     protected static ?string $model = Order::class;
     protected static ?string $navigationIcon = 'heroicon-o-shopping-bag';
     protected static ?string $navigationGroup = 'Управление продажами';
     protected static ?string $navigationLabel = 'Заказы';
-
     protected static ?string $recordTitleAttribute = 'id';
+
+    protected PriceCalculatorService $priceCalculator;
+
+    public function __construct()
+    {
+        $this->priceCalculator = app(PriceCalculatorService::class);
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['user', 'items.product', 'shippingAddress', 'deliveryMethod'])
+            ->where('status', '!=', Order::STATUS_CART);
+    }
 
     public static function form(Form $form): Form
     {
@@ -37,15 +61,13 @@ class OrderResource extends Resource
                     ->schema([
                         Grid::make(3)
                             ->schema([
-                                Forms\Components\TextInput::make('id')
+                                Placeholder::make('order_number')
                                     ->label('Номер заказа')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->content(fn ($record) => $record ? 'TE-' . str_pad($record->id, 6, '0', STR_PAD_LEFT) : 'Новый заказ'),
                                 
-                                Forms\Components\Select::make('status')
+                                Select::make('status')
                                     ->label('Статус')
                                     ->options([
-                                        Order::STATUS_CART => 'Корзина',
                                         Order::STATUS_PENDING => 'Ожидает подтверждения',
                                         Order::STATUS_CONFIRMED => 'Подтвержден',
                                         Order::STATUS_PROCESSING => 'В обработке',
@@ -53,28 +75,24 @@ class OrderResource extends Resource
                                         Order::STATUS_DELIVERED => 'Доставлен',
                                         Order::STATUS_CANCELLED => 'Отменен',
                                     ])
+                                    ->default(Order::STATUS_PENDING)
                                     ->required()
-                                    ->reactive()
-                                    ->afterStateUpdated(function ($state, callable $set, $record) {
-                                        if ($record && $state !== $record->status) {
-                                            $set('status_changed', true);
-                                        }
-                                    }),
+                                    ->reactive(),
                                 
-                                Forms\Components\Checkbox::make('is_supplier_order')
-                                    ->label('Заказ у поставщика')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                Placeholder::make('created_at')
+                                    ->label('Дата создания')
+                                    ->content(fn ($record) => $record?->created_at?->format('d.m.Y H:i') ?? '—')
+                                    ->visible(fn ($record) => $record !== null),
                             ]),
                         
-                        Forms\Components\DateTimePicker::make('created_at')
-                            ->label('Дата создания')
-                            ->disabled()
-                            ->dehydrated(false),
+                        Textarea::make('customer_notes')
+                            ->label('Заметки клиента')
+                            ->rows(2)
+                            ->columnSpanFull(),
                         
-                        Forms\Components\Textarea::make('internal_notes')
+                        Textarea::make('internal_notes')
                             ->label('Внутренние заметки')
-                            ->rows(3)
+                            ->rows(2)
                             ->columnSpanFull(),
                     ]),
 
@@ -82,200 +100,350 @@ class OrderResource extends Resource
                     ->schema([
                         Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('user_id')
+                                Select::make('user_id')
                                     ->label('Пользователь')
-                                    ->relationship('user', 'email')
+                                    ->relationship('user', 'name')
                                     ->searchable()
                                     ->preload()
-                                    ->disabled()
-                                    ->dehydrated(false),
-                                
-                                Forms\Components\Select::make('shipping_address_id')
-                                    ->label('Адрес доставки')
-                                    ->relationship('shippingAddress', 'street', function ($query, $get) {
-                                        if ($get('user_id')) {
-                                            $query->where('user_id', $get('user_id'));
+                                    ->required()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        $user = User::find($state);
+                                        if ($user) {
+                                            $set('contact_name', $user->name);
+                                            $set('contact_email', $user->email);
+                                            $set('contact_phone', $user->phone);
                                         }
+                                    }),
+                                
+                                TextInput::make('contact_name')
+                                    ->label('Контактное лицо')
+                                    ->required()
+                                    ->maxLength(255),
+                                
+                                TextInput::make('contact_phone')
+                                    ->label('Телефон')
+                                    ->tel()
+                                    ->maxLength(20)
+                                    ->required(),
+                                
+                                TextInput::make('contact_email')
+                                    ->label('Email')
+                                    ->email()
+                                    ->maxLength(255)
+                                    ->required(),
+                            ]),
+                    ]),
+
+                Section::make('Адрес доставки')
+                    ->schema([
+                        Grid::make(2)
+                            ->schema([
+                                Select::make('shipping_address_id')
+                                    ->label('Адрес доставки')
+                                    ->options(function (callable $get) {
+                                        $userId = $get('user_id');
+                                        if (!$userId) return [];
+                                        
+                                        return AddressClient::where('user_id', $userId)
+                                            ->get()
+                                            ->mapWithKeys(function ($address) {
+                                                return [$address->id => $address->getFullAddress()];
+                                            });
                                     })
-                                    ->getOptionLabelFromRecordUsing(fn ($record) => 
-                                        $record->getFullAddress()
-                                    )
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->searchable()
+                                    ->required()
+                                    ->createOptionForm([
+                                        Grid::make(2)
+                                            ->schema([
+                                                TextInput::make('postal_code')
+                                                    ->label('Индекс')
+                                                    ->maxLength(10),
+                                                TextInput::make('city')
+                                                    ->label('Город')
+                                                    ->required()
+                                                    ->maxLength(255),
+                                                TextInput::make('street')
+                                                    ->label('Улица, дом, квартира')
+                                                    ->required()
+                                                    ->maxLength(255)
+                                                    ->columnSpanFull(),
+                                            ]),
+                                    ])
+                                    ->createOptionUsing(function (array $data, callable $get) {
+                                        $userId = $get('user_id');
+                                        if (!$userId) return null;
+                                        
+                                        $data['user_id'] = $userId;
+                                        return AddressClient::create($data);
+                                    }),
                             ]),
                     ]),
 
                 Section::make('Доставка и оплата')
                     ->schema([
-                        Grid::make(3)
+                        Grid::make(2)
                             ->schema([
-                                Forms\Components\Select::make('delivery_method_id')
+                                Select::make('delivery_method_id')
                                     ->label('Способ доставки')
                                     ->relationship('deliveryMethod', 'name')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->required(),
                                 
-                                Forms\Components\TextInput::make('shipping_cost')
+                                TextInput::make('shipping_cost')
                                     ->label('Стоимость доставки')
                                     ->numeric()
                                     ->prefix('₽')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->default(0)
+                                    ->required()
+                                    ->reactive(),
                                 
-                                Forms\Components\TextInput::make('tracking_number')
+                                TextInput::make('tracking_number')
                                     ->label('Трек-номер')
-                                    ->maxLength(255),
+                                    ->maxLength(255)
+                                    ->default(fn () => 'TRACK-' . strtoupper(uniqid())),
+                                
+                                Select::make('payment_method')
+                                    ->label('Способ оплаты')
+                                    ->options([
+                                        'cash' => 'Наличные',
+                                        'card' => 'Карта при получении',
+                                        'online' => 'Онлайн',
+                                    ])
+                                    ->required(),
                             ]),
                     ]),
 
                 Section::make('Товары в заказе')
                     ->schema([
-                        Forms\Components\Repeater::make('items')
+                        Repeater::make('items')
                             ->relationship()
                             ->schema([
-                                Grid::make(6)
+                                Grid::make(12)
                                     ->schema([
-                                        Forms\Components\TextInput::make('product.name')
+                                        Select::make('product_id')
                                             ->label('Товар')
-                                            ->disabled()
-                                            ->dehydrated(false)
-                                            ->columnSpan(2),
+                                            ->options(function () {
+                                                return Product::select('id', 'name')
+                                                    ->orderBy('name')
+                                                    ->pluck('name', 'id');
+                                            })
+                                            ->searchable()
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function ($state, callable $set, callable $get, $livewire) {
+                                                $product = Product::find($state);
+                                                $user = User::find($get('../../user_id'));
+                                                
+                                                if ($product) {
+                                                    // Получаем расчёт цен через сервис
+                                                    $priceCalculator = app(PriceCalculatorService::class);
+                                                    $priceData = $priceCalculator->calculateForProduct($product, $user);
+                                                    
+                                                    $set('unit_price', $product->price);
+                                                    $set('final_unit_price', $priceData['final_price']);
+                                                    
+                                                    // Информация о скидках для отображения
+                                                    $set('_promotion_discount', $priceData['promotion_discount']);
+                                                    $set('_personal_discount', $priceData['personal_discount']);
+                                                    
+                                                    // Получаем общий остаток на складах
+                                                    $totalStock = Inventory::where('product_id', $state)->sum('quantity');
+                                                    $set('_stock_info', $totalStock);
+                                                }
+                                                self::calculateTotals($get, $set);
+                                            })
+                                            ->columnSpan(4),
                                         
-                                        Forms\Components\TextInput::make('quantity')
+                                        TextInput::make('quantity')
                                             ->label('Кол-во')
                                             ->numeric()
-                                            ->disabled()
-                                            ->dehydrated(false)
-                                            ->columnSpan(1),
+                                            ->default(1)
+                                            ->minValue(1)
+                                            ->required()
+                                            ->reactive()
+                                            ->afterStateUpdated(function (callable $get, callable $set) {
+                                                self::calculateTotals($get, $set);
+                                            })
+                                            ->columnSpan(2),
                                         
-                                        Forms\Components\TextInput::make('unit_price')
+                                        TextInput::make('unit_price')
                                             ->label('Цена')
                                             ->numeric()
                                             ->prefix('₽')
+                                            ->required()
                                             ->disabled()
-                                            ->dehydrated(false)
+                                            ->dehydrated()
                                             ->columnSpan(1),
                                         
-                                        Forms\Components\TextInput::make('final_unit_price')
+                                        Placeholder::make('discount_info')
+                                            ->label('Скидки')
+                                            ->content(function ($get) {
+                                                $promo = $get('_promotion_discount') ?? 0;
+                                                $personal = $get('_personal_discount') ?? 0;
+                                                
+                                                if ($promo == 0 && $personal == 0) {
+                                                    return '—';
+                                                }
+                                                
+                                                $parts = [];
+                                                if ($promo > 0) $parts[] = "Акция: {$promo}%";
+                                                if ($personal > 0) $parts[] = "Перс: {$personal}%";
+                                                
+                                                return implode(' + ', $parts);
+                                            })
+                                            ->columnSpan(1),
+                                        
+                                        TextInput::make('final_unit_price')
                                             ->label('Цена со скидкой')
                                             ->numeric()
                                             ->prefix('₽')
                                             ->disabled()
-                                            ->dehydrated(false)
+                                            ->dehydrated()
+                                            ->columnSpan(2),
+                                        
+                                        Placeholder::make('stock_info')
+                                            ->label('Остаток')
+                                            ->content(function ($get) {
+                                                $stock = $get('_stock_info');
+                                                if ($stock === null) return '—';
+                                                return $stock . ' шт.';
+                                            })
                                             ->columnSpan(1),
                                         
-                                        Forms\Components\TextInput::make('total_price')
+                                        Placeholder::make('total')
                                             ->label('Сумма')
-                                            ->numeric()
-                                            ->prefix('₽')
-                                            ->disabled()
-                                            ->dehydrated(false)
+                                            ->content(function ($get) {
+                                                $qty = $get('quantity') ?? 0;
+                                                $price = $get('final_unit_price') ?? 0;
+                                                return number_format($qty * $price, 2) . ' ₽';
+                                            })
                                             ->columnSpan(1),
                                     ]),
                             ])
-                            ->disabled()
-                            ->dehydrated(false)
-                            ->columnSpanFull(),
+                            ->defaultItems(0)
+                            ->collapsible()
+                            ->columnSpanFull()
+                            ->itemLabel(fn (array $state): ?string => 
+                                isset($state['product_id']) 
+                                    ? Product::find($state['product_id'])?->name 
+                                    : 'Новый товар'
+                            )
+                            ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
+                                $data['total_price'] = ($data['quantity'] ?? 0) * ($data['final_unit_price'] ?? 0);
+                                return $data;
+                            })
+                            ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
+                                $data['total_price'] = ($data['quantity'] ?? 0) * ($data['final_unit_price'] ?? 0);
+                                return $data;
+                            })
+                            ->afterStateUpdated(function (callable $get, callable $set) {
+                                self::calculateTotals($get, $set);
+                            }),
                     ]),
 
                 Section::make('Итоги')
                     ->schema([
                         Grid::make(4)
                             ->schema([
-                                Forms\Components\TextInput::make('products_total')
+                                Placeholder::make('products_total')
                                     ->label('Товары')
-                                    ->numeric()
-                                    ->prefix('₽')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->content(function ($get) {
+                                        $items = $get('items') ?? [];
+                                        $total = 0;
+                                        foreach ($items as $item) {
+                                            $total += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                        }
+                                        return number_format($total, 2) . ' ₽';
+                                    }),
                                 
-                                Forms\Components\TextInput::make('promotion_discount')
+                                Placeholder::make('shipping_cost_display')
+                                    ->label('Доставка')
+                                    ->content(fn ($get) => number_format($get('shipping_cost') ?? 0, 2) . ' ₽'),
+                                
+                                TextInput::make('promotion_discount')
                                     ->label('Скидка по акции')
                                     ->numeric()
                                     ->prefix('₽')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->default(0)
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (callable $get, callable $set) => self::calculateTotals($get, $set)),
                                 
-                                Forms\Components\TextInput::make('personal_discount')
+                                TextInput::make('personal_discount')
                                     ->label('Перс. скидка')
                                     ->numeric()
                                     ->prefix('₽')
-                                    ->disabled()
-                                    ->dehydrated(false),
+                                    ->default(0)
+                                    ->reactive()
+                                    ->afterStateUpdated(fn (callable $get, callable $set) => self::calculateTotals($get, $set)),
                                 
-                                Forms\Components\TextInput::make('final_total')
+                                Placeholder::make('final_total_display')
                                     ->label('Итого')
-                                    ->numeric()
-                                    ->prefix('₽')
-                                    ->disabled()
-                                    ->dehydrated(false)
+                                    ->content(function ($get) {
+                                        $items = $get('items') ?? [];
+                                        $productsTotal = 0;
+                                        foreach ($items as $item) {
+                                            $productsTotal += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                        }
+                                        
+                                        $shipping = $get('shipping_cost') ?? 0;
+                                        $promoDiscount = $get('promotion_discount') ?? 0;
+                                        $personalDiscount = $get('personal_discount') ?? 0;
+                                        
+                                        $final = $productsTotal + $shipping - $promoDiscount - $personalDiscount;
+                                        
+                                        return number_format(max(0, $final), 2) . ' ₽';
+                                    })
                                     ->extraAttributes(['class' => 'font-bold text-lg']),
+                                
+                                Hidden::make('final_total')
+                                    ->default(0)
+                                    ->dehydrateStateUsing(function ($state, callable $get) {
+                                        $items = $get('items') ?? [];
+                                        $productsTotal = 0;
+                                        foreach ($items as $item) {
+                                            $productsTotal += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                        }
+                                        
+                                        $shipping = $get('shipping_cost') ?? 0;
+                                        $promoDiscount = $get('promotion_discount') ?? 0;
+                                        $personalDiscount = $get('personal_discount') ?? 0;
+                                        
+                                        return max(0, $productsTotal + $shipping - $promoDiscount - $personalDiscount);
+                                    }),
                             ]),
                     ]),
-
-                Section::make('История статусов')
-                    ->schema([
-                        Forms\Components\Placeholder::make('status_history')
-                            ->label('')
-                            ->content(function ($record) {
-                                if (!$record) return null;
-                                
-                                $history = OrderStatusHistory::where('order_id', $record->id)
-                                    ->with('changer')
-                                    ->orderBy('created_at', 'desc')
-                                    ->get();
-                                
-                                if ($history->isEmpty()) return 'Нет истории';
-                                
-                                $html = '<div class="space-y-2">';
-                                foreach ($history as $entry) {
-                                    $html .= '<div class="text-sm border-b pb-2">';
-                                    $html .= '<span class="font-medium">' . $entry->created_at->format('d.m.Y H:i') . '</span> - ';
-                                    $html .= '<span class="text-gray-600">' . Order::getStatusName($entry->from_status) . '</span>';
-                                    $html .= ' → ';
-                                    $html .= '<span class="text-gray-900 font-medium">' . Order::getStatusName($entry->to_status) . '</span>';
-                                    if ($entry->changer) {
-                                        $html .= ' <span class="text-xs text-gray-500">(изменено: ' . $entry->changer->name . ')</span>';
-                                    }
-                                    if ($entry->notes) {
-                                        $html .= '<div class="text-xs text-gray-500 mt-1">' . $entry->notes . '</div>';
-                                    }
-                                    $html .= '</div>';
-                                }
-                                $html .= '</div>';
-                                
-                                return new \Illuminate\Support\HtmlString($html);
-                            }),
-                    ])
-                    ->visible(fn ($record) => $record !== null),
             ]);
+    }
+
+    protected static function calculateTotals(callable $get, callable $set): void
+    {
+        // Триггер для пересчета - всё обновляется через Placeholder
     }
 
     public static function table(Table $table): Table
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('id')
+                TextColumn::make('order_number')
                     ->label('№ заказа')
-                    ->searchable()
+                    ->searchable(query: fn (Builder $query, string $search) => 
+                        $query->where('id', 'LIKE', "%{$search}%"))
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('user.name')
+                TextColumn::make('user.name')
                     ->label('Клиент')
                     ->searchable()
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('user.email')
-                    ->label('Email')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('shippingAddress.city')
+                    ->label('Город')
+                    ->toggleable(),
                 
-                Tables\Columns\TextColumn::make('status')
+                TextColumn::make('status')
                     ->label('Статус')
                     ->badge()
                     ->formatStateUsing(fn (string $state): string => Order::getStatusName($state))
                     ->color(fn (string $state): string => match ($state) {
-                        Order::STATUS_CART => 'gray',
                         Order::STATUS_PENDING => 'warning',
                         Order::STATUS_CONFIRMED => 'info',
                         Order::STATUS_PROCESSING => 'primary',
@@ -285,36 +453,25 @@ class OrderResource extends Resource
                         default => 'gray',
                     }),
                 
-                Tables\Columns\TextColumn::make('created_at')
+                TextColumn::make('created_at')
                     ->label('Дата')
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('items_count')
+                TextColumn::make('items_count')
                     ->label('Товаров')
                     ->counts('items')
                     ->sortable(),
                 
-                Tables\Columns\TextColumn::make('final_total')
+                TextColumn::make('final_total')
                     ->label('Сумма')
                     ->money('RUB')
                     ->sortable(),
-                
-                Tables\Columns\IconColumn::make('is_supplier_order')
-                    ->label('Поставщик')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-truck')
-                    ->falseIcon('heroicon-o-building-storefront'),
-                
-                Tables\Columns\TextColumn::make('deliveryMethod.name')
-                    ->label('Доставка')
-                    ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')
                     ->label('Статус')
                     ->options([
-                        Order::STATUS_CART => 'Корзина',
                         Order::STATUS_PENDING => 'Ожидает подтверждения',
                         Order::STATUS_CONFIRMED => 'Подтвержден',
                         Order::STATUS_PROCESSING => 'В обработке',
@@ -322,121 +479,10 @@ class OrderResource extends Resource
                         Order::STATUS_DELIVERED => 'Доставлен',
                         Order::STATUS_CANCELLED => 'Отменен',
                     ]),
-                
-                Filter::make('is_supplier_order')
-                    ->label('Заказы у поставщиков')
-                    ->query(fn (Builder $query): Builder => $query->where('is_supplier_order', true)),
-                
-                Tables\Filters\Filter::make('created_at')
-                    ->form([
-                        Forms\Components\DatePicker::make('created_from')
-                            ->label('С даты'),
-                        Forms\Components\DatePicker::make('created_until')
-                            ->label('По дату'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['created_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '>=', $date),
-                            )
-                            ->when(
-                                $data['created_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('created_at', '<=', $date),
-                            );
-                    }),
             ])
             ->actions([
-                Tables\Actions\ActionGroup::make([
-                    Tables\Actions\ViewAction::make(),
-                    
-                    Tables\Actions\EditAction::make(),
-                    
-                    Tables\Actions\Action::make('confirm')
-                        ->label('Подтвердить')
-                        ->icon('heroicon-o-check-circle')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->action(function (Order $record) {
-                            $record->update(['status' => Order::STATUS_CONFIRMED]);
-                            Notification::make()
-                                ->title('Заказ подтвержден')
-                                ->success()
-                                ->send();
-                        })
-                        ->visible(fn (Order $record): bool => 
-                            $record->status === Order::STATUS_PENDING
-                        ),
-                    
-                    Tables\Actions\Action::make('ship')
-                        ->label('Отправить')
-                        ->icon('heroicon-o-truck')
-                        ->color('purple')
-                        ->form([
-                            Forms\Components\TextInput::make('tracking_number')
-                                ->label('Трек-номер')
-                                ->required()
-                                ->maxLength(255),
-                        ])
-                        ->action(function (Order $record, array $data) {
-                            $record->update([
-                                'status' => Order::STATUS_SHIPPED,
-                                'tracking_number' => $data['tracking_number']
-                            ]);
-                            Notification::make()
-                                ->title('Заказ отправлен')
-                                ->success()
-                                ->send();
-                        })
-                        ->visible(fn (Order $record): bool => 
-                            in_array($record->status, [Order::STATUS_CONFIRMED, Order::STATUS_PROCESSING])
-                        ),
-                    
-                    Tables\Actions\Action::make('deliver')
-                        ->label('Доставлен')
-                        ->icon('heroicon-o-check-badge')
-                        ->color('success')
-                        ->requiresConfirmation()
-                        ->action(function (Order $record) {
-                            $record->update(['status' => Order::STATUS_DELIVERED]);
-                            Notification::make()
-                                ->title('Заказ доставлен')
-                                ->success()
-                                ->send();
-                        })
-                        ->visible(fn (Order $record): bool => 
-                            $record->status === Order::STATUS_SHIPPED
-                        ),
-                    
-                    Tables\Actions\Action::make('cancel')
-                        ->label('Отменить')
-                        ->icon('heroicon-o-x-circle')
-                        ->color('danger')
-                        ->requiresConfirmation()
-                        ->form([
-                            Forms\Components\Textarea::make('cancellation_reason')
-                                ->label('Причина отмены')
-                                ->required()
-                                ->rows(3),
-                        ])
-                        ->action(function (Order $record, array $data) {
-                            $record->update([
-                                'status' => Order::STATUS_CANCELLED,
-                                'internal_notes' => ($record->internal_notes ?? '') . 
-                                    "\nОтменен: " . $data['cancellation_reason']
-                            ]);
-                            Notification::make()
-                                ->title('Заказ отменен')
-                                ->success()
-                                ->send();
-                        })
-                        ->visible(fn (Order $record): bool => 
-                            !in_array($record->status, [
-                                Order::STATUS_DELIVERED, 
-                                Order::STATUS_CANCELLED
-                            ])
-                        ),
-                ]),
+                Tables\Actions\EditAction::make(),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -446,21 +492,12 @@ class OrderResource extends Resource
             ->defaultSort('created_at', 'desc');
     }
 
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
-    }
-
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListOrders::route('/'),
             'create' => Pages\CreateOrder::route('/create'),
             'edit' => Pages\EditOrder::route('/{record}/edit'),
-            'view' => Pages\ViewOrder::route('/{record}'),
         ];
     }
-
 }

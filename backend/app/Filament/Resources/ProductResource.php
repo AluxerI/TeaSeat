@@ -4,8 +4,6 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\ProductResource\Pages;
 use App\Models\Product;
-use App\Models\Category;
-use App\Models\Subcategory;
 use App\Models\Sub_Subcategory;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -18,35 +16,178 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use App\Traits\HasNavigationBadge;
+use Filament\Notifications\Notification;
 
 class ProductResource extends Resource
 {
     use HasNavigationBadge;
-    
-    private static array $dataCache = [];
 
     protected static ?string $model = Product::class;
     protected static ?string $navigationIcon = 'heroicon-o-cube';
     protected static ?string $navigationGroup = 'Управление товарами';
     protected static ?string $navigationLabel = 'Товары';
 
-    /**
-     * Получить данные товара с кешированием в памяти
-     */
-    private static function getData($record): array
+    public static function getEloquentQuery(): Builder
     {
-        $id = $record->id;
-        if (!isset(self::$dataCache[$id])) {
-            self::$dataCache[$id] = $record->getAllData();
-        }
-        return self::$dataCache[$id];
+        return parent::getEloquentQuery()
+            ->with([
+                'brand:id,name',
+                'images',
+                'sub_subcategories.subcategory.category'
+            ]);
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                // ... форма (без изменений)
+                Forms\Components\Tabs::make('Товар')
+                    ->tabs([
+                        Forms\Components\Tabs\Tab::make('Основная информация')
+                            ->schema([
+                                Forms\Components\Section::make('Основная информация')
+                                    ->schema([
+                                        Forms\Components\Grid::make(2)
+                                            ->schema([
+                                                Forms\Components\TextInput::make('name')
+                                                    ->label('Название товара')
+                                                    ->required()
+                                                    ->maxLength(255)
+                                                    ->unique(ignoreRecord: true),
+                                                
+                                                Forms\Components\Select::make('brand_id')
+                                                    ->label('Бренд')
+                                                    ->relationship('brand', 'name')
+                                                    ->required()
+                                                    ->searchable()
+                                                    ->preload()
+                                                    ->createOptionForm([
+                                                        Forms\Components\TextInput::make('name')
+                                                            ->label('Название бренда')
+                                                            ->required(),
+                                                        Forms\Components\TextInput::make('country')
+                                                            ->label('Страна'),
+                                                    ]),
+                                                
+                                                Forms\Components\TextInput::make('price')
+                                                    ->label('Цена')
+                                                    ->required()
+                                                    ->numeric()
+                                                    ->prefix('₽')
+                                                    ->minValue(0)
+                                                    ->step(0.01),
+                                                
+                                                Forms\Components\TextInput::make('weight_grams')
+                                                    ->label('Вес (грамм)')
+                                                    ->numeric()
+                                                    ->minValue(0)
+                                                    ->suffix('г'),
+                                                
+                                                Forms\Components\Toggle::make('is_available')
+                                                    ->label('Доступен для заказа')
+                                                    ->default(true),
+                                            ]),
+                                    ]),
+                                
+                                Forms\Components\Section::make('Описание')
+                                    ->schema([
+                                        Forms\Components\RichEditor::make('description')
+                                            ->label('Описание')
+                                            ->columnSpanFull(),
+                                        
+                                        Forms\Components\Textarea::make('ingredients')
+                                            ->label('Ингредиенты/Состав')
+                                            ->rows(3)
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+                        
+                        Forms\Components\Tabs\Tab::make('Категория')
+                            ->schema([
+                                Forms\Components\Section::make('Категория')
+                                    ->schema([
+                                        // ✅ Используем отношение – это не создаст поле в products
+                                        Forms\Components\Select::make('sub_subcategories')
+                                            ->label('Под-подкатегория')
+                                            ->relationship('sub_subcategories', 'name')
+                                            ->multiple(false)
+                                            ->options(function () {
+                                                return Sub_Subcategory::with(['subcategory.category'])
+                                                    ->get()
+                                                    ->mapWithKeys(function ($item) {
+                                                        $path = ($item->subcategory?->category?->name ?? '—') . ' → ' . 
+                                                                ($item->subcategory?->name ?? '—') . ' → ' . 
+                                                                $item->name;
+                                                        return [$item->id => $path];
+                                                    });
+                                            })
+                                            ->searchable()
+                                            ->required()
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+                        
+                        Forms\Components\Tabs\Tab::make('Изображения')
+                            ->schema([
+                                Forms\Components\Section::make('Изображения')
+                                    ->schema([
+                                        Forms\Components\Repeater::make('images')
+                                            ->relationship()
+                                            ->schema([
+                                                Forms\Components\Grid::make(4)
+                                                    ->schema([
+                                                        Forms\Components\FileUpload::make('path')
+                                                            ->label('Изображение')
+                                                            ->image()
+                                                            ->directory(function (callable $get, $record) {
+                                                                // Если товар уже существует, используем его ID
+                                                                if ($record) {
+                                                                    return 'products/' . $record->product_id;
+                                                                }
+                                                                // Для нового товара используем временную папку
+                                                                return 'products/temp';
+                                                            })
+                                                            ->visibility('public')
+                                                            ->maxSize(2048)
+                                                            ->columnSpan(2)
+                                                            ->required()
+                                                            ->afterStateUpdated(function ($state, callable $set, $record) {
+                                                                // Если файл загружен и товар новый, запоминаем временный путь
+                                                                if (!$record && $state) {
+                                                                    // Временный файл будет обработан после создания товара
+                                                                }
+                                                            }),
+                                                        
+                                                        Forms\Components\TextInput::make('sort_order')
+                                                            ->label('Порядок')
+                                                            ->numeric()
+                                                            ->default(0)
+                                                            ->columnSpan(1),
+                                                        
+                                                        Forms\Components\Toggle::make('is_main')
+                                                            ->label('Главное')
+                                                            ->columnSpan(1),
+                                                        
+                                                        Forms\Components\Toggle::make('is_background')
+                                                            ->label('Фоновое')
+                                                            ->columnSpan(1),
+                                                        
+                                                        Forms\Components\TextInput::make('alt')
+                                                            ->label('Alt текст')
+                                                            ->columnSpan(2),
+                                                        
+                                                        Forms\Components\TextInput::make('title')
+                                                            ->label('Title')
+                                                            ->columnSpan(2),
+                                                    ]),
+                                            ])
+                                            ->defaultItems(0)
+                                            ->collapsible()
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
+                    ])
+                    ->columnSpanFull(),
             ]);
     }
 
@@ -54,23 +195,15 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                // ID - скрыт по умолчанию
-                TextColumn::make('id')
-                    ->label('ID')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-                
-                // Фото товара (используем main_image_url)
                 ImageColumn::make('main_image')
                     ->label('Фото')
                     ->circular()
                     ->getStateUsing(function ($record) {
-                        $data = self::getData($record);
-                        return $data['main_image_url'] ?? null;
+                        $mainImage = $record->images->firstWhere('is_main', true);
+                        return $mainImage ? $mainImage->image_url : null;
                     })
                     ->defaultImageUrl(url('/images/default-product.jpg')),
                 
-                // Название товара
                 TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
@@ -78,79 +211,95 @@ class ProductResource extends Resource
                     ->weight('bold')
                     ->limit(30),
                 
-                // Цена
+                TextColumn::make('brand.name')
+                    ->label('Бренд')
+                    ->searchable()
+                    ->sortable(),
+                
+                TextColumn::make('category')
+                    ->label('Категория')
+                    ->getStateUsing(function ($record) {
+                        $subSub = $record->sub_subcategories->first();
+                        if (!$subSub) return '—';
+                        
+                        $category = $subSub->subcategory?->category?->name ?? '';
+                        $subcategory = $subSub->subcategory?->name ?? '';
+                        $subSubName = $subSub->name ?? '';
+                        
+                        return trim("{$category} → {$subcategory} → {$subSubName}", ' →');
+                    })
+                    ->toggleable(),
+                
                 TextColumn::make('price')
                     ->label('Цена')
                     ->money('RUB')
                     ->sortable(),
                 
-                // Путь категории
-                TextColumn::make('category_path')
-                    ->label('Категория')
-                    ->getStateUsing(function ($record) {
-                        $data = self::getData($record);
-                        $path = $data['category_path'] ?? null;
-                        if ($path) {
-                            return $path['category'] . ' → ' . 
-                                   $path['subcategory'] . ' → ' . 
-                                   $path['sub_subcategory'];
-                        }
-                        return '—';
-                    })
-                    ->toggleable(),
-                
-                // Остаток на складе
                 TextColumn::make('total_quantity')
                     ->label('Остаток')
-                    ->getStateUsing(fn ($record) => self::getData($record)['total_quantity'])
+                    ->getStateUsing(fn ($record) => $record->total_quantity)
                     ->sortable()
                     ->color(fn ($state) => $state > 0 ? 'success' : 'danger')
                     ->badge()
                     ->alignCenter(),
                 
-                // Продано
                 TextColumn::make('sold_count')
                     ->label('Продано')
-                    ->getStateUsing(fn ($record) => self::getData($record)['sold_count'])
                     ->sortable()
                     ->toggleable(),
                 
-                // Дата создания
                 TextColumn::make('created_at')
                     ->label('Дата')
-                    ->getStateUsing(fn ($record) => self::getData($record)['created_at'])
+                    ->date('d.m.Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                SelectFilter::make('category')
-                    ->label('Категория')
-                    ->relationship('sub_subcategories.subcategory.category', 'name')
-                    ->searchable()
-                    ->preload(),
-                
                 SelectFilter::make('brand')
-                    ->label('Бренд')
                     ->relationship('brand', 'name')
                     ->searchable()
                     ->preload(),
                 
                 Filter::make('in_stock')
                     ->label('В наличии')
-                    ->query(fn (Builder $query): Builder => $query->whereHas('inventories', fn ($q) => $q->where('quantity', '>', 0))),
+                    ->query(fn (Builder $query): Builder => $query->where('total_quantity', '>', 0)),
                 
                 Filter::make('out_of_stock')
                     ->label('Нет в наличии')
-                    ->query(fn (Builder $query): Builder => $query->whereDoesntHave('inventories', fn ($q) => $q->where('quantity', '>', 0))),
+                    ->query(fn (Builder $query): Builder => $query->where('total_quantity', '<=', 0)),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->orders()->exists()) {
+                            Notification::make()
+                                ->title('Невозможно удалить товар')
+                                ->body('Этот товар есть в заказах. Сначала удалите или переназначьте заказы.')
+                                ->danger()
+                                ->send();
+
+                            $this->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            foreach ($records as $record) {
+                                if ($record->orders()->exists()) {
+                                    Notification::make()
+                                        ->title('Невозможно удалить некоторые товары')
+                                        ->body('Товары, которые есть в заказах, не могут быть удалены.')
+                                        ->danger()
+                                        ->send();
+
+                                    $this->halt();
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('created_at', 'desc')
@@ -165,6 +314,9 @@ class ProductResource extends Resource
             'create' => Pages\CreateProduct::route('/create'),
             'edit' => Pages\EditProduct::route('/{record}/edit'),
             'view' => Pages\ViewProduct::route('/{record}'),
+            'import' => Pages\ImportProducts::route('/import'),
+            'import-progress' => Pages\ImportProgress::route('/import-progress/{batchId}'),
+            'import-result' => Pages\ImportResult::route('/import-result/{batchId}'),
         ];
     }
 }

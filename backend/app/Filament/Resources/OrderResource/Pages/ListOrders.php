@@ -5,8 +5,6 @@ namespace App\Filament\Resources\OrderResource\Pages;
 use App\Filament\Resources\OrderResource;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
-use Filament\Tables\Table;
-use Filament\Tables\Concerns\InteractsWithTable;
 
 class ListOrders extends ListRecords
 {

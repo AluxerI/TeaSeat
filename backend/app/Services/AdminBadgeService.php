@@ -38,18 +38,29 @@ class AdminBadgeService
         }
 
         $map = [
+            // Управление каталогом
             'brand' => 'brands_total',
             'product' => 'products_total',
             'category' => 'categories_total',
             'subcategory' => 'subcategories_total',
             'sub_subcategory' => 'sub_subcategories_total',
+            
+            // Управление продажами
             'order' => 'pending_orders',
+            
+            // Маркетинг
             'promotion' => 'active_promotions',
-            'discount' => 'active_discounts',
+            'discount' => 'active_discounts', // 👈 ДЛЯ ПЕРСОНАЛЬНЫХ СКИДОК
+            
+            // Модерация
             'review' => 'reviews_total',
-            'inventory' => 'low_stock',
+            
+            // Склад и поставщики
+            'inventory' => 'low_stock_count', // 👈 ИЗМЕНЕНО: теперь считает записи, а не товары
             'warehouse' => 'warehouses_active',
-            'supplier' => 'suppliers_total', 
+            'supplier' => 'suppliers_active',
+            
+            // Управление пользователями
             'user' => 'users_active',
         ];
 
@@ -74,21 +85,42 @@ class AdminBadgeService
     {
         $stats = DB::select("
             SELECT
+                -- Склады
                 (SELECT COUNT(*) FROM warehouses WHERE is_active = true) as warehouses_active,
+                
+                -- Поставщики
                 (SELECT COUNT(*) FROM suppliers WHERE is_active = true) as suppliers_active,
                 (SELECT COUNT(*) FROM suppliers) as suppliers_total,
+                
+                -- Товары
                 (SELECT COUNT(*) FROM products WHERE is_available = true) as products_in_stock,
                 (SELECT COUNT(*) FROM products) as products_total,
+                
+                -- Категории
                 (SELECT COUNT(*) FROM categories) as categories_total,
                 (SELECT COUNT(*) FROM subcategories) as subcategories_total,
                 (SELECT COUNT(*) FROM sub_subcategories) as sub_subcategories_total,
+                
+                -- Бренды
                 (SELECT COUNT(*) FROM brands) as brands_total,
+                
+                -- Акции
                 (SELECT COUNT(*) FROM promotions WHERE is_active = true AND (end_date IS NULL OR end_date >= NOW())) as active_promotions,
-                (SELECT COUNT(*) FROM discounts WHERE is_active = true AND (end_at IS NULL OR end_at >= NOW())) as active_discounts,
+                
+                -- Персональные скидки 👈 ИСПРАВЛЕНО
+                (SELECT COUNT(*) FROM discounts WHERE is_active = true AND (start_at IS NULL OR start_at <= NOW()) AND (end_at IS NULL OR end_at >= NOW())) as active_discounts,
+                
+                -- Заказы
                 (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
+                
+                -- Отзывы
                 (SELECT COUNT(*) FROM reviews) as reviews_total,
+                
+                -- Пользователи
                 (SELECT COUNT(*) FROM users WHERE is_active = true) as users_active,
-                (SELECT COUNT(*) FROM inventories WHERE quantity < 10) as low_stock
+                
+                -- Остатки 👈 ИЗМЕНЕНО: теперь считает ВСЕ записи с quantity < 10
+                (SELECT COUNT(*) FROM inventories WHERE quantity < 10) as low_stock_count
         ")[0];
 
         return [
@@ -106,7 +138,7 @@ class AdminBadgeService
             'pending_orders' => (int) ($stats->pending_orders ?? 0),
             'reviews_total' => (int) ($stats->reviews_total ?? 0),
             'users_active' => (int) ($stats->users_active ?? 0),
-            'low_stock' => (int) ($stats->low_stock ?? 0),
+            'low_stock_count' => (int) ($stats->low_stock_count ?? 0),
         ];
     }
 }

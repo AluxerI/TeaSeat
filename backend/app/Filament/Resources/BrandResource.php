@@ -4,33 +4,35 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\BrandResource\Pages;
 use App\Models\Brand;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use App\Traits\HasNavigationBadge;
+use Filament\Notifications\Notification;
 
 class BrandResource extends Resource
 {
     use HasNavigationBadge;
     
-    private static array $brandDataCache = [];
-
     protected static ?string $model = Brand::class;
     protected static ?string $navigationIcon = 'heroicon-o-building-office';
     protected static ?string $navigationGroup = 'Управление каталогом';
     protected static ?string $navigationLabel = 'Бренды';
 
-    private static function getBrandData($record): array
+    public static function getEloquentQuery(): Builder
     {
-        $id = $record->id;
-        if (!isset(self::$brandDataCache[$id])) {
-            self::$brandDataCache[$id] = $record->getAllData();
-        }
-        return self::$brandDataCache[$id];
+        return parent::getEloquentQuery()
+            ->withCount('products')
+            ->addSelect([
+                'total_sold' => Product::selectRaw('COALESCE(SUM(sold_count), 0)')
+                    ->whereColumn('brand_id', 'brands.id')
+            ]);
     }
 
     public static function form(Form $form): Form
@@ -44,21 +46,13 @@ class BrandResource extends Resource
                                 Forms\Components\TextInput::make('name')
                                     ->label('Название бренда')
                                     ->required()
-                                    ->maxLength(255),
+                                    ->maxLength(255)
+                                    ->unique(ignoreRecord: true),
                                 
                                 Forms\Components\TextInput::make('country')
                                     ->label('Страна')
                                     ->maxLength(100)
                                     ->placeholder('Например: Россия, Китай, Индия'),
-                                
-                                Forms\Components\FileUpload::make('logo')
-                                    ->label('Логотип бренда')
-                                    ->image()
-                                    ->directory('brands')
-                                    ->visibility('public')
-                                    ->maxSize(1024)
-                                    ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg', 'image/webp'])
-                                    ->columnSpanFull(),
                             ]),
                     ]),
             ]);
@@ -70,7 +64,8 @@ class BrandResource extends Resource
             ->columns([
                 TextColumn::make('id')
                     ->label('ID')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    ->toggleable(isToggledHiddenByDefault: true)
+                    ->sortable(),
                 
                 TextColumn::make('name')
                     ->label('Название')
@@ -85,17 +80,17 @@ class BrandResource extends Resource
                     ->badge()
                     ->color('info'),
                 
+                // ✅ Используем withCount из запроса
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->getStateUsing(fn ($record) => self::getBrandData($record)['products_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('success'),
                 
+                // ✅ Используем addSelect из запроса
                 TextColumn::make('total_sold')
                     ->label('Продано')
-                    ->getStateUsing(fn ($record) => self::getBrandData($record)['total_sold'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
@@ -105,15 +100,40 @@ class BrandResource extends Resource
                 SelectFilter::make('country')
                     ->label('Страна')
                     ->options(fn () => Brand::distinct()->whereNotNull('country')->pluck('country', 'country'))
-                    ->multiple(),
+                    ->multiple()
+                    ->searchable(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->products()->count() > 0) {
+                            Notification::make()
+                                ->title('Невозможно удалить бренд')
+                                ->body('У этого бренда есть товары. Сначала удалите или переназначьте товары.')
+                                ->danger()
+                                ->send();
+
+                            $this->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            foreach ($records as $record) {
+                                if ($record->products()->count() > 0) {
+                                    Notification::make()
+                                        ->title('Невозможно удалить некоторые бренды')
+                                        ->body('Бренды с товарами не могут быть удалены.')
+                                        ->danger()
+                                        ->send();
+
+                                    $this->halt();
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('name', 'asc')

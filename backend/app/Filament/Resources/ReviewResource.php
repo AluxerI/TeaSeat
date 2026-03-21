@@ -27,8 +27,6 @@ use App\Traits\HasNavigationBadge;
 class ReviewResource extends Resource
 {
     use HasNavigationBadge; 
-    
-    private static array $dataCache = []; 
 
     protected static ?string $model = Review::class;
     protected static ?string $navigationIcon = 'heroicon-o-chat-bubble-left-right';
@@ -45,6 +43,11 @@ class ReviewResource extends Resource
     public static function getRecordRouteKeyName(): ?string
     {
         return 'review_key';
+    }
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['user', 'product']);
     }
 
     // Разрешение модели по составному ключу
@@ -271,11 +274,4 @@ class ReviewResource extends Resource
     {
         return false;
     }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->with(['user', 'product']);
-    }
-
 }

@@ -9,6 +9,8 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use App\Services\AdminBadgeService;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -94,7 +96,65 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(PhoneVerificationCode::class);
     }
+    /**
+     * Получить данные пользователя
+     */
+    public function getAllData(): array
+    {
+        $key = "user.{$this->id}.all";
+        
+        return Cache::remember($key, 3600, function () {
+            return [
+                'id' => $this->id,
+                'name' => $this->name,
+                'email' => $this->email,
+                'phone' => $this->phone,
+                'is_active' => $this->is_active,
+                'email_verified' => !is_null($this->email_verified_at),
+                'phone_verified' => !is_null($this->phone_verified_at),
+                'roles' => $this->roles->pluck('name')->toArray(),
+                'orders_count' => $this->orders()->count(),
+                'reviews_count' => $this->reviews()->count(),
+                'created_at' => $this->created_at?->format('d.m.Y'),
+            ];
+        });
+    }
 
+    /**
+     * Ключи кеша для очистки
+     */
+    protected function getCacheKeys(): array
+    {
+        return [
+            "user.{$this->id}.all",
+        ];
+    }
+
+    /**
+     * Очистка кеша
+     */
+    public function clearCache(): void
+    {
+        foreach ($this->getCacheKeys() as $key) {
+            Cache::forget($key);
+        }
+    }
+
+    /**
+     * События модели
+     */
+     protected static function booted()
+    {
+        static::saved(function ($user) {
+            $user->clearCache();
+            AdminBadgeService::clearCache(); // 👈 ОЧИЩАЕМ КЕШ БЕЙДЖЕРОВ
+        });
+
+        static::deleted(function ($user) {
+            $user->clearCache();
+            AdminBadgeService::clearCache(); // 👈 ОЧИЩАЕМ КЕШ БЕЙДЖЕРОВ
+        });
+    }
      protected static function boot()
     {
         parent::boot();
@@ -131,4 +191,6 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Order::class)->where('status', Order::STATUS_DELIVERED);
     }
+
+
 }

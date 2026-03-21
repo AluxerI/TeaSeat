@@ -6,13 +6,20 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Filament\Tables\Contracts\HasTable;
+use Illuminate\Support\Facades\Cache;
+use App\Traits\ResetsAdminBadges;
+use App\Services\AdminBadgeService;
+
 
 class Order extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory, SoftDeletes, ResetsAdminBadges;
 
     protected $fillable = [
         'user_id',
+        'contact_name',     
+        'contact_phone',      
+        'contact_email',
         'status',
         'products_total',
         'promotion_discount',
@@ -86,6 +93,58 @@ class Order extends Model
     public function deliveryMethod()
     {
         return $this->belongsTo(DeliveryMethod::class, 'delivery_method_id'); 
+    }
+    /**
+     * Получить данные заказа для отображения
+     */
+    public function getAllData(): array
+    {
+        $key = "order.{$this->id}.all";
+        
+        return Cache::remember($key, 300, function () {
+            return [
+                'id' => $this->id,
+                'order_number' => $this->order_number,
+                'user_id' => $this->user_id,
+                'user_name' => $this->user?->name,
+                'user_email' => $this->user?->email,
+                'status' => $this->status,
+                'status_name' => $this->status_name,
+                'final_total' => (float) $this->final_total,
+                'items_count' => $this->items()->count(),
+                'created_at' => $this->created_at?->format('d.m.Y H:i'),
+                'is_supplier_order' => $this->is_supplier_order,
+            ];
+        });
+    }
+
+    /**
+     * Ключи кеша для очистки
+     */
+    protected function getCacheKeys(): array
+    {
+        return [
+            "order.{$this->id}.all",
+            "user.{$this->user_id}.orders",
+        ];
+    }
+
+    /**
+     * События модели
+     */
+    protected static function booted()
+    {
+        static::saved(function ($order) {
+            Cache::forget("order.{$order->id}.all");
+            Cache::forget("user.{$order->user_id}.orders");
+            AdminBadgeService::clearCache();
+        });
+    
+        static::deleted(function ($order) {
+            Cache::forget("order.{$order->id}.all");
+            Cache::forget("user.{$order->user_id}.orders");
+            AdminBadgeService::clearCache();
+        });
     }
 
         /**
@@ -225,4 +284,14 @@ class Order extends Model
     
         return $statuses[$status] ?? $status;
     }
+
+    /**
+     * Пересчитать общую сумму товаров на основе сохраненных цен в order_products
+     */
+    public function recalculateProductsTotal(): void
+    {
+        $total = $this->items()->sum('total_price');
+        $this->updateQuietly(['products_total' => $total]);
+    }
+    
 }

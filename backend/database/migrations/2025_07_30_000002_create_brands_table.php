@@ -20,6 +20,7 @@ return new class extends Migration
             // Индексы для оптимизации
             $table->index('name');
             $table->index('country');
+            $table->index(['country', 'name']);
         });
     }
 

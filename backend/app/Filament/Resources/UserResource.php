@@ -31,8 +31,6 @@ use App\Traits\HasNavigationBadge;
 class UserResource extends Resource
 {
     use HasNavigationBadge; 
-    
-    private static array $dataCache = [];
 
     protected static ?string $model = User::class;
     protected static ?string $navigationIcon = 'heroicon-o-users';
@@ -44,6 +42,11 @@ class UserResource extends Resource
 
     protected static ?string $recordTitleAttribute = 'name';
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['roles']);
+    }
     public static function form(Form $form): Form
     {
         return $form
@@ -364,26 +367,7 @@ class UserResource extends Resource
                     ->label('Активен')
                     ->boolean()
                     ->trueIcon('heroicon-o-check-circle')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('success')
-                    ->falseColor('danger'),
-                
-                IconColumn::make('email_verified_at')
-                    ->label('Email верифицирован')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-check-badge')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('success')
-                    ->falseColor('gray'),
-                
-                IconColumn::make('phone_verified_at')
-                    ->label('Телефон верифицирован')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-check-badge')
-                    ->falseIcon('heroicon-o-x-circle')
-                    ->trueColor('success')
-                    ->falseColor('gray')
-                    ->toggleable(),
+                    ->falseIcon('heroicon-o-x-circle'),
                 
                 TextColumn::make('roles.name')
                     ->label('Роли')
@@ -404,7 +388,7 @@ class UserResource extends Resource
                 
                 TextColumn::make('created_at')
                     ->label('Зарегистрирован')
-                    ->dateTime('d.m.Y')
+                    ->date('d.m.Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -480,14 +464,6 @@ class UserResource extends Resource
             'edit' => Pages\EditUser::route('/{record}/edit'),
             'view' => Pages\ViewUser::route('/{record}'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->withoutGlobalScopes([
-                SoftDeletingScope::class,
-            ]);
     }
 
 }

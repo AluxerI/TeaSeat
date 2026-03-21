@@ -32,6 +32,11 @@ return new class extends Migration
             $table->index('created_at');
             $table->index(['brand_id', 'price']);
             $table->index(['is_available', 'price']);
+            $table->index('brand_id'); // отдельный индекс для связи
+            $table->index('total_quantity'); // для фильтрации по количеству
+            $table->index(['name', 'price']); // для поиска по имени + сортировка по цене
+            $table->index(['brand_id', 'is_available']); // для фильтрации по бренду + наличие
+            $table->index(['created_at', 'price']); // для сортировки по дате + цена
         });
     }
 

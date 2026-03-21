@@ -13,25 +13,23 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
 use App\Traits\HasNavigationBadge;
+use Illuminate\Database\Eloquent\Builder;
+use Filament\Notifications\Notification;
 
 class SubSubcategoryResource extends Resource
 {
     use HasNavigationBadge;
     
-    private static array $dataCache = [];
-
     protected static ?string $model = Sub_Subcategory::class;
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationGroup = 'Управление каталогом';
     protected static ?string $navigationLabel = 'Под-подкатегории';
 
-    private static function getData($record): array
+    public static function getEloquentQuery(): Builder
     {
-        $id = $record->id;
-        if (!isset(self::$dataCache[$id])) {
-            self::$dataCache[$id] = $record->getAllData();
-        }
-        return self::$dataCache[$id];
+        return parent::getEloquentQuery()
+            ->with(['subcategory.category'])
+            ->withCount(['products']);
     }
 
     public static function form(Form $form): Form
@@ -51,17 +49,16 @@ class SubSubcategoryResource extends Resource
                                                     ->relationship('subcategory', 'name')
                                                     ->required()
                                                     ->searchable()
-                                                    ->preload(),
+                                                    ->preload()
+                                                    ->reactive()
+                                                    ->afterStateUpdated(function ($state, callable $set, $record) {
+                                                        if ($record) {
+                                                            $record->clearCache();
+                                                        }
+                                                    }),
                                                 
                                                 Forms\Components\TextInput::make('name')
                                                     ->label('Название')
-                                                    ->required()
-                                                    ->maxLength(255)
-                                                    ->live(onBlur: true)
-                                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', str($state)->slug())),
-                                                
-                                                Forms\Components\TextInput::make('slug')
-                                                    ->label('URL-алиас')
                                                     ->required()
                                                     ->maxLength(255)
                                                     ->unique(ignoreRecord: true),
@@ -72,15 +69,23 @@ class SubSubcategoryResource extends Resource
                                                     ->directory('category-icons/sub-subcategories')
                                                     ->visibility('public')
                                                     ->maxSize(1024)
-                                                    ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg']),
+                                                    ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg'])
+                                                    ->afterStateUpdated(function ($state, $record) {
+                                                        if ($record) {
+                                                            $record->clearCache();
+                                                        }
+                                                    }),
                                             ]),
                                         
                                         Forms\Components\Placeholder::make('full_path')
                                             ->label('Полный путь')
                                             ->content(function ($record) {
                                                 if (!$record) return '—';
-                                                $data = self::getData($record);
-                                                return $data['category_name'] . ' → ' . $data['subcategory_name'] . ' → ' . $data['name'];
+                                                
+                                                $category = $record->subcategory?->category?->name ?? '—';
+                                                $subcategory = $record->subcategory?->name ?? '—';
+                                                
+                                                return "{$category} → {$subcategory} → {$record->name}";
                                             })
                                             ->columnSpanFull(),
                                     ]),
@@ -91,7 +96,11 @@ class SubSubcategoryResource extends Resource
                                 Forms\Components\Select::make('products')
                                     ->label('Товары в категории')
                                     ->multiple()
-                                    ->relationship('products', 'name')
+                                    ->relationship(
+                                        name: 'products', 
+                                        titleAttribute: 'name',
+                                        modifyQueryUsing: fn (Builder $query) => $query->select('products.id', 'products.name')
+                                    )
                                     ->searchable()
                                     ->preload()
                                     ->columnSpanFull(),
@@ -116,30 +125,27 @@ class SubSubcategoryResource extends Resource
                     ->sortable()
                     ->weight('bold'),
                 
-                TextColumn::make('subcategory_name')
-                    ->label('Подкатегория')
-                    ->getStateUsing(fn ($record) => self::getData($record)['subcategory_name'])
-                    ->searchable()
-                    ->sortable(),
-                
-                TextColumn::make('category_name')
+                TextColumn::make('subcategory.category.name')
                     ->label('Категория')
-                    ->getStateUsing(fn ($record) => self::getData($record)['category_name'])
                     ->searchable()
                     ->sortable(),
-                
+
+                TextColumn::make('subcategory.name')
+                    ->label('Подкатегория')
+                    ->searchable()
+                    ->sortable(),
+
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->getStateUsing(fn ($record) => self::getData($record)['products_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('success'),
-                
+
                 ImageColumn::make('icon')
                     ->label('Иконка')
                     ->circular()
-                    ->getStateUsing(fn ($record) => self::getData($record)['icon_url'])
+                    ->getStateUsing(fn ($record) => $record->icon_url)
                     ->defaultImageUrl(url('/images/default-icon.png')),
                 
                 TextColumn::make('created_at')
@@ -164,11 +170,35 @@ class SubSubcategoryResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->products()->count() > 0) {
+                            Notification::make()
+                                ->title('Невозможно удалить под-подкатегорию')
+                                ->body('У этой под-подкатегории есть товары. Сначала удалите или переназначьте товары.')
+                                ->danger()
+                                ->send();
+
+                            $this->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            foreach ($records as $record) {
+                                if ($record->products()->count() > 0) {
+                                    Notification::make()
+                                        ->title('Невозможно удалить некоторые под-подкатегории')
+                                        ->body('Под-подкатегории с товарами не могут быть удалены.')
+                                        ->danger()
+                                        ->send();
+
+                                    $this->halt();
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('name', 'asc')

@@ -29,11 +29,21 @@ class EditOrder extends EditRecord
         if ($oldStatus !== $newStatus) {
             OrderStatusHistory::create([
                 'order_id' => $record->id,
-                'from_status' => $oldStatus,
+                'from_status' => $oldStatus ?? $newStatus,
                 'to_status' => $newStatus,
                 'changed_by' => Auth::id(),
                 'notes' => 'Изменено через админ-панель'
             ]);
         }
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Заказ успешно обновлен';
     }
 }

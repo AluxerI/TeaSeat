@@ -4,36 +4,40 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\CategoryResource\Pages;
 use App\Models\Category;
+use App\Models\Subcategory;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ImageColumn;
 use App\Traits\HasNavigationBadge;
+use Filament\Notifications\Notification;
 
 class CategoryResource extends Resource
 {
     use HasNavigationBadge;
-    
-    private static array $categoryDataCache = [];
 
     protected static ?string $model = Category::class;
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
     protected static ?string $navigationGroup = 'Управление каталогом';
     protected static ?string $navigationLabel = 'Категории';
 
-    /**
-     * Получить данные категории с кешированием в памяти
-     */
-    private static function getCategoryData($record): array
+    public static function getEloquentQuery(): Builder
     {
-        $id = $record->id;
-        if (!isset(self::$categoryDataCache[$id])) {
-            self::$categoryDataCache[$id] = $record->getAllData();
-        }
-        return self::$categoryDataCache[$id];
+        return parent::getEloquentQuery()
+            ->with(['images'])
+            ->withCount(['subcategories'])
+            ->addSelect([
+                'products_count' => Product::selectRaw('COUNT(DISTINCT products.id)')
+                    ->join('sub_subcategory_products', 'products.id', '=', 'sub_subcategory_products.product_id')
+                    ->join('sub_subcategories', 'sub_subcategory_products.sub_subcategory_id', '=', 'sub_subcategories.id')
+                    ->join('subcategories', 'sub_subcategories.subcategory_id', '=', 'subcategories.id')
+                    ->whereColumn('subcategories.category_id', 'categories.id')
+            ]);
     }
 
     public static function form(Form $form): Form
@@ -48,15 +52,7 @@ class CategoryResource extends Resource
                                     ->label('Название категории')
                                     ->required()
                                     ->maxLength(255)
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', str($state)->slug())),
-                                
-                                Forms\Components\TextInput::make('slug')
-                                    ->label('URL-алиас')
-                                    ->required()
-                                    ->maxLength(255)
-                                    ->unique(ignoreRecord: true)
-                                    ->helperText('Автоматически генерируется из названия'),
+                                    ->unique(ignoreRecord: true),
                                 
                                 Forms\Components\FileUpload::make('icon')
                                     ->label('Иконка')
@@ -65,7 +61,12 @@ class CategoryResource extends Resource
                                     ->visibility('public')
                                     ->maxSize(1024)
                                     ->acceptedFileTypes(['image/svg+xml', 'image/png', 'image/jpeg'])
-                                    ->helperText('Иконка категории (рекомендуется SVG)'),
+                                    ->helperText('Иконка категории (рекомендуется SVG)')
+                                    ->afterStateUpdated(function ($state, $record) {
+                                        if ($record) {
+                                            $record->clearCache();
+                                        }
+                                    }),
                             ]),
                     ]),
 
@@ -80,7 +81,7 @@ class CategoryResource extends Resource
                                     ->visibility('public')
                                     ->maxSize(2048)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->afterStateUpdated(function ($state, callable $set, $record) {
+                                    ->afterStateUpdated(function ($state, $record) {
                                         if ($record && $state) {
                                             $record->images()->updateOrCreate(
                                                 ['is_main' => true],
@@ -101,7 +102,7 @@ class CategoryResource extends Resource
                                     ->visibility('public')
                                     ->maxSize(2048)
                                     ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
-                                    ->afterStateUpdated(function ($state, callable $set, $record) {
+                                    ->afterStateUpdated(function ($state, $record) {
                                         if ($record && $state) {
                                             $record->images()->updateOrCreate(
                                                 ['is_background' => true],
@@ -131,7 +132,7 @@ class CategoryResource extends Resource
                                     $typeLabel = $type ? ' (' . implode(', ', $type) . ')' : '';
                                     
                                     $html .= '<div class="border rounded p-2">';
-                                    $html .= '<img src="/storage/' . $image->path . '" class="w-full h-32 object-cover mb-2">';
+                                    $html .= '<img src="' . $image->image_url . '" class="w-full h-32 object-cover mb-2">';
                                     $html .= '<div class="text-xs text-center">' . $typeLabel . '</div>';
                                     $html .= '</div>';
                                 }
@@ -139,31 +140,6 @@ class CategoryResource extends Resource
                                 
                                 return new \Illuminate\Support\HtmlString($html);
                             })
-                            ->columnSpanFull(),
-                    ]),
-
-                Forms\Components\Section::make('Подкатегории')
-                    ->schema([
-                        Forms\Components\Repeater::make('subcategories')
-                            ->relationship()
-                            ->schema([
-                                Forms\Components\Grid::make(2)
-                                    ->schema([
-                                        Forms\Components\TextInput::make('name')
-                                            ->label('Название')
-                                            ->required()
-                                            ->maxLength(255),
-                                        
-                                        Forms\Components\FileUpload::make('icon')
-                                            ->label('Иконка')
-                                            ->image()
-                                            ->directory('category-icons/subcategories')
-                                            ->visibility('public')
-                                            ->maxSize(1024),
-                                    ]),
-                            ])
-                            ->defaultItems(0)
-                            ->collapsible()
                             ->columnSpanFull(),
                     ]),
             ]);
@@ -177,16 +153,13 @@ class CategoryResource extends Resource
                     ->label('ID')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
-                
+
                 ImageColumn::make('main_image')
                     ->label('Изображение')
                     ->circular()
-                    ->getStateUsing(function ($record) {
-                        $data = self::getCategoryData($record);
-                        return $data['main_image_url'] ?? null;  // ← используем URL
-                    })
+                    ->getStateUsing(fn ($record) => $record->getMainImageUrl())
                     ->defaultImageUrl(url('/images/default-category.jpg')),
-                
+
                 TextColumn::make('name')
                     ->label('Название')
                     ->searchable()
@@ -196,25 +169,25 @@ class CategoryResource extends Resource
                 ImageColumn::make('icon')
                     ->label('Иконка')
                     ->circular()
-                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['icon_url'] ?? null)
+                    ->getStateUsing(fn ($record) => $record->icon_url)
                     ->defaultImageUrl(url('/images/default-icon.png')),
-                
+
+                // ✅ Используем withCount из запроса
                 TextColumn::make('subcategories_count')
                     ->label('Подкатегории')
-                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['subcategories_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('info'),
-                
+
+                // ✅ Используем addSelect из запроса
                 TextColumn::make('products_count')
                     ->label('Товаров')
-                    ->getStateUsing(fn ($record) => self::getCategoryData($record)['products_count'])
                     ->sortable()
                     ->alignCenter()
                     ->badge()
                     ->color('success'),
-                
+
                 TextColumn::make('created_at')
                     ->label('Дата')
                     ->dateTime('d.m.Y')
@@ -225,11 +198,35 @@ class CategoryResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function ($record) {
+                        if ($record->subcategories()->count() > 0) {
+                            Notification::make()
+                                ->title('Невозможно удалить категорию')
+                                ->body('У этой категории есть подкатегории. Сначала удалите их.')
+                                ->danger()
+                                ->send();
+
+                            $this->halt();
+                        }
+                    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->before(function ($records) {
+                            foreach ($records as $record) {
+                                if ($record->subcategories()->count() > 0) {
+                                    Notification::make()
+                                        ->title('Невозможно удалить некоторые категории')
+                                        ->body('Категории с подкатегориями не могут быть удалены.')
+                                        ->danger()
+                                        ->send();
+
+                                    $this->halt();
+                                }
+                            }
+                        }),
                 ]),
             ])
             ->defaultSort('name', 'asc')
