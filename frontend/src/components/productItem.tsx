@@ -48,7 +48,7 @@ export const ProductItem = ({
     weight -= step;
   };
   return (
-    <div className="product-card">
+    <article className="product-card">
       <div className="product-card__head">
         <Images
           name={pic_product.name}
@@ -69,20 +69,45 @@ export const ProductItem = ({
           <h5 className="label-product">{label}</h5>
           <div className="gramm-and-price">
             <form action="" className="grams-form">
-              <p className="count-gramms">{weight}</p>
-              <button type="button" onClick={upWeight}></button>
-              <button type="button" onClick={downWeight}>
-                <Images
-                  name="https://cdn-icons-png.flaticon.com/512/271/271210"
-                  type="png"
-                  alt="icon-down"
-                ></Images>
-              </button>
+              <p className="count-gramms">{weight} г</p>
+              <div className="block-buttons">
+                <button type="button" onClick={upWeight}>
+                  <Images
+                    name="https://cdn-icons-png.flaticon.com/512/271/271239"
+                    type="png"
+                    alt="icon-up"
+                  ></Images>
+                </button>
+                <button
+                  type="button"
+                  onClick={downWeight}
+                  className="arrow-down"
+                >
+                  <Images
+                    name="https://cdn-icons-png.flaticon.com/512/271/271210"
+                    type="png"
+                    alt="icon-down"
+                  ></Images>
+                </button>
+              </div>
+              <p className="price">{pricing} Р</p>
             </form>
-            <p className="price">{pricing}</p>
+          </div>
+
+          <div className="button-for-buy">
+            <button type="button" className="at-cart">
+              В корзину
+            </button>
+            <button type="button" className="quickView">
+              <Images
+                name="https://cdn-icons-png.freepik.com/256/64/64911"
+                type="png"
+                alt="icon-quick-view"
+              ></Images>
+            </button>
           </div>
         </section>
       </div>
-    </div>
+    </article>
   );
 };
