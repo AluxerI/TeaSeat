@@ -27,10 +27,13 @@ export const ProductList = () => {
   return (
     <Grid
       container
-      direction="column"
-      justifyContent="center"
+      direction="row"
+      flexWrap="wrap"
+      justifyContent="stretch"
       alignItems="center"
       className="grid-category"
+      rowSpacing={2}
+      columnSpacing={3}
     >
       {EnrichedProducts?.map((value) => {
         console.log(value.images.background.split("."));
