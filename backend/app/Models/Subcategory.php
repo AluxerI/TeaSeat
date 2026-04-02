@@ -14,7 +14,7 @@ class Subcategory extends Model
 {
     use HasFactory, HasIcon, ClearsModelCache, ResetsAdminBadges;
 
-    protected $fillable = ['category_id', 'name', 'icon', 'slug'];
+    protected $fillable = ['category_id', 'name', 'icon'];
 
     protected $hidden = [
         'laravel_through_key',
@@ -70,7 +70,6 @@ class Subcategory extends Model
             return [
                 'id' => $this->id,
                 'name' => $this->name,
-                'slug' => $this->slug,
                 'icon_url' => $this->icon_url,
                 'category_id' => $this->category_id,
                 'category_name' => $this->category?->name,

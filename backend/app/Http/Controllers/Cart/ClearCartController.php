@@ -9,7 +9,6 @@ use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\CartResource;
 use Illuminate\Support\Facades\Log;
 
-
 class ClearCartController extends Controller
 {
     protected $cartService;
@@ -21,7 +20,6 @@ class ClearCartController extends Controller
 
     public function __invoke(Request $request)
     {
-        
         try {
             $userId = Auth::id();
             $cart = $this->cartService->clearCart($userId);
@@ -29,7 +27,15 @@ class ClearCartController extends Controller
             return new CartResource($cart);
 
         } catch (\Exception $e) {
-            // обработка ошибок
+            Log::error('Ошибка при очистке корзины', [
+                'user_id' => Auth::id(),
+                'error' => $e->getMessage()
+            ]);
+
+            return response()->json([
+                'message' => 'Ошибка при очистке корзины',
+                'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
+            ], 500);
         }
     }
 }

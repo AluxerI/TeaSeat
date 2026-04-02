@@ -11,6 +11,9 @@ RUN apt-get update -y && apt-get install -y \
     libpq-dev \
     libzip-dev \
     libicu-dev \
+    libpng-dev \    
+    libjpeg-dev \     
+    libfreetype6-dev \ 
     curl \
     && docker-php-ext-install \
     pdo \
@@ -21,6 +24,7 @@ RUN apt-get update -y && apt-get install -y \
     opcache \
     pcntl \
     sockets \
+    gd \            
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
@@ -32,8 +36,8 @@ WORKDIR /app/backend
 # Копируем composer файлы
 COPY composer.json composer.lock ./
 
-# Устанавливаем зависимости (без скриптов)
-RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts
+# Устанавливаем зависимости (без скриптов) с игнорированием требований платформы
+RUN composer install --no-interaction --prefer-dist --optimize-autoloader --no-scripts --ignore-platform-reqs
 
 # Копируем остальной код
 COPY . .

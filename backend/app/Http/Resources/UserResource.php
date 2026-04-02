@@ -9,45 +9,33 @@ class UserResource extends JsonResource
 {
     public function toArray($request)
     {
+        // Используем кешированные данные из модели User
+        $userData = $this->getAllData();
+        
         return [
             'id' => $this->id,
             'name' => $this->name,
             'email' => $this->email,
-            'email_verified_at' => $this->email_verified_at,
+            'email_verified_at' => $this->email_verified_at?->format('d.m.Y H:i'),
             
-            'provider' => $this->provider, // 'google', 'vkontakte', etc
+            'provider' => $this->provider,
             'provider_id' => $this->provider_id,
             'phone' => $this->phone,
-            'phone_verified_at' => $this->phone_verified_at,
+            'phone_verified_at' => $this->phone_verified_at?->format('d.m.Y H:i'),
             'is_active' => $this->is_active,
 
-            'address_client'=> $this-> getAddressPath(),
+            'addresses' => AddressClientResource::collection($this->whenLoaded('addresses')),
             'roles' => $this->getRoleNames(),
             'permissions' => $this->getAllPermissions()->pluck('name'),
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
+            
+            // Статистика из кеша
+            'stats' => [
+                'orders_count' => $userData['orders_count'] ?? $this->orders()->count(),
+                'reviews_count' => $userData['reviews_count'] ?? $this->reviews()->count(),
+            ],
+            
+            'created_at' => $userData['created_at'] ?? $this->created_at?->format('d.m.Y'),
+            'updated_at' => $this->updated_at?->format('d.m.Y H:i'),
         ];
     }
-
-    protected function getAddressPath()
-    {
-        // Проверяем, загружено ли отношение addresses
-        if (!$this->addresses || $this->addresses->isEmpty()) {
-            return null; // или return []; если предпочтительнее вернуть пустой массив
-        }
-
-        // Преобразуем коллекцию адресов в массив
-        return $this->addresses->map(function ($address) {
-            return [
-                'id' => $address->id,
-                'user_id' => $address->id_user,
-                'street' => $address->street, 
-                'city' => $address->city,
-                'postal_code' => $address->postal_code,
-                'created_at' => $address->created_at,
-                'updated_at' => $address->updated_at,
-            ];
-        });
-    }
-    
 }

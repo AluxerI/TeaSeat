@@ -49,6 +49,12 @@ class ProductResource extends Resource
                                     ->schema([
                                         Forms\Components\Grid::make(2)
                                             ->schema([
+                                                Forms\Components\TextInput::make('sku')
+                                                    ->label('Артикул')
+                                                    ->maxLength(100)
+                                                    ->unique(ignoreRecord: true)
+                                                    ->helperText('Уникальный идентификатор товара'),
+                                                
                                                 Forms\Components\TextInput::make('name')
                                                     ->label('Название товара')
                                                     ->required()
@@ -106,7 +112,6 @@ class ProductResource extends Resource
                             ->schema([
                                 Forms\Components\Section::make('Категория')
                                     ->schema([
-                                        // ✅ Используем отношение – это не создаст поле в products
                                         Forms\Components\Select::make('sub_subcategories')
                                             ->label('Под-подкатегория')
                                             ->relationship('sub_subcategories', 'name')
@@ -140,23 +145,15 @@ class ProductResource extends Resource
                                                             ->label('Изображение')
                                                             ->image()
                                                             ->directory(function (callable $get, $record) {
-                                                                // Если товар уже существует, используем его ID
                                                                 if ($record) {
                                                                     return 'products/' . $record->product_id;
                                                                 }
-                                                                // Для нового товара используем временную папку
                                                                 return 'products/temp';
                                                             })
                                                             ->visibility('public')
                                                             ->maxSize(2048)
                                                             ->columnSpan(2)
-                                                            ->required()
-                                                            ->afterStateUpdated(function ($state, callable $set, $record) {
-                                                                // Если файл загружен и товар новый, запоминаем временный путь
-                                                                if (!$record && $state) {
-                                                                    // Временный файл будет обработан после создания товара
-                                                                }
-                                                            }),
+                                                            ->required(),
                                                         
                                                         Forms\Components\TextInput::make('sort_order')
                                                             ->label('Порядок')
@@ -203,6 +200,12 @@ class ProductResource extends Resource
                         return $mainImage ? $mainImage->image_url : null;
                     })
                     ->defaultImageUrl(url('/images/default-product.jpg')),
+                
+                TextColumn::make('sku')
+                    ->label('Артикул')
+                    ->searchable()
+                    ->sortable()
+                    ->toggleable(),
                 
                 TextColumn::make('name')
                     ->label('Название')
@@ -312,11 +315,14 @@ class ProductResource extends Resource
         return [
             'index' => Pages\ListProducts::route('/'),
             'create' => Pages\CreateProduct::route('/create'),
-            'edit' => Pages\EditProduct::route('/{record}/edit'),
-            'view' => Pages\ViewProduct::route('/{record}'),
-            'import' => Pages\ImportProducts::route('/import'),
+            'import' => Pages\ImportPreview::route('/import'),
             'import-progress' => Pages\ImportProgress::route('/import-progress/{batchId}'),
             'import-result' => Pages\ImportResult::route('/import-result/{batchId}'),
+            'import-images' => Pages\ImportImages::route('/import-images'),
+            'import-images-progress' => Pages\ImportImagesProgress::route('/import-images-progress/{batchId}'),
+            'import-images-result' => Pages\ImportImagesResult::route('/import-images-result/{batchId}'),
+            'view' => Pages\ViewProduct::route('/{record}'),
+            'edit' => Pages\EditProduct::route('/{record}/edit'),
         ];
     }
 }

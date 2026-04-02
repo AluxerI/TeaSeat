@@ -15,6 +15,7 @@ return new class extends Migration
             $table->foreignId('product_id')->constrained()->cascadeOnDelete();
             $table->foreignId('warehouse_id')->constrained()->cascadeOnDelete();
             $table->integer('quantity')->default(0);
+            $table->decimal('weight_quantity', 10, 2)->nullable();
             $table->date('last_restock_date')->nullable();
 
             

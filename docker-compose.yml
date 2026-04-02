@@ -26,6 +26,25 @@ services:
       retries: 3
       start_period: 10s
 
+  worker:
+    build:
+      context: ./backend
+      dockerfile: dockerfile
+    container_name: worker
+    command: php artisan queue:work --sleep=3 --tries=3
+    depends_on:
+      pgsql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend:cached
+    networks:
+      - app
+    environment:
+      - QUEUE_CONNECTION=redis
+    restart: unless-stopped
+
   frontend:
     container_name: frontend
     build:

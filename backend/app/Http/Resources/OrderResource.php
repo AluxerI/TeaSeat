@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\Item\ItemResource;
 
 class OrderResource extends JsonResource
 {
@@ -12,12 +13,12 @@ class OrderResource extends JsonResource
             'id' => $this->id,
             'status' => $this->status,
             'payment_method' => $this->payment_method,
-            'order_number' => $this->generateOrderNumber(),
+            'order_number' => $this->order_number,
             
             'is_partial' => !is_null($this->parent_order_id),
             'parent_order_id' => $this->parent_order_id,
 
-            // 🎯 ИНФОРМАЦИЯ О ТИПЕ ЗАКАЗА
+            // Информация о типе заказа
             'order_type' => $this->is_supplier_order ? 'supplier' : 'regular',
             'order_type_name' => $this->is_supplier_order ? 'Заказ у поставщика' : 'Обычный заказ',
             
@@ -32,18 +33,18 @@ class OrderResource extends JsonResource
 
             // Суммы
             'totals' => [
-                'products_total' => $this->products_total,
-                'promotion_discount' => $this->promotion_discount,
-                'personal_discount' => $this->personal_discount,
-                'cart_discount' => $this->cart_discount,
-                'shipping_cost' => $this->shipping_cost,
-                'final_total' => $this->final_total,
+                'products_total' => (float) $this->products_total,
+                'promotion_discount' => (float) ($this->promotion_discount ?? 0),
+                'personal_discount' => (float) ($this->personal_discount ?? 0),
+                'cart_discount' => (float) ($this->cart_discount ?? 0),
+                'shipping_cost' => (float) $this->shipping_cost,
+                'final_total' => (float) $this->final_total,
             ],
 
             'delivery_info' => [
-                'estimated_days' => $this->deliveryMethod->getEstimatedDaysFormatted() ?? 'уточняется',
+                'estimated_days' => $this->deliveryMethod?->getEstimatedDaysFormatted() ?? 'уточняется',
                 'has_multiple_warehouses' => $this->partialOrders->isNotEmpty(),
-                'warehouse_count' => $this->partialOrders->count() + 1, // основной + частичные
+                'warehouse_count' => $this->partialOrders->count() + 1,
             ],
             
             // Информация о доставке
@@ -60,31 +61,23 @@ class OrderResource extends JsonResource
                 'tracking_number' => $this->tracking_number,
             ],
             
-            // Товары в заказе
+            // Товары в заказе (используем кешированные данные)
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             
             // Дополнительная информация
             'customer_notes' => $this->customer_notes,
             'timestamps' => [
-                'created_at' => $this->created_at,
-                'confirmed_at' => $this->confirmed_at,
-                'paid_at' => $this->paid_at,
-                'shipped_at' => $this->shipped_at,
-                'delivered_at' => $this->delivered_at,
-                'cancelled_at' => $this->cancelled_at,
+                'created_at' => $this->created_at?->format('d.m.Y H:i'),
+                'confirmed_at' => $this->confirmed_at?->format('d.m.Y H:i'),
+                'paid_at' => $this->paid_at?->format('d.m.Y H:i'),
+                'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
+                'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
+                'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
             ],
             
             // Статус заказа
             'status_info' => $this->getStatusInfo(),
         ];
-    }
-
-    /**
-     * Генерация номера заказа
-     */
-    private function generateOrderNumber(): string
-    {
-        return 'TE-' . str_pad($this->id, 6, '0', STR_PAD_LEFT);
     }
 
     /**

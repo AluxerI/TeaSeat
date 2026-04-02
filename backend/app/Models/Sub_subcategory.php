@@ -16,7 +16,7 @@ class Sub_Subcategory extends Model
 
     protected $table = 'sub_subcategories';
 
-    protected $fillable = ['subcategory_id', 'name', 'icon', 'slug'];
+    protected $fillable = ['subcategory_id', 'name', 'icon'];
 
     protected $hidden = [
         'laravel_through_key',
@@ -83,7 +83,6 @@ class Sub_Subcategory extends Model
             return [
                 'id' => $this->id,
                 'name' => $this->name,
-                'slug' => $this->slug,
                 'icon_url' => $this->icon_url,
                 'subcategory_id' => $this->subcategory_id,
                 'subcategory_name' => $path['subcategory_name'],

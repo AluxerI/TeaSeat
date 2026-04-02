@@ -135,7 +135,6 @@ class Category extends Model
             return [
                 'id' => $this->id,
                 'name' => $this->name,
-                'slug' => $this->slug,
                 'icon' => $this->icon,
                 'icon_url' => $this->icon_url, // из трейта HasIcon
                 'main_image' => $this->getMainImage(),

@@ -13,6 +13,7 @@
         "laravel/sanctum": "^4.0",
         "laravel/socialite": "^5.23",
         "laravel/tinker": "^2.9",
+        "phpoffice/phpspreadsheet": "^5.3",
         "predis/predis": "^3.1",
         "propaganistas/laravel-phone": "^6.0",
         "spatie/laravel-permission": "^6.21",
@@ -36,7 +37,8 @@
         "psr-4": {
             "App\\": "app/",
             "Database\\Factories\\": "database/factories/",
-            "Database\\Seeders\\": "database/seeders/"
+            "Database\\Seeders\\": "database/seeders/",
+            "PhpOffice\\PhpSpreadsheet\\": "vendor/phpoffice/phpspreadsheet/src/PhpSpreadsheet/"
         }
     },
     "autoload-dev": {
@@ -78,8 +80,14 @@
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true
-        }
+        },
+        "process-timeout": 300
     },
     "minimum-stability": "stable",
-    "prefer-stable": true
+    "prefer-stable": true,
+    "repositories": [{
+        "name": "packagist",
+        "type": "composer",
+        "url": "https://mirrors.aliyun.com/composer/"
+    }]
 }
