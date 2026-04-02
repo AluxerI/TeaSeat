@@ -10,6 +10,7 @@ return new class extends Migration
     {
         Schema::create('products', function (Blueprint $table) {
             $table->id();
+            $table->string('sku', 100)->unique()->nullable();
             $table->string('name');
             $table->text('ingredients')->nullable();
             $table->text('description')->nullable();
@@ -37,6 +38,7 @@ return new class extends Migration
             $table->index(['name', 'price']); // для поиска по имени + сортировка по цене
             $table->index(['brand_id', 'is_available']); // для фильтрации по бренду + наличие
             $table->index(['created_at', 'price']); // для сортировки по дате + цена
+            $table->index('sku');
         });
     }
 

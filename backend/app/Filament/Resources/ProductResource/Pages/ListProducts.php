@@ -18,6 +18,10 @@ class ListProducts extends ListRecords
                 ->label('Импорт из Excel')
                 ->icon('heroicon-o-arrow-up-on-square')
                 ->url(ProductResource::getUrl('import')),
+            Actions\Action::make('import-images')
+                ->label('Импорт изображений')
+                ->icon('heroicon-o-photo')
+                ->url(ProductResource::getUrl('import-images')),
         ];
     }
 }

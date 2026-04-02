@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Models\Order;
 
 class AdminOrderResource extends JsonResource
 {
@@ -18,14 +19,14 @@ class AdminOrderResource extends JsonResource
             
             // Финансы
             'totals' => [
-                'products_total' => $this->products_total,
-                'promotion_discount' => $this->promotion_discount,
-                'personal_discount' => $this->personal_discount,
-                'shipping_cost' => $this->shipping_cost,
-                'final_total' => $this->final_total,
+                'products_total' => (float) $this->products_total,
+                'promotion_discount' => (float) ($this->promotion_discount ?? 0),
+                'personal_discount' => (float) ($this->personal_discount ?? 0),
+                'shipping_cost' => (float) $this->shipping_cost,
+                'final_total' => (float) $this->final_total,
             ],
             
-            // Информация о клиенте (простая, без отдельного ресурса)
+            // Информация о клиенте
             'customer' => $this->whenLoaded('user', function() {
                 return [
                     'id' => $this->user->id,
@@ -41,7 +42,7 @@ class AdminOrderResource extends JsonResource
                     return [
                         'id' => $this->deliveryMethod->id,
                         'name' => $this->deliveryMethod->name,
-                        'cost' => $this->deliveryMethod->cost,
+                        'cost' => (float) $this->deliveryMethod->cost,
                     ];
                 }),
                 'address' => $this->whenLoaded('shippingAddress', function() {
@@ -66,14 +67,16 @@ class AdminOrderResource extends JsonResource
             // Товары
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
             
-            // Частичные заказы (простая версия без рекурсии)
+            // Частичные заказы
             'partial_orders' => $this->whenLoaded('partialOrders', function() {
                 return $this->partialOrders->map(function($partialOrder) {
                     return [
                         'id' => $partialOrder->id,
+                        'order_number' => $partialOrder->order_number,
                         'status' => $partialOrder->status,
                         'warehouse_id' => $partialOrder->warehouse_id,
                         'items_count' => $partialOrder->items->count(),
+                        'final_total' => (float) $partialOrder->final_total,
                     ];
                 });
             }),
@@ -81,9 +84,10 @@ class AdminOrderResource extends JsonResource
             // Заказ у поставщика
             'supplier_order' => $this->when($this->is_supplier_order && $this->relationLoaded('supplierOrder'), function() {
                 return [
-                    'supplier' => $this->supplierOrder->supplier->name ?? 'Не указан',
-                    'scheduled_date' => $this->supplierOrder->scheduled_date ?? null,
-                    'status' => $this->supplierOrder->status ?? null,
+                    'id' => $this->supplierOrder?->id,
+                    'supplier_name' => $this->supplierOrder?->supplier?->name,
+                    'scheduled_date' => $this->supplierOrder?->scheduled_date?->format('d.m.Y'),
+                    'status' => $this->supplierOrder?->status,
                 ];
             }),
             
@@ -91,27 +95,31 @@ class AdminOrderResource extends JsonResource
             'internal_info' => [
                 'internal_notes' => $this->internal_notes,
                 'customer_notes' => $this->customer_notes,
-                'is_supplier_order' => $this->is_supplier_order,
+                'is_supplier_order' => $this->is_supplier_order ?? false,
+                'payment_method' => $this->payment_method,
             ],
             
             // Временные метки
             'timestamps' => [
-                'created_at' => $this->created_at,
-                'confirmed_at' => $this->confirmed_at,
-                'shipped_at' => $this->shipped_at,
-                'delivered_at' => $this->delivered_at,
-                'cancelled_at' => $this->cancelled_at,
+                'created_at' => $this->created_at?->format('d.m.Y H:i'),
+                'confirmed_at' => $this->confirmed_at?->format('d.m.Y H:i'),
+                'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
+                'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
+                'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
             ],
             
-            // История статусов (простая версия)
+            // История статусов
             'status_history' => $this->whenLoaded('statusHistory', function() {
                 return $this->statusHistory->map(function($history) {
                     return [
                         'from_status' => $history->from_status,
+                        'from_status_name' => Order::getStatusName($history->from_status),
                         'to_status' => $history->to_status,
+                        'to_status_name' => Order::getStatusName($history->to_status),
                         'changed_by' => $history->changed_by,
+                        'changed_by_name' => $history->changedBy?->name,
                         'notes' => $history->notes,
-                        'created_at' => $history->created_at,
+                        'created_at' => $history->created_at?->format('d.m.Y H:i'),
                     ];
                 });
             }),

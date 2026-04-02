@@ -203,11 +203,15 @@ class LocationService
      */
     public function getProductQuantityInCity(Product $product, string $city): int
     {
-        $warehouseIds = $this->getWarehouseIdsInCity($city);
-
-        return $product->inventories()
-            ->whereIn('warehouse_id', $warehouseIds)
-            ->sum('quantity');
+        $cacheKey = "product_{$product->id}_city_{$city}_quantity";
+        
+        return Cache::remember($cacheKey, 300, function () use ($product, $city) {
+            $warehouseIds = $this->getWarehouseIdsInCity($city);
+            
+            return $product->inventories()
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->sum('quantity');
+        });
     }
 
     /**
@@ -230,4 +234,5 @@ class LocationService
             ->orderBy('pivot.lead_time_days')
             ->first();
     }
+
 }

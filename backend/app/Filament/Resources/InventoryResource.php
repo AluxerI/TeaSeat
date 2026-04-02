@@ -38,7 +38,7 @@ class InventoryResource extends Resource
                 Forms\Components\Section::make('Информация об остатке')
                     ->schema([
                         Forms\Components\Grid::make(2)
-                            ->schema([
+                            ->schema([    
                                 Forms\Components\Select::make('warehouse_id')
                                     ->label('Склад')
                                     ->relationship('warehouse', 'name')
@@ -68,19 +68,18 @@ class InventoryResource extends Resource
                                     ->validationMessages([
                                         'unique' => 'Такой товар уже есть на этом складе',
                                     ]),
-                                
+
                                 Forms\Components\TextInput::make('quantity')
-                                    ->label('Количество')
-                                    ->required()
+                                    ->label('Количество (штук)')
                                     ->numeric()
-                                    ->default(0)
                                     ->minValue(0)
-                                    ->suffix('шт.')
-                                    ->afterStateUpdated(function ($state, $record) {
-                                        if ($record && $record->product) {
-                                            $record->product->updateCacheFields();
-                                        }
-                                    }),
+                                    ->default(0)
+                                    ->required()
+                                    ->helperText('Для онлайн-продаж'),
+
+                                // Скрытое поле для оффлайн кассы (не отображаем в админке)
+                                Forms\Components\Hidden::make('weight_quantity')
+                                    ->default(0),
                                 
                                 Forms\Components\DatePicker::make('last_restock_date')
                                     ->label('Дата последней поставки')
@@ -125,10 +124,10 @@ class InventoryResource extends Resource
                     ->toggleable(),
 
                 TextColumn::make('quantity')
-                    ->label('Количество')
+                    ->label('Количество (шт)')
                     ->sortable()
                     ->alignCenter()
-                    ->color(fn ($state) => $state > 0 ? 'success' : 'danger')
+                    ->color(fn ($state) => ($state ?? 0) > 0 ? 'success' : 'danger')
                     ->badge(),
 
                 TextColumn::make('last_restock_date')
@@ -146,7 +145,15 @@ class InventoryResource extends Resource
                 
                 Filter::make('in_stock')
                     ->label('В наличии')
-                    ->query(fn (Builder $query): Builder => $query->where('quantity', '>', 0)),
+                    ->query(fn (Builder $query): Builder => 
+                        $query->where('quantity', '>', 0)
+                    ),
+                
+                Filter::make('out_of_stock')
+                    ->label('Нет в наличии')
+                    ->query(fn (Builder $query): Builder => 
+                        $query->where('quantity', '<=', 0)
+                    ),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),

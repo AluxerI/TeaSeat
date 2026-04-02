@@ -5,27 +5,25 @@ namespace App\Http\Controllers\Item;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Http\Resources\Item\ItemResource;
-use App\Services\PriceCalculatorService;
 
 class ShowController extends Controller
 {
     public function __invoke($productId)
     {
-        // Используем eager loading для загрузки связанных данных
+        // Загружаем необходимые связи для кеша
         $product = Product::with([
-            'sub_subcategories.subcategory.category', // Цепочка категорий
-            'brand', // Бренд товара
-            'inventories.warehouse', // Склады и количество
-            'promotions', // Акции на товар
-            'discounts' // Скидки на товар
+            'sub_subcategories.subcategory.category',
+            'brand',
+            'inventories.warehouse',
+            'promotions',
+            'discounts'
         ])->find($productId);
 
-        // Если товар не найден, возвращаем ошибку 404
         if (!$product) {
             return response()->json(['error' => 'Товар не найден'], 404);
         }
 
-        // Возвращаем данные товара через ресурс
+        // Используем ItemResource который берет данные из getDetailedData()
         return new ItemResource($product);
     }
 }

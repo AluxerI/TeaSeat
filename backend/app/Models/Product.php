@@ -213,12 +213,23 @@ class Product extends Model
     /**
      * Получить общее количество на складах
      */
-    private function getTotalQuantity(): int
+    private function getTotalQuantity(): float
     {
         $key = "product.{$this->id}.total_quantity";
-        
+
         return Cache::remember($key, 300, function () {
-            return (int) $this->inventories()->sum('quantity');
+            $inventories = $this->inventories()->get();
+            $total = 0;
+
+            foreach ($inventories as $inv) {
+                if ($inv->unit === 'gram') {
+                    $total += $inv->weight_quantity;
+                } else {
+                    $total += $inv->quantity;
+                }
+            }
+
+            return $total;
         });
     }
 
@@ -283,6 +294,10 @@ class Product extends Model
                 'ingredients' => $this->ingredients,
                 'weight_grams' => $this->weight_grams,
                 'brand_name' => $this->brand?->name,
+                'brand_id' => $this->brand?->id,
+                'inventory' => $this->getInventoryData(),
+                'promotions' => $this->getPromotionsData(),
+                'discounts' => $this->getDiscountsData(),
             ]);
         });
     }
@@ -303,6 +318,9 @@ class Product extends Model
             "product.{$this->id}.gallery_data",
             "product.{$this->id}.category_path",
             "product.{$this->id}.total_quantity",
+            "product.{$this->id}.inventory_data",    // новый
+            "product.{$this->id}.promotions_data",   // новый
+            "product.{$this->id}.discounts_data",    // новый
         ];
     }
 
@@ -370,6 +388,12 @@ class Product extends Model
                 $product->sub_subcategories()->sync([request()->input('sub_subcategory_id')]);
             }
         });
+        
+        // static::creating(function ($product) {
+        //     if (empty($product->sku)) {
+        //         $product->sku = self::generateSku($product);
+        //     }
+        // });
     }
     /**
      * Scopes
@@ -392,4 +416,76 @@ class Product extends Model
             ->orWhereHas('suppliers');
         });
     }
+
+    public static function generateSku($product): string
+    {
+        $brandPrefix = $product->brand ? substr($product->brand->name, 0, 3) : 'UNK';
+        $id = str_pad($product->id ?? rand(1000, 9999), 4, '0', STR_PAD_LEFT);
+        return strtoupper($brandPrefix) . '-' . $id;
+    }
+    // Добавить в конец класса Product (перед последней скобкой)
+
+/**
+ * Получить данные об остатках на складах
+ */
+public function getInventoryData(): array
+{
+    $key = "product.{$this->id}.inventory_data";
+    
+    return Cache::remember($key, 300, function () {
+        return $this->inventories->map(function ($inventory) {
+            return [
+                'warehouse_id' => $inventory->warehouse_id,
+                'warehouse_name' => $inventory->warehouse->name,
+                'warehouse_city' => $inventory->warehouse->city,
+                'quantity' => $inventory->quantity,
+                'weight_quantity' => $inventory->weight_quantity,
+                'last_restock_date' => $inventory->last_restock_date?->format('d.m.Y'),
+            ];
+        })->values()->toArray();
+    });
+}
+
+/**
+ * Получить данные об акциях на товар
+ */
+public function getPromotionsData(): array
+{
+    $key = "product.{$this->id}.promotions_data";
+    
+    return Cache::remember($key, 3600, function () {
+        return $this->promotions->map(function ($promotion) {
+            return [
+                'id' => $promotion->id,
+                'name' => $promotion->name,
+                'discount_percent' => (float) $promotion->discount_percent,
+                'start_date' => $promotion->start_date?->format('d.m.Y'),
+                'end_date' => $promotion->end_date?->format('d.m.Y'),
+            ];
+        })->values()->toArray();
+    });
+}
+
+/**
+ * Получить данные о скидках на товар
+ */
+    public function getDiscountsData(): array
+    {
+        $key = "product.{$this->id}.discounts_data";
+
+        return Cache::remember($key, 3600, function () {
+            return $this->discounts->map(function ($discount) {
+                return [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'type' => $discount->type,
+                    'value' => (float) $discount->value,
+                    'start_at' => $discount->start_at?->format('d.m.Y'),
+                    'end_at' => $discount->end_at?->format('d.m.Y'),
+                ];
+            })->values()->toArray();
+        });
+    }
+
+
 }

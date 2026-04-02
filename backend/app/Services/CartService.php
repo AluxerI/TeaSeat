@@ -9,81 +9,108 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class CartService
 {
     public function __construct(
         protected PriceCalculatorService $priceCalculator,
-        protected InventoryService $inventoryService
+        protected InventoryService $inventoryService,
+        protected LocationService $locationService
     ) {}
 
     /**
-     * Получить корзину пользователя
+     * Получить корзину пользователя (с кешированием)
      */
     public function getCart(int $userId): Order
     {
-        return Order::with([
-            'items.product', 
-            'items.product.promotions',
-            'shippingAddress'
-        ])->firstOrCreate([
-            'user_id' => $userId,
-            'status' => Order::STATUS_CART
-        ], [
-            'products_total' => 0,
-            'promotion_discount' => 0,
-            'personal_discount' => 0,
-            'cart_discount' => 0,
-            'shipping_cost' => 0,
-            'final_total' => 0
-        ]);
+        $cacheKey = "user_cart_{$userId}";
+        
+        return Cache::remember($cacheKey, 300, function () use ($userId) {
+            return Order::with([
+                'items.product',
+                'items.product.promotions',
+                'shippingAddress'
+            ])->firstOrCreate([
+                'user_id' => $userId,
+                'status' => Order::STATUS_CART
+            ], [
+                'products_total' => 0,
+                'promotion_discount' => 0,
+                'personal_discount' => 0,
+                'cart_discount' => 0,
+                'shipping_cost' => 0,
+                'final_total' => 0
+            ]);
+        });
     }
 
+    /**
+     * Очистить кеш корзины
+     */
+    public function clearCartCache(int $userId): void
+    {
+        Cache::forget("user_cart_{$userId}");
+    }
+
+    /**
+     * Добавить товар в корзину
+     */
+    public function addItem(int $userId, int $productId, int $quantity, ?string $city = null, bool $isSupplierOrder = false): Order
+    {
+        return DB::transaction(function () use ($userId, $productId, $quantity, $city, $isSupplierOrder) {
+            $cart = $this->getCart($userId);
+            $product = Product::with(['inventories.warehouse', 'suppliers'])->findOrFail($productId);
+
+            // Для обычных заказов проверяем город
+            if (!$isSupplierOrder && $city) {
+                $this->validateCityCompatibility($cart, $productId, $city);
+                $this->validateCityAvailability($productId, $city, $quantity);
+            }
+
+            // Для заказов у поставщика проверяем поставщиков
+            if ($isSupplierOrder) {
+                $this->validateSupplierAvailability($product, $quantity);
+            }
+
+            // Для обычных заказов проверяем общее наличие
+            if (!$isSupplierOrder && !$city) {
+                $this->validateGlobalAvailability($productId, $quantity);
+            }
+
+            $user = User::find($userId);
+            $priceCalculation = $this->priceCalculator->calculateForProduct($product, $user);
+            
+            $this->upsertCartItem($cart, $product, $quantity, $priceCalculation);
+            $this->recalculateCart($cart);
+            $this->clearCartCache($userId);
+
+            return $cart->fresh(['items.product', 'items.product.promotions']);
+        });
+    }
+
+    /**
+     * Проверить доступность товара у поставщиков
+     */
     private function validateSupplierAvailability(Product $product, int $quantity): void
     {
-        $suppliers = $product->activeSuppliers;
+        $suppliers = $product->suppliers()
+            ->where('product_supplier.is_active', true)
+            ->where('suppliers.is_active', true)
+            ->get();
         
         if ($suppliers->isEmpty()) {
             throw new \Exception("Этот товар недоступен для заказа у поставщиков");
         }
         
         $supplier = $suppliers->first();
-        if ($quantity < $supplier->pivot->min_order_quantity) {
-            throw new \Exception("Минимальный заказ у поставщика: {$supplier->pivot->min_order_quantity} шт.");
+        $minOrderQuantity = $supplier->pivot->min_order_quantity ?? 1;
+        
+        if ($quantity < $minOrderQuantity) {
+            throw new \Exception("Минимальный заказ у поставщика: {$minOrderQuantity} шт.");
         }
     }
-
-
-    /**
-     * Добавить товар в корзину
-     */
-    public function addItem(int $userId, int $productId, int $quantity, ?string $city = null, bool $isSupplierOrder = false): Order
-{
-    return DB::transaction(function () use ($userId, $productId, $quantity, $city, $isSupplierOrder) {
-        $cart = $this->getCart($userId);
-        $product = Product::with(['inventories.warehouse'])->findOrFail($productId);
-
-        if (!$isSupplierOrder && $city) {
-            $this->validateCityCompatibility($cart, $productId, $city);
-            $this->validateCityAvailability($productId, $city, $quantity);
-        }
-
-        // Для заказов у поставщика пропускаем проверку наличия
-        if (!$isSupplierOrder) {
-            $this->validateGlobalAvailability($productId, $quantity);
-        }
-
-        $priceCalculation = $this->priceCalculator->calculateForProduct(
-            $product, 
-            User::find($userId)
-        );
-        
-        $this->upsertCartItem($cart, $product, $quantity, $priceCalculation);
-        $this->recalculateCart($cart);
-
-        return $cart->fresh(['items.product', 'items.product.promotions']);
-    });
-}
 
     /**
      * Обновить количество товара в корзине
@@ -99,15 +126,15 @@ class CartService
             } else {
                 $this->validateGlobalAvailability($cartItem->product_id, $quantity);
                 
-                $priceCalculation = $this->priceCalculator->calculateForProduct(
-                    $cartItem->product, 
-                    User::find($userId)
-                );
+                $user = User::find($userId);
+                $priceCalculation = $this->priceCalculator->calculateForProduct($cartItem->product, $user);
 
                 $this->updateCartItem($cartItem, $quantity, $priceCalculation);
             }
 
             $this->recalculateCart($cart);
+            $this->clearCartCache($userId);
+
             return $cart->fresh(['items.product', 'items.product.promotions']);
         });
     }
@@ -123,13 +150,14 @@ class CartService
             
             $cartItem->delete();
             $this->recalculateCart($cart);
+            $this->clearCartCache($userId);
 
             return $cart->fresh(['items.product', 'items.product.promotions']);
         });
     }
 
     /**
-     * Очистить корзину и сменить город
+     * Очистить корзину
      */
     public function clearCart(int $userId): Order
     {
@@ -137,6 +165,7 @@ class CartService
             $cart = $this->getCart($userId);
             $cart->items()->delete();
             $this->recalculateCart($cart);
+            $this->clearCartCache($userId);
             return $cart;
         });
     }
@@ -150,33 +179,31 @@ class CartService
             return;
         }
 
+        // Получаем города для всех товаров в корзине
         $incompatibleItems = $cart->items->load(['product.inventories' => function($query) {
                 $query->where('quantity', '>', 0)->with('warehouse');
             }])
             ->filter(function ($item) use ($city) {
-                $itemCities = $item->product->inventories->pluck('warehouse.city');
+                $itemCities = $item->product->inventories->pluck('warehouse.city')->unique();
                 return !$itemCities->contains($city);
             });
 
         if ($incompatibleItems->isNotEmpty()) {
             $incompatibleProductNames = $incompatibleItems->pluck('product.name')->join(', ');
-            $incompatibleCities = $incompatibleItems->flatMap(function($item) {
-                return $item->product->inventories->pluck('warehouse.city');
-            })->unique()->join(', ');
             
             throw new \Exception(
                 "Не все товары в корзине доступны в городе {$city}. " .
-                "Следующие товары недоступны: {$incompatibleProductNames}. " .
-                "Они доступны в: {$incompatibleCities}"
+                "Следующие товары недоступны: {$incompatibleProductNames}"
             );
         }
 
         // Проверить доступность нового товара в городе
         $productCities = $this->getProductCities($productId);
         if (!$productCities->contains($city)) {
+            $availableCities = $productCities->join(', ');
             throw new \Exception(
                 "Товар недоступен в городе {$city}. " .
-                "Этот товар доступен в: " . $productCities->join(', ')
+                "Этот товар доступен в: " . ($availableCities ?: 'не определённых городах')
             );
         }
     }
@@ -208,16 +235,20 @@ class CartService
     }
 
     /**
-     * Получить количество товара в городе
+     * Получить количество товара в городе (с кешем)
      */
     private function getAvailableQuantityInCity(int $productId, string $city): int
     {
-        $warehouseIds = Warehouse::where('city', $city)->pluck('id');
+        $cacheKey = "product_{$productId}_city_{$city}_quantity";
         
-        return Inventory::where('product_id', $productId)
-            ->whereIn('warehouse_id', $warehouseIds)
-            ->where('quantity', '>', 0)
-            ->sum('quantity');
+        return Cache::remember($cacheKey, 60, function () use ($productId, $city) {
+            $warehouseIds = Warehouse::where('city', $city)->active()->pluck('id');
+            
+            return Inventory::where('product_id', $productId)
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->where('quantity', '>', 0)
+                ->sum('quantity');
+        });
     }
 
     /**
@@ -225,9 +256,13 @@ class CartService
      */
     private function getTotalAvailableQuantity(int $productId): int
     {
-        return Inventory::where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->sum('quantity');
+        $cacheKey = "product_{$productId}_total_quantity";
+        
+        return Cache::remember($cacheKey, 60, function () use ($productId) {
+            return Inventory::where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->sum('quantity');
+        });
     }
 
     /**
@@ -235,13 +270,17 @@ class CartService
      */
     private function getProductCities(int $productId): \Illuminate\Support\Collection
     {
-        return Inventory::where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->with('warehouse')
-            ->get()
-            ->pluck('warehouse.city')
-            ->unique()
-            ->values();
+        $cacheKey = "product_{$productId}_available_cities";
+        
+        return Cache::remember($cacheKey, 3600, function () use ($productId) {
+            return Inventory::where('product_id', $productId)
+                ->where('quantity', '>', 0)
+                ->with('warehouse')
+                ->get()
+                ->pluck('warehouse.city')
+                ->unique()
+                ->values();
+        });
     }
 
     /**
@@ -312,7 +351,7 @@ class CartService
             'products_total' => $productsTotal,
             'promotion_discount' => $promotionDiscount,
             'personal_discount' => $personalDiscount,
-            'final_total' => $finalTotal - $cart->cart_discount
+            'final_total' => $finalTotal - ($cart->cart_discount ?? 0)
         ]);
     }
 

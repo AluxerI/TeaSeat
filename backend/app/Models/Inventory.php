@@ -21,17 +21,27 @@ class Inventory extends Model
         'product_id',
         'warehouse_id',
         'quantity',
+        'weight_quantity',
         'last_restock_date',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
+        'weight_quantity' => 'decimal:2',
         'last_restock_date' => 'date',
     ];
 
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function getTotalQuantity(): float
+    {
+        if ($this->unit === 'gram') {
+            return (float) $this->weight_quantity;
+        }
+        return (int) $this->quantity;
     }
 
     public function warehouse()
