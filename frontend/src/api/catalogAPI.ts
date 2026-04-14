@@ -5,6 +5,7 @@ import { api } from "./api";
 const catalog_path = `/catalog`;
 
 async function getCatalog(): Promise<Catalog | undefined> {
+  
   try {
     const response = await api.get<Catalog>(catalog_path);
     return response.data as Catalog;
@@ -12,11 +13,14 @@ async function getCatalog(): Promise<Catalog | undefined> {
     if (e instanceof Error) {
       console.error(`Error when loading catalog: ${e}`);
     } else {
+      
       console.error(`Unknow error`);
     }
     return undefined;
   }
 }
+
+
 async function parseCatalog() {
   let catalog: Catalog | string = (await getCatalog())!;
   catalog = JSON.stringify(catalog);
@@ -38,4 +42,6 @@ export const catalogApi = {
     const ans: Catalog = await parseCatalog();
     return ans["meta"] as Meta;
   },
+
+  
 };
