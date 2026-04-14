@@ -1,3 +1,4 @@
+import CatalogHeader from "../components/catalog-part/CatalogHeaderSort/CatalogHeaderProps";
 import FilterPanel from "../components/catalog-part/FilterList";
 import { ProductList } from "../components/productList";
 import Footer from "../ui/footer/footer";
@@ -9,7 +10,10 @@ export const PageCatalog = () => {
       <Header />
       <span className="filters-and-grid">
         <FilterPanel></FilterPanel>
-        <ProductList></ProductList>
+        <div className="product-and-header">
+          <CatalogHeader></CatalogHeader>
+          <ProductList></ProductList>
+        </div>
       </span>
       <Footer />
     </>
