@@ -49,14 +49,15 @@ class AdminBadgeService
             'order' => 'pending_orders',
             
             // Маркетинг
-            'promotion' => 'active_promotions',
-            'discount' => 'active_discounts', // 👈 ДЛЯ ПЕРСОНАЛЬНЫХ СКИДОК
+            'promotion' => 'active_promotions',      // акции (type = 'promotion')
+            'discount' => 'active_discounts',        // персональные скидки
+            'coupon' => 'active_coupons', 
             
             // Модерация
             'review' => 'reviews_total',
             
             // Склад и поставщики
-            'inventory' => 'low_stock_count', // 👈 ИЗМЕНЕНО: теперь считает записи, а не товары
+            'inventory' => 'low_stock_count',
             'warehouse' => 'warehouses_active',
             'supplier' => 'suppliers_active',
             
@@ -104,11 +105,30 @@ class AdminBadgeService
                 -- Бренды
                 (SELECT COUNT(*) FROM brands) as brands_total,
                 
-                -- Акции
-                (SELECT COUNT(*) FROM promotions WHERE is_active = true AND (end_date IS NULL OR end_date >= NOW())) as active_promotions,
+                -- ✅ АКЦИИ (type = 'promotion' из таблицы discounts)
+                (SELECT COUNT(*) FROM discounts 
+                    WHERE type = 'promotion' 
+                    AND is_active = true 
+                    AND (start_date IS NULL OR start_date <= NOW()) 
+                    AND (end_date IS NULL OR end_date >= NOW())
+                ) as active_promotions,
                 
-                -- Персональные скидки 👈 ИСПРАВЛЕНО
-                (SELECT COUNT(*) FROM discounts WHERE is_active = true AND (start_at IS NULL OR start_at <= NOW()) AND (end_at IS NULL OR end_at >= NOW())) as active_discounts,
+                -- ✅ ПЕРСОНАЛЬНЫЕ СКИДКИ (type != 'promotion')
+                (SELECT COUNT(*) FROM discounts 
+                    WHERE type != 'promotion' 
+                    AND is_active = true 
+                    AND (start_date IS NULL OR start_date <= NOW()) 
+                    AND (end_date IS NULL OR end_date >= NOW())
+                ) as active_discounts,
+
+                -- Акции
+                (SELECT COUNT(*) FROM discounts 
+                    WHERE type IN ('cart', 'shipping') 
+                    AND is_active = true 
+                    AND code IS NOT NULL
+                    AND (start_date IS NULL OR start_date <= NOW()) 
+                    AND (end_date IS NULL OR end_date >= NOW())
+                ) as active_coupons,
                 
                 -- Заказы
                 (SELECT COUNT(*) FROM orders WHERE status = 'pending') as pending_orders,
@@ -119,7 +139,7 @@ class AdminBadgeService
                 -- Пользователи
                 (SELECT COUNT(*) FROM users WHERE is_active = true) as users_active,
                 
-                -- Остатки 👈 ИЗМЕНЕНО: теперь считает ВСЕ записи с quantity < 10
+                -- Остатки
                 (SELECT COUNT(*) FROM inventories WHERE quantity < 10) as low_stock_count
         ")[0];
 
@@ -135,6 +155,7 @@ class AdminBadgeService
             'brands_total' => (int) ($stats->brands_total ?? 0),
             'active_promotions' => (int) ($stats->active_promotions ?? 0),
             'active_discounts' => (int) ($stats->active_discounts ?? 0),
+            'active_coupons' => (int) ($stats->active_coupons ?? 0),
             'pending_orders' => (int) ($stats->pending_orders ?? 0),
             'reviews_total' => (int) ($stats->reviews_total ?? 0),
             'users_active' => (int) ($stats->users_active ?? 0),

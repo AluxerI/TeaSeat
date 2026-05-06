@@ -24,6 +24,7 @@ trait HasNavigationBadge
             // Маркетинг
             'PromotionResource' => 'promotion',
             'DiscountResource' => 'discount',
+            'CouponResource' => 'coupon', 
             
             // Модерация
             'ReviewResource' => 'review',

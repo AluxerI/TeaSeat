@@ -1,5 +1,4 @@
 <?php
-// app/Traits/HasDiscountRelations.php
 
 namespace App\Traits;
 
@@ -8,12 +7,20 @@ use App\Models\Subcategory;
 use App\Models\Sub_Subcategory;
 use App\Models\Product;
 use App\Models\User;
+use Carbon\Carbon;
 
+/**
+ * @property bool $is_global
+ * @property string $type
+ * @property int|null $usage_per_user
+ * @property bool $is_active
+ * @property Carbon|null $start_date
+ * @property Carbon|null $end_date
+ * @property int|null $usage_limit
+ * @property int $used_count
+ */
 trait HasDiscountRelations
 {
-    /**
-     * Полиморфные связи для скидки
-     */
     public function categories()
     {
         return $this->morphedByMany(Category::class, 'discountable');
@@ -36,7 +43,9 @@ trait HasDiscountRelations
 
     public function users()
     {
-        return $this->morphedByMany(User::class, 'discountable');
+        return $this->belongsToMany(User::class, 'discount_user')
+            ->withPivot(['is_used', 'used_count', 'activated_at'])
+            ->withTimestamps();
     }
 
     /**
@@ -49,12 +58,12 @@ trait HasDiscountRelations
             return true;
         }
 
-        // Проверяем прямую связь с продуктом
+        // Прямая связь с продуктом
         if ($this->products()->where('product_id', $product->id)->exists()) {
             return true;
         }
 
-        // Проверяем связи через категории
+        // Проверяем категории товара
         foreach ($product->sub_subcategories as $subSub) {
             if ($this->subSubcategories()->where('sub_subcategory_id', $subSub->id)->exists()) {
                 return true;
@@ -71,16 +80,59 @@ trait HasDiscountRelations
     }
 
     /**
-     * Получить все связанные модели для отладки или отображения
+     * Проверить, доступна ли скидка пользователю
      */
-    public function getRelatedModelsCount(): array
+    public function isAvailableForUser(?User $user): bool
     {
-        return [
-            'categories' => $this->categories()->count(),
-            'subcategories' => $this->subcategories()->count(),
-            'sub_subcategories' => $this->subSubcategories()->count(),
-            'products' => $this->products()->count(),
-            'users' => $this->users()->count(),
-        ];
+        if (!$user) {
+            // Для промо-акций (type = promotion) пользователь не требуется
+            return $this->type === 'promotion';
+        }
+
+        // Проверяем, привязана ли скидка к пользователю
+        $userDiscount = $this->users()->where('user_id', $user->id)->first();
+        
+        if (!$userDiscount && $this->type !== 'promotion') {
+            return false;
+        }
+
+        // Проверяем лимит использований для пользователя
+        if ($this->usage_per_user && $userDiscount) {
+            if ($userDiscount->pivot->used_count >= $this->usage_per_user) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Проверить, действительна ли скидка
+     */
+    public function isValid(?User $user = null): bool
+    {
+        if (!$this->is_active) {
+            return false;
+        }
+
+        // Проверяем дату начала (если есть)
+        if ($this->start_date && $this->start_date instanceof Carbon && $this->start_date->isFuture()) {
+            return false;
+        }
+
+        // Проверяем дату окончания (если есть)
+        if ($this->end_date && $this->end_date instanceof Carbon && $this->end_date->isPast()) {
+            return false;
+        }
+
+        if ($this->usage_limit && $this->used_count >= $this->usage_limit) {
+            return false;
+        }
+
+        if ($user && !$this->isAvailableForUser($user)) {
+            return false;
+        }
+
+        return true;
     }
 }

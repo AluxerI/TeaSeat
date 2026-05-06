@@ -3,46 +3,69 @@
 namespace App\Http\Resources\Item;
 
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\PriceCalculatorService;
 
 class ItemResource extends JsonResource
 {
     public function toArray($request)
     {
-        // Используем кешированные детальные данные из модели
         $data = $this->getDetailedData();
+        
+        $user = $request->user();
+        $priceCalculator = app(PriceCalculatorService::class);
+        $priceData = $priceCalculator->calculateForProduct($this->resource, $user);
+        
+        $appliedDiscount = $priceCalculator->getAppliedDiscountObject($this->resource, $user);
+        $allDiscounts = $priceCalculator->getAllApplicableDiscounts($this->resource, $user);
         
         return [
             'id' => $data['id'],
             'name' => $data['name'],
-            'price' => $data['price'],
+            
+            'original_price' => $priceData['base_price'],
+            'final_price' => $priceData['final_price'],
+            'discount_percent' => $priceData['total_discount_percent'],
+            'discount_saved' => round($priceData['base_price'] - $priceData['final_price'], 2),
+            
+            'discount' => $appliedDiscount ? [
+                'id' => $appliedDiscount->id,
+                'name' => $appliedDiscount->name,
+                'description' => $appliedDiscount->description,
+                'type' => $appliedDiscount->type,
+                'value' => (float) $appliedDiscount->value,
+                'code' => $appliedDiscount->code,
+            ] : null,
+            
+            'available_discounts' => $allDiscounts->map(function($discount) {
+                return [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'type' => $discount->type,
+                    'value' => (float) $discount->value,
+                    'description' => $discount->description,
+                    'code' => $discount->code,
+                ];
+            })->values()->toArray(),
+            
             'weight_grams' => $data['weight_grams'],
             'ingredients' => $data['ingredients'],
             'description' => $data['description'],
             
-            // Изображения
             'image' => $data['main_image_url'],
             'main_image' => $data['main_image_url'],
             'background_image' => $data['background_image_url'],
             'gallery' => $data['gallery_data'],
             
-            // Категория
             'category_path' => $data['category_path'],
             
-            // Бренд
             'brand' => $data['brand_name'],
             'brand_id' => $this->brand?->id,
             
-            // Наличие на складах (детально)
             'inventory' => $data['inventory'] ?? [],
             'total_quantity' => $data['total_quantity'],
             'is_available' => $data['is_available'],
             'sold_count' => $data['sold_count'],
             
-            // Акции и скидки (если есть в getDetailedData)
-            'promotions' => $data['promotions'] ?? [],
-            'discounts' => $data['discounts'] ?? [],
-            
-            // Даты
             'created_at' => $data['created_at'],
             'updated_at' => $this->updated_at?->format('d.m.Y H:i'),
         ];

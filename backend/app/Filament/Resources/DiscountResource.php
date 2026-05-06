@@ -45,8 +45,11 @@ class DiscountResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->whereIn('type', ['personal', 'first_order', 'loyalty', 'referral'])
             ->with(['users', 'products', 'categories', 'subcategories', 'subSubcategories']);
     }
+
+    
 
     public static function form(Form $form): Form
     {
@@ -73,12 +76,12 @@ class DiscountResource extends Resource
                                                         'first_order' => 'Первый заказ',
                                                         'loyalty' => 'Программа лояльности',
                                                         'referral' => 'Реферальная',
-                                                        'category' => 'На категорию',
-                                                        'subcategory' => 'На подкатегорию',
-                                                        'sub_subcategory' => 'На под-подкатегорию',
+                                                        'promotion' => 'Акция на товары',
+                                                        'cart' => 'Скидка на корзину',
+                                                        'shipping' => 'Скидка на доставку',
                                                     ])
                                                     ->required()
-                                                    ->default('personal')
+                                                    ->default('promotion')
                                                     ->reactive()
                                                     ->afterStateUpdated(function ($state, callable $set) {
                                                         $set('is_global', false);

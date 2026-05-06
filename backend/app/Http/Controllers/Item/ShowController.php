@@ -15,7 +15,6 @@ class ShowController extends Controller
             'sub_subcategories.subcategory.category',
             'brand',
             'inventories.warehouse',
-            'promotions',
             'discounts'
         ])->find($productId);
 

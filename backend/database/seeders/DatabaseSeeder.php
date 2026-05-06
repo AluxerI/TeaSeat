@@ -13,16 +13,16 @@ class DatabaseSeeder extends Seeder
             WarehouseSeeder::class,
             RolePermissionSeeder::class,
             DeliveryMethodSeeder::class,
+            UserSeeder::class,
             CategoriesSeeder::class,
             InventorySeeder::class,
             ProductSeeder::class,
-            PromotionSeeder::class,
             SupplierSeeder::class,
             ProductSupplierSeeder::class,
-            ProductPromotionSeeder::class,
             ProductImageSeeder::class,
             IconSeeder::class,
-            CategoryImageSeeder::class
+            CategoryImageSeeder::class,
+            DiscountSeeder::class,
         ]);
     }
 }

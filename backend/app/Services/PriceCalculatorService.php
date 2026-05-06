@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\Product;
 use App\Models\User;
-use App\Models\Promotion;
 use App\Models\Discount;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
@@ -14,16 +13,14 @@ class PriceCalculatorService
     /**
      * Рассчитать цену для товара с учётом всех скидок
      */
-    public function calculateForProduct(Product $product, ?User $user = null)
+    public function calculateForProduct(Product $product, ?User $user = null): array
     {
         $user = $user ?? Auth::user();
         $basePrice = $product->price;
         
-        // Акции на товар (из promotions) - теперь учитываем категории
         $promotionDiscount = $this->getMaxPromotionDiscount($product);
         $priceWithPromotions = $this->applyDiscount($basePrice, $promotionDiscount);
         
-        // Персональная скидка пользователя (из discounts) - теперь учитываем категории
         $personalDiscount = $user ? $this->getPersonalDiscount($user, $product) : 0;
         $finalPrice = $this->applyDiscount($priceWithPromotions, $personalDiscount);
         
@@ -33,84 +30,79 @@ class PriceCalculatorService
             'final_price' => $finalPrice,
             'promotion_discount' => $promotionDiscount,
             'personal_discount' => $personalDiscount,
+            'total_discount_percent' => $basePrice > 0 ? round(($basePrice - $finalPrice) / $basePrice * 100, 1) : 0,
             'has_discount' => $promotionDiscount > 0 || $personalDiscount > 0
         ];
     }
     
     /**
-     * Получить максимальную скидку по акциям для товара
+     * Получить максимальную скидку по акциям для товара (type = 'promotion')
+     * 👇 ИЗМЕНЕНО: protected → public
      */
-    protected function getMaxPromotionDiscount(Product $product)
+    public function getMaxPromotionDiscount(Product $product): float
     {
         $cacheKey = "product.{$product->id}.promotion_discount";
         
         return Cache::remember($cacheKey, 300, function () use ($product) {
-            // Получаем ID всех категорий товара для быстрого поиска
             $categoryIds = $this->getProductCategoryIds($product);
             
-            // Ищем акции, которые применяются к товару (прямо или через категории)
-            $promotionIds = collect();
-            
-            // 1. Акции на конкретные товары
-            $directPromotions = Promotion::whereHas('products', function($query) use ($product) {
-                $query->where('product_id', $product->id);
-            })->pluck('id');
-            $promotionIds = $promotionIds->merge($directPromotions);
-            
-            // 2. Акции на категории товара
-            if (!empty($categoryIds['categories'])) {
-                foreach ($categoryIds['categories'] as $categoryId) {
-                    $categoryPromotions = Promotion::whereHas('categories', function($query) use ($categoryId) {
-                        $query->where('categories.id', $categoryId);
-                    })->pluck('id');
-                    $promotionIds = $promotionIds->merge($categoryPromotions);
-                }
-            }
-            
-            // 3. Акции на подкатегории товара
-            if (!empty($categoryIds['subcategories'])) {
-                foreach ($categoryIds['subcategories'] as $subcategoryId) {
-                    $subcategoryPromotions = Promotion::whereHas('subcategories', function($query) use ($subcategoryId) {
-                        $query->where('subcategories.id', $subcategoryId);
-                    })->pluck('id');
-                    $promotionIds = $promotionIds->merge($subcategoryPromotions);
-                }
-            }
-            
-            // 4. Акции на под-подкатегории товара
-            if (!empty($categoryIds['sub_subcategories'])) {
-                foreach ($categoryIds['sub_subcategories'] as $subSubcategoryId) {
-                    $subSubcategoryPromotions = Promotion::whereHas('subSubcategories', function($query) use ($subSubcategoryId) {
-                        $query->where('sub_subcategories.id', $subSubcategoryId);
-                    })->pluck('id');
-                    $promotionIds = $promotionIds->merge($subSubcategoryPromotions);
-                }
-            }
-            
-            if ($promotionIds->isEmpty()) {
-                return 0;
-            }
-            
-            // Получаем максимальный процент скидки среди активных акций
-            return Promotion::whereIn('id', $promotionIds->unique())
+            $query = Discount::where('type', Discount::TYPE_PROMOTION)
                 ->where('is_active', true)
-                ->where('type', 'product')
-                ->where(function($query) {
-                    $query->whereNull('start_date')
-                          ->orWhere('start_date', '<=', now());
+                ->where(function($q) {
+                    $q->whereNull('start_date')->orWhere('start_date', '<=', now());
                 })
-                ->where(function($query) {
-                    $query->whereNull('end_date')
-                          ->orWhere('end_date', '>=', now());
+                ->where(function($q) {
+                    $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                });
+            
+            $globalMax = (clone $query)->where('is_global', true)->max('value') ?? 0;
+            
+            $directMax = (clone $query)
+                ->where('is_global', false)
+                ->whereHas('products', function($q) use ($product) {
+                    $q->where('discountables.discountable_id', $product->id);
                 })
-                ->max('discount_percent') ?? 0;
+                ->max('value') ?? 0;
+            
+            $categoryMax = 0;
+            if (!empty($categoryIds['categories'])) {
+                $categoryMax = (clone $query)
+                    ->where('is_global', false)
+                    ->whereHas('categories', function($q) use ($categoryIds) {
+                        $q->whereIn('categories.id', $categoryIds['categories']);
+                    })
+                    ->max('value') ?? 0;
+            }
+            
+            $subcategoryMax = 0;
+            if (!empty($categoryIds['subcategories'])) {
+                $subcategoryMax = (clone $query)
+                    ->where('is_global', false)
+                    ->whereHas('subcategories', function($q) use ($categoryIds) {
+                        $q->whereIn('subcategories.id', $categoryIds['subcategories']);
+                    })
+                    ->max('value') ?? 0;
+            }
+            
+            $subSubcategoryMax = 0;
+            if (!empty($categoryIds['sub_subcategories'])) {
+                $subSubcategoryMax = (clone $query)
+                    ->where('is_global', false)
+                    ->whereHas('subSubcategories', function($q) use ($categoryIds) {
+                        $q->whereIn('sub_subcategories.id', $categoryIds['sub_subcategories']);
+                    })
+                    ->max('value') ?? 0;
+            }
+            
+            return max($globalMax, $directMax, $categoryMax, $subcategoryMax, $subSubcategoryMax);
         });
     }
     
     /**
      * Получить персональную скидку пользователя для товара
+     * 👇 ИЗМЕНЕНО: protected → public
      */
-    protected function getPersonalDiscount(User $user, Product $product)
+    public function getPersonalDiscount(User $user, Product $product): float
     {
         $cacheKey = "user.{$user->id}.product.{$product->id}.discount";
         
@@ -118,68 +110,20 @@ class PriceCalculatorService
             $activeDiscounts = $this->getUserDiscounts($user);
             
             $applicableDiscounts = $activeDiscounts->filter(function ($discount) use ($product) {
-                return $this->discountAppliesToProduct($discount, $product);
+                return $discount->appliesToProduct($product);
             });
             
             if ($applicableDiscounts->isEmpty()) {
                 return 0;
             }
 
-            // Возвращаем максимальную доступную скидку
-            return $applicableDiscounts->max('value') ?? 0;
+            return (float) ($applicableDiscounts->max('value') ?? 0);
         });
     }
 
     /**
-     * Проверить, применяется ли скидка к товару (с учётом категорий)
-     */
-    protected function discountAppliesToProduct($discount, Product $product): bool
-    {
-        // Глобальные скидки применяются ко всем
-        if ($discount->is_global) {
-            return true;
-        }
-        
-        // Прямая связь с товаром
-        if ($discount->products()->where('product_id', $product->id)->exists()) {
-            return true;
-        }
-        
-        // Проверяем связи через категории
-        $categoryIds = $this->getProductCategoryIds($product);
-        
-        // Проверка на категории
-        if (!empty($categoryIds['categories'])) {
-            foreach ($categoryIds['categories'] as $categoryId) {
-                if ($discount->categories()->where('categories.id', $categoryId)->exists()) {
-                    return true;
-                }
-            }
-        }
-        
-        // Проверка на подкатегории
-        if (!empty($categoryIds['subcategories'])) {
-            foreach ($categoryIds['subcategories'] as $subcategoryId) {
-                if ($discount->subcategories()->where('subcategories.id', $subcategoryId)->exists()) {
-                    return true;
-                }
-            }
-        }
-        
-        // Проверка на под-подкатегории
-        if (!empty($categoryIds['sub_subcategories'])) {
-            foreach ($categoryIds['sub_subcategories'] as $subSubcategoryId) {
-                if ($discount->subSubcategories()->where('sub_subcategories.id', $subSubcategoryId)->exists()) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    /**
      * Получить ID всех категорий товара
+     * 👇 ИЗМЕНЕНО: protected → public (или оставить protected, не используется извне)
      */
     protected function getProductCategoryIds(Product $product): array
     {
@@ -212,8 +156,9 @@ class PriceCalculatorService
 
     /**
      * Получить все активные скидки пользователя
+     * 👇 УЖЕ public
      */
-    public function getUserDiscounts(User $user)
+    public function getUserDiscounts(User $user): \Illuminate\Support\Collection
     {
         return $user->activeDiscounts()
             ->with(['products', 'categories', 'subcategories', 'subSubcategories'])
@@ -223,21 +168,21 @@ class PriceCalculatorService
     /**
      * Получить скидки пользователя для конкретного товара
      */
-    public function getProductDiscounts(User $user, Product $product)
+    public function getProductDiscounts(User $user, Product $product): \Illuminate\Support\Collection
     {
         $discounts = $this->getUserDiscounts($user);
         
         return $discounts->filter(function ($discount) use ($product) {
-            return $this->discountAppliesToProduct($discount, $product);
+            return $discount->appliesToProduct($product);
         });
     }
 
     /**
      * Применить процентную скидку к цене
      */
-    protected function applyDiscount($price, $discount)
+    protected function applyDiscount(float $price, float $discount): float
     {
-        return $price * (1 - $discount / 100);
+        return round($price * (1 - $discount / 100), 2);
     }
 
     /**
@@ -255,5 +200,43 @@ class PriceCalculatorService
     public function clearUserProductCache(User $user, Product $product): void
     {
         Cache::forget("user.{$user->id}.product.{$product->id}.discount");
+    }
+    
+    /**
+     * Получить объект применённой скидки для товара
+     * 👇 НОВЫЙ МЕТОД (public)
+     */
+    public function getAppliedDiscountObject(Product $product, ?User $user = null): ?Discount
+    {
+        $priceData = $this->calculateForProduct($product, $user);
+        
+        if ($priceData['promotion_discount'] > 0) {
+            return Discount::where('type', Discount::TYPE_PROMOTION)
+                ->where('value', $priceData['promotion_discount'])
+                ->where('is_active', true)
+                ->first();
+        }
+        
+        if ($priceData['personal_discount'] > 0 && $user) {
+            return Discount::whereIn('type', ['personal', 'first_order', 'loyalty', 'referral'])
+                ->where('value', $priceData['personal_discount'])
+                ->where('is_active', true)
+                ->first();
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Получить все скидки, применяющиеся к товару
+     * 👇 НОВЫЙ МЕТОД (public)
+     */
+    public function getAllApplicableDiscounts(Product $product, ?User $user = null): \Illuminate\Support\Collection
+    {
+        $discounts = $this->getUserDiscounts($user ?? Auth::user());
+        
+        return $discounts->filter(function ($discount) use ($product) {
+            return $discount->appliesToProduct($product);
+        });
     }
 }

@@ -107,6 +107,51 @@ class ProductResource extends Resource
                                             ->columnSpanFull(),
                                     ]),
                             ]),
+
+                        Forms\Components\Tabs\Tab::make('Скидки и акции')
+                            ->schema([
+                                Forms\Components\Section::make('Применяемые скидки')
+                                    ->schema([
+                                        Forms\Components\Select::make('discounts')
+                                            ->label('Скидки на этот товар')
+                                            ->multiple()
+                                            ->searchable()
+                                            ->preload()
+                                            ->relationship('discounts', 'name', function ($query) {
+                                                $query->where('is_active', true)
+                                                    ->where(function($q) {
+                                                        $q->whereNull('start_date')->orWhere('start_date', '<=', now());
+                                                    })
+                                                    ->where(function($q) {
+                                                        $q->whereNull('end_date')->orWhere('end_date', '>=', now());
+                                                    });
+                                            })
+                                            ->helperText('Выберите скидки, которые будут применяться к этому товару')
+                                            ->columnSpanFull(),
+                                    ]),
+
+                                Forms\Components\Section::make('Акции на этом товаре')
+                                    ->schema([
+                                        Forms\Components\Placeholder::make('active_promotions')
+                                            ->label('')
+                                            ->content(function ($record) {
+                                                if (!$record) return 'Сохраните товар, чтобы увидеть активные акции';
+
+                                                $promotions = $record->discounts()
+                                                    ->where('type', 'promotion')
+                                                    ->where('is_active', true)
+                                                    ->get();
+
+                                                if ($promotions->isEmpty()) {
+                                                    return 'Нет активных акций для этого товара';
+                                                }
+
+                                                return view('filament.components.active-discounts', [
+                                                    'discounts' => $promotions
+                                                ]);
+                                            }),
+                                    ]),
+                            ]),
                         
                         Forms\Components\Tabs\Tab::make('Категория')
                             ->schema([

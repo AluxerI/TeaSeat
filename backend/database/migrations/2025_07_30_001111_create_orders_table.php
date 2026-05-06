@@ -29,20 +29,20 @@ return new class extends Migration
                 'cancelled'
             ])->default('cart');
 
-            // Суммы (сохраняем расчеты из вашего сервиса)
-            $table->decimal('products_total', 10, 2)->default(0); // Сумма товаров без скидок
-            $table->decimal('promotion_discount', 10, 2)->default(0); // Скидка от акций на товары
-            $table->decimal('personal_discount', 10, 2)->default(0); // Скидка от персональных скидок
-            $table->decimal('cart_discount', 10, 2)->default(0); // Скидка от промокодов на заказ
+            // Суммы (сохраняем расчеты)
+            $table->decimal('products_total', 10, 2)->default(0);
+            $table->decimal('promotion_discount', 10, 2)->default(0);
+            $table->decimal('personal_discount', 10, 2)->default(0);
+            $table->decimal('cart_discount', 10, 2)->default(0);
             $table->decimal('shipping_cost', 10, 2)->default(0);
-            $table->decimal('final_total', 10, 2)->default(0); // Итоговая сумма
+            $table->decimal('final_total', 10, 2)->default(0);
 
             // Адреса
             $table->foreignId('shipping_address_id')->nullable()->constrained('address_client');
             $table->foreignId('warehouse_id')->nullable()->constrained('warehouses');
 
-            // Промокоды и скидки
-            $table->foreignId('promotion_id')->nullable()->constrained()->onDelete('set null'); // Промокод на заказ
+            // ✅ ИСПРАВЛЕНО: вместо promotion_id → discount_id
+            $table->foreignId('discount_id')->nullable()->constrained('discounts')->onDelete('set null');
             $table->string('applied_promotion_code')->nullable(); // Примененный промокод
 
             // Информация о доставке
@@ -52,8 +52,8 @@ return new class extends Migration
             $table->text('customer_notes')->nullable();
             $table->text('internal_notes')->nullable();
 
-            //Заказ от склада на склад
-             $table->foreignId('parent_order_id')
+            // Заказ от склада на склад
+            $table->foreignId('parent_order_id')
                 ->nullable()
                 ->constrained('orders')
                 ->onDelete('cascade');
@@ -77,14 +77,14 @@ return new class extends Migration
             $table->index(['user_id', 'status']);
             $table->index('status');
             $table->index('warehouse_id');
-            $table->index('created_at'); // для фильтрации по дате
-            $table->index('final_total'); // для анализа сумм
-            $table->index('delivery_method_id'); // для фильтрации по способу доставки
-            $table->index(['status', 'created_at']); // для фильтрации по статусу + дата
-            $table->index(['user_id', 'created_at']); // для истории заказов пользователя
+            $table->index('created_at');
+            $table->index('final_total');
+            $table->index('delivery_method_id');
+            $table->index(['status', 'created_at']);
+            $table->index(['user_id', 'created_at']);
+            $table->index('discount_id'); // добавляем индекс для нового поля
         });
     }
-
 
     /**
      * Reverse the migrations.
