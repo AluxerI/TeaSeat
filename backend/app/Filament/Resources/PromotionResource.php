@@ -3,7 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\PromotionResource\Pages;
-use App\Models\Promotion;
+use App\Models\Discount; // ✅ Используем Discount, а не Promotion
 use App\Models\Category;
 use App\Models\Subcategory;
 use App\Models\Sub_Subcategory;
@@ -34,11 +34,10 @@ class PromotionResource extends Resource
 {
     use HasNavigationBadge;
 
-    protected static ?string $model = Promotion::class;
+    protected static ?string $model = Discount::class; // ✅ Модель Discount
     protected static ?string $navigationIcon = 'heroicon-o-tag';
     protected static ?string $navigationGroup = 'Маркетинг';
     protected static ?string $navigationLabel = 'Акции';
-
     protected static ?string $modelLabel = 'Акция';
     protected static ?string $pluralModelLabel = 'Акции';
     protected static ?string $recordTitleAttribute = 'name';
@@ -46,6 +45,7 @@ class PromotionResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->where('type', Discount::TYPE_PROMOTION) // ✅ Только акции
             ->with(['products', 'categories', 'subcategories', 'subSubcategories']);
     }
 
@@ -67,32 +67,16 @@ class PromotionResource extends Resource
                                                     ->maxLength(255)
                                                     ->unique(ignoreRecord: true),
                                                 
-                                                // 👈 ТИП ТОЛЬКО PRODUCT ДЛЯ ТОВАРНЫХ АКЦИЙ
-                                                Select::make('type')
-                                                    ->label('Тип акции')
-                                                    ->options([
-                                                        'product' => 'На товары',
-                                                        'cart' => 'На корзину',
-                                                        'shipping' => 'На доставку',
-                                                    ])
-                                                    ->required()
-                                                    ->default('product')
-                                                    ->reactive()
-                                                    ->afterStateUpdated(function ($state, callable $set) {
-                                                        $set('categories', []);
-                                                        $set('subcategories', []);
-                                                        $set('sub_subcategories', []);
-                                                        $set('products', []);
-                                                    }),
+                                                Forms\Components\Hidden::make('type')
+                                                    ->default(Discount::TYPE_PROMOTION),
                                                 
                                                 TextInput::make('code')
                                                     ->label('Промокод')
                                                     ->maxLength(50)
-                                                    ->unique(ignoreRecord: true)
-                                                    ->helperText('Оставьте пустым, если акция без промокода')
-                                                    ->visible(fn ($get) => in_array($get('type'), ['cart', 'shipping'])),
+                                                    ->unique(ignoreRecord: true, ignorable: fn ($record) => $record)
+                                                    ->helperText('Оставьте пустым, если акция без промокода'),
                                                 
-                                                TextInput::make('discount_percent')
+                                                TextInput::make('value')
                                                     ->label('Процент скидки')
                                                     ->required()
                                                     ->numeric()
@@ -100,6 +84,12 @@ class PromotionResource extends Resource
                                                     ->maxValue(100)
                                                     ->step(0.01)
                                                     ->suffix('%'),
+                                                
+                                                Toggle::make('is_global')
+                                                    ->label('Глобальная акция')
+                                                    ->helperText('Применяется ко всем товарам')
+                                                    ->default(false)
+                                                    ->reactive(),
                                                 
                                                 Toggle::make('is_active')
                                                     ->label('Активна')
@@ -141,28 +131,25 @@ class PromotionResource extends Resource
                                                     ->minValue(0)
                                                     ->step(100)
                                                     ->prefix('₽')
-                                                    ->visible(fn ($get) => in_array($get('type'), ['cart', 'shipping'])),
+                                                    ->nullable(),
                                                 
                                                 TextInput::make('usage_limit')
                                                     ->label('Лимит использований')
                                                     ->numeric()
                                                     ->minValue(0)
-                                                    ->default(null)
-                                                    ->helperText('0 или пусто - без лимита')
-                                                    ->visible(fn ($get) => $get('code') !== null),
+                                                    ->nullable()
+                                                    ->helperText('0 или пусто - без лимита'),
                                                 
-                                                TextInput::make('used_count')
-                                                    ->label('Использовано раз')
+                                                TextInput::make('usage_per_user')
+                                                    ->label('Лимит на пользователя')
                                                     ->numeric()
-                                                    ->disabled()
-                                                    ->dehydrated(false)
-                                                    ->visible(fn ($record) => $record !== null),
+                                                    ->minValue(0)
+                                                    ->nullable()
+                                                    ->helperText('Сколько раз может использовать один пользователь'),
                                             ]),
-                                    ])
-                                    ->visible(fn ($get) => in_array($get('type'), ['cart', 'shipping'])),
+                                    ]),
                             ]),
 
-                        // 👈 ВСЕ ЭТИ ВКЛАДКИ ВИДНЫ ТОЛЬКО ПРИ TYPE = 'product'
                         Tab::make('Категории')
                             ->schema([
                                 Section::make('Категории, на которые действует акция')
@@ -180,13 +167,9 @@ class PromotionResource extends Resource
                                                     ->orderBy('name')
                                                     ->pluck('name', 'id');
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set, $record) {
-                                                if ($record) {
-                                                    $record->clearCache();
-                                                }
-                                            }),
+                                            ->visible(fn ($get) => !$get('is_global')),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'product'),
+                                    ->visible(fn ($get) => !$get('is_global')),
                             ]),
 
                         Tab::make('Подкатегории')
@@ -211,13 +194,9 @@ class PromotionResource extends Resource
                                                         return [$item->id => $label];
                                                     });
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set, $record) {
-                                                if ($record) {
-                                                    $record->clearCache();
-                                                }
-                                            }),
+                                            ->visible(fn ($get) => !$get('is_global')),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'product'),
+                                    ->visible(fn ($get) => !$get('is_global')),
                             ]),
 
                         Tab::make('Под-подкатегории')
@@ -244,13 +223,9 @@ class PromotionResource extends Resource
                                                         return [$item->id => $label];
                                                     });
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set, $record) {
-                                                if ($record) {
-                                                    $record->clearCache();
-                                                }
-                                            }),
+                                            ->visible(fn ($get) => !$get('is_global')),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'product'),
+                                    ->visible(fn ($get) => !$get('is_global')),
                             ]),
 
                         Tab::make('Товары')
@@ -270,18 +245,9 @@ class PromotionResource extends Resource
                                                     ->orderBy('name')
                                                     ->pluck('name', 'id');
                                             })
-                                            ->afterStateUpdated(function ($state, callable $set, $record) {
-                                                if ($record) {
-                                                    $record->clearCache();
-                                                }
-                                            }),
-                                        
-                                        Forms\Components\Placeholder::make('products_count')
-                                            ->label('Товаров в акции')
-                                            ->content(fn ($record) => $record ? $record->products()->count() : 0)
-                                            ->visible(fn ($get, $record) => $record && $get('type') === 'product'),
+                                            ->visible(fn ($get) => !$get('is_global')),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'product'),
+                                    ->visible(fn ($get) => !$get('is_global')),
                             ]),
                     ])
                     ->columnSpanFull(),
@@ -308,30 +274,19 @@ class PromotionResource extends Resource
                     ->badge()
                     ->color('warning')
                     ->copyable()
-                    ->copyMessage('Промокод скопирован')
                     ->toggleable(),
                 
-                TextColumn::make('type')
-                    ->label('Тип')
-                    ->badge()
-                    ->formatStateUsing(fn (string $state): string => match ($state) {
-                        'product' => 'На товары',
-                        'cart' => 'На корзину',
-                        'shipping' => 'На доставку',
-                        default => $state,
-                    })
-                    ->color(fn (string $state): string => match ($state) {
-                        'product' => 'success',
-                        'cart' => 'info',
-                        'shipping' => 'warning',
-                        default => 'gray',
-                    }),
-                
-                TextColumn::make('discount_percent')
+                TextColumn::make('value')
                     ->label('Скидка')
                     ->suffix('%')
                     ->sortable()
                     ->alignCenter(),
+                
+                IconColumn::make('is_global')
+                    ->label('Глобальная')
+                    ->boolean()
+                    ->trueIcon('heroicon-o-globe-alt')
+                    ->falseIcon('heroicon-o-cube'),
                 
                 IconColumn::make('is_active')
                     ->label('Активна')
@@ -346,32 +301,10 @@ class PromotionResource extends Resource
                     ->alignCenter()
                     ->toggleable(),
                 
-                TextColumn::make('categories_count')
-                    ->label('Категорий')
-                    ->counts('categories')
-                    ->sortable()
-                    ->alignCenter()
-                    ->toggleable(),
-                
-                TextColumn::make('subcategories_count')
-                    ->label('Подкатегорий')
-                    ->counts('subcategories')
-                    ->sortable()
-                    ->alignCenter()
-                    ->toggleable(),
-                
-                TextColumn::make('sub_subcategories_count')
-                    ->label('Под-подкатегорий')
-                    ->counts('subSubcategories')
-                    ->sortable()
-                    ->alignCenter()
-                    ->toggleable(),
-                
                 TextColumn::make('used_count')
                     ->label('Использовано')
                     ->sortable()
-                    ->alignCenter()
-                    ->toggleable(),
+                    ->alignCenter(),
                 
                 TextColumn::make('start_date')
                     ->label('С')
@@ -386,14 +319,6 @@ class PromotionResource extends Resource
                     ->toggleable(),
             ])
             ->filters([
-                SelectFilter::make('type')
-                    ->label('Тип')
-                    ->options([
-                        'product' => 'На товары',
-                        'cart' => 'На корзину',
-                        'shipping' => 'На доставку',
-                    ]),
-                
                 Filter::make('is_active')
                     ->label('Только активные')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true)),
@@ -413,41 +338,11 @@ class PromotionResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make()
-                    ->before(function ($record) {
-                        if ($record->products()->count() > 0 || 
-                            $record->categories()->count() > 0 || 
-                            $record->subcategories()->count() > 0 || 
-                            $record->subSubcategories()->count() > 0) {
-                            Notification::make()
-                                ->title('Невозможно удалить акцию')
-                                ->body('У этой акции есть привязанные товары или категории.')
-                                ->danger()
-                                ->send();
-
-                            $this->halt();
-                        }
-                    }),
+                Tables\Actions\DeleteAction::make(),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make()
-                        ->before(function ($records) {
-                            foreach ($records as $record) {
-                                if ($record->products()->count() > 0 || 
-                                    $record->categories()->count() > 0 || 
-                                    $record->subcategories()->count() > 0 || 
-                                    $record->subSubcategories()->count() > 0) {
-                                    Notification::make()
-                                        ->title('Невозможно удалить некоторые акции')
-                                        ->body('Акции с привязанными товарами или категориями не могут быть удалены.')
-                                        ->danger()
-                                        ->send();
-
-                                    $this->halt();
-                                }
-                            }
-                        }),
+                    Tables\Actions\DeleteBulkAction::make(),
                 ]),
             ])
             ->defaultSort('created_at', 'desc');

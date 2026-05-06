@@ -29,7 +29,7 @@ class Order extends Model
         'final_total',
         'shipping_address_id',
         'warehouse_id',
-        'promotion_id',
+        'discount_id',
         'applied_promotion_code',
         'delivery_method_id',
         'payment_method',
@@ -170,9 +170,9 @@ class Order extends Model
         return $this->belongsTo(Warehouse::class);
     }
 
-    public function promotion()
+    public function discount()
     {
-        return $this->belongsTo(Promotion::class);
+        return $this->belongsTo(Discount::class, 'discount_id');
     }
 
     public function isCart(): bool

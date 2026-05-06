@@ -69,15 +69,12 @@ class Product extends Model
         )->select(['sub_subcategories.id', 'sub_subcategories.name', 'sub_subcategories.subcategory_id']);
     }
 
-    // Тяжелые отношения - используем только где нужно
-    public function promotions()
-    {
-        return $this->belongsToMany(Promotion::class, 'product_promotions');
-    }
-
+    /**
+     * Связь со скидками (через полиморфную таблицу discountables)
+     */
     public function discounts()
     {
-        return $this->belongsToMany(Discount::class, 'discount_products');
+        return $this->morphToMany(Discount::class, 'discountable');
     }
 
     public function suppliers()
@@ -296,7 +293,6 @@ class Product extends Model
                 'brand_name' => $this->brand?->name,
                 'brand_id' => $this->brand?->id,
                 'inventory' => $this->getInventoryData(),
-                'promotions' => $this->getPromotionsData(),
                 'discounts' => $this->getDiscountsData(),
             ]);
         });
@@ -319,7 +315,6 @@ class Product extends Model
             "product.{$this->id}.category_path",
             "product.{$this->id}.total_quantity",
             "product.{$this->id}.inventory_data",    // новый
-            "product.{$this->id}.promotions_data",   // новый
             "product.{$this->id}.discounts_data",    // новый
         ];
     }
@@ -446,25 +441,6 @@ public function getInventoryData(): array
     });
 }
 
-/**
- * Получить данные об акциях на товар
- */
-public function getPromotionsData(): array
-{
-    $key = "product.{$this->id}.promotions_data";
-    
-    return Cache::remember($key, 3600, function () {
-        return $this->promotions->map(function ($promotion) {
-            return [
-                'id' => $promotion->id,
-                'name' => $promotion->name,
-                'discount_percent' => (float) $promotion->discount_percent,
-                'start_date' => $promotion->start_date?->format('d.m.Y'),
-                'end_date' => $promotion->end_date?->format('d.m.Y'),
-            ];
-        })->values()->toArray();
-    });
-}
 
 /**
  * Получить данные о скидках на товар

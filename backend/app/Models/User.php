@@ -18,7 +18,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function discounts()
     {
-        return $this->belongsToMany(Discount::class, 'discount_users')
+        return $this->belongsToMany(Discount::class, 'discount_user')
             ->withPivot(['is_used', 'used_count', 'activated_at'])
             ->withTimestamps();
     }
@@ -26,14 +26,20 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->discounts()
             ->where('discounts.is_active', true)
+            ->whereIn('discounts.type', [
+                Discount::TYPE_PERSONAL,
+                Discount::TYPE_FIRST_ORDER,
+                Discount::TYPE_LOYALTY,
+                Discount::TYPE_REFERRAL,
+            ])
             ->wherePivot('is_used', false)
             ->where(function($query) {
-                $query->whereNull('discounts.start_at')
-                      ->orWhere('discounts.start_at', '<=', now());
+                $query->whereNull('discounts.start_date')
+                      ->orWhere('discounts.start_date', '<=', now());
             })
             ->where(function($query) {
-                $query->whereNull('discounts.end_at')
-                      ->orWhere('discounts.end_at', '>=', now());
+                $query->whereNull('discounts.end_date')
+                      ->orWhere('discounts.end_date', '>=', now());
             });
     }
     public function usedDiscounts()
