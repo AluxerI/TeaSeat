@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 [2024-12-29 19:59:47] local.ERROR: could not find driver (Connection: sqlite, SQL: PRAGMA foreign_keys = ON;) {"exception":"[object] (Illuminate\\Database\\QueryException(code: 0): could not find driver (Connection: sqlite, SQL: PRAGMA foreign_keys = ON;) at D:\\TeaSeat\\teaseat\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php:825)
 [stacktrace]
 #0 D:\\TeaSeat\\teaseat\\vendor\\laravel\\framework\\src\\Illuminate\\Database\\Connection.php(779): Illuminate\\Database\\Connection->runQueryCallback()
@@ -47977,3 +47978,5 @@ LINE 1: select * from \"sessions\" where \"id\" = $1 limit 1
 >>>>>>> ceb73d30 (Fix some problems with receiving data and start style card)
 =======
 >>>>>>> d9e2bc27 (check)
+=======
+>>>>>>> main

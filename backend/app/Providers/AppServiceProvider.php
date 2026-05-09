@@ -2,35 +2,35 @@
 
 namespace App\Providers;
 
-use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Support\ServiceProvider;
-use faker\Factory;
-use faker\Generator;
-use Illuminate\Http\JsonResponse;
-use App\Models\PersonalAccessToken;
-use Laravel\Sanctum\Sanctum;
-
 
 class AppServiceProvider extends ServiceProvider
 {
+<<<<<<< HEAD
     public function register(): void
     {
-        $this->app->bind(\App\Services\PriceCalculatorService::class, function ($app) {
-            return new \App\Services\PriceCalculatorService();
-        });
+        $this->app->singleton(\App\Services\AdminBadgeService::class);
+    }
+
+=======
+    /**
+     * Register any application services.
+     */
+    public function register(): void
+    {
+        //
     }
 
     /**
      * Bootstrap any application services.
      */
+>>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)
     public function boot(): void
     {
-        $this->app->singleton(Generator::class, function () {
-        return Factory::create('ru_RU'); // Устанавливаем русскую локаль
-        });
-        // Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
-        ResetPassword::createUrlUsing(function (object $notifiable, string $token) {
-            return config('app.frontend_url')."/password-reset/$token?email={$notifiable->getEmailForPasswordReset()}";
-        });
+        //
     }
+<<<<<<< HEAD
 }
+=======
+}
+>>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)

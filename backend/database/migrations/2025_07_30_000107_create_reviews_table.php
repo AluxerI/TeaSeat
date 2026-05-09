@@ -18,6 +18,10 @@ return new class extends Migration
             $table->text('comment')->nullable();
             $table->timestamps();
             $table->primary(['product_id', 'user_id']);
+            $table->index('rating'); // для фильтрации по оценке
+            $table->index('created_at'); // для сортировки по дате
+            $table->index(['product_id', 'rating']); // для отзывов на товар по оценке
+            $table->index(['product_id', 'created_at']); // для отзывов на товар по дате
         });
     }
 

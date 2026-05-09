@@ -62,7 +62,9 @@ class CurlClient implements Client {
                 $responseHeaders[$key] = $value;
             }
 
-            \curl_close($curl);
+            if (PHP_MAJOR_VERSION < 8) {
+                \curl_close($curl);
+            }
 
             if (isset($options[CURLOPT_INFILE]) && \is_resource($options[CURLOPT_INFILE])) {
                 \fclose($options[CURLOPT_INFILE]);
@@ -72,7 +74,7 @@ class CurlClient implements Client {
 
             return $this->lastResponse;
         } catch (\ErrorException $e) {
-            if (isset($curl) && \is_resource($curl)) {
+            if (PHP_MAJOR_VERSION < 8 && isset($curl) && \is_resource($curl)) {
                 \curl_close($curl);
             }
 
@@ -115,47 +117,50 @@ class CurlClient implements Client {
             $options[CURLOPT_URL] .= '?' . $query;
         }
 
-        switch (\strtolower(\trim($method))) {
-            case 'get':
-                $options[CURLOPT_HTTPGET] = true;
-                break;
-            case 'post':
-                $options[CURLOPT_POST] = true;
-                if ($this->hasFile($data)) {
-                    [$headers, $body] = $this->buildMultipartOptions($data);
-                    $options[CURLOPT_POSTFIELDS] = $body;
-                    $options[CURLOPT_HTTPHEADER] = \array_merge($options[CURLOPT_HTTPHEADER], $headers);
-                }
-                elseif ($headers['Content-Type'] === 'application/json') {
-                    $options[CURLOPT_POSTFIELDS] = json_encode($data);
-                }
-                else {
-                    $options[CURLOPT_POSTFIELDS] = $this->buildQuery($data);
-                }
+        $methodName = \strtolower(\trim($method));
 
-                break;
-            case 'put':
-                $options[CURLOPT_CUSTOMREQUEST] = 'PUT';
-                if ($this->hasFile($data)) {
-                    [$headers, $body] = $this->buildMultipartOptions($data);
-                    $options[CURLOPT_POSTFIELDS] = $body;
-                    $options[CURLOPT_HTTPHEADER] = \array_merge($options[CURLOPT_HTTPHEADER], $headers);
-                }
-                elseif ($headers['Content-Type'] === 'application/json') {
-                    $options[CURLOPT_POSTFIELDS] = json_encode($data);
-                }
-                else {
-                    $options[CURLOPT_POSTFIELDS] = $this->buildQuery($data);
-                }
-                break;
-            case 'head':
-                $options[CURLOPT_NOBODY] = true;
-                break;
-            default:
-                $options[CURLOPT_CUSTOMREQUEST] = \strtoupper($method);
+        // Configure HTTP method-specific options
+        if ($methodName === 'get') {
+            $options[CURLOPT_HTTPGET] = true;
+        } elseif ($methodName === 'head') {
+            $options[CURLOPT_NOBODY] = true;
+        } elseif (\in_array($methodName, ['post', 'put', 'patch'])) {
+            // Handle methods that send data in the request body
+            $this->configureMethodWithData($options, $methodName, $method, $data, $headers);
+        } else {
+            // Handle other HTTP methods (DELETE, etc.)
+            $options[CURLOPT_CUSTOMREQUEST] = \strtoupper($method);
         }
 
         return $options;
+    }
+
+    /**
+     * Configure cURL options for HTTP methods that send data in the request body
+     * (POST, PUT, PATCH)
+     */
+    private function configureMethodWithData(array &$options, string $methodName, string $method, array $data, array $headers): void
+    {
+        // Set the appropriate cURL option for the HTTP method
+        if ($methodName === 'post') {
+            $options[CURLOPT_POST] = true;
+        } else {
+            $options[CURLOPT_CUSTOMREQUEST] = \strtoupper($method);
+        }
+
+        // Configure the request body based on data type
+        if ($this->hasFile($data)) {
+            // Handle multipart/form-data for file uploads
+            [$headers, $body] = $this->buildMultipartOptions($data);
+            $options[CURLOPT_POSTFIELDS] = $body;
+            $options[CURLOPT_HTTPHEADER] = \array_merge($options[CURLOPT_HTTPHEADER], $headers);
+        } elseif (isset($headers['Content-Type']) && $headers['Content-Type'] === 'application/json') {
+            // Handle JSON data
+            $options[CURLOPT_POSTFIELDS] = \json_encode($data);
+        } else {
+            // Handle URL-encoded form data
+            $options[CURLOPT_POSTFIELDS] = $this->buildQuery($data);
+        }
     }
 
     public function buildQuery(?array $params): string {
@@ -165,14 +170,31 @@ class CurlClient implements Client {
         foreach ($params as $key => $value) {
             if (\is_array($value)) {
                 foreach ($value as $item) {
-                    $parts[] = \urlencode((string)$key) . '=' . \urlencode((string)$item);
+                    $parts[] = $this->encodeQueryComponent((string)$key) . '=' .
+                        $this->encodeQueryComponent((string)$item);
                 }
             } else {
-                $parts[] = \urlencode((string)$key) . '=' . \urlencode((string)$value);
+                $parts[] = $this->encodeQueryComponent((string)$key) . '=' .
+                    $this->encodeQueryComponent((string)$value);
             }
         }
 
         return \implode('&', $parts);
+    }
+
+    /**
+     * Custom encoder for query string components that:
+     * 1. Encodes spaces as '+' (like urlencode)
+     * 2. Preserves unreserved characters including tilde (like rawurlencode)
+     */
+    private function encodeQueryComponent(string $string): string {
+        // Start with rawurlencode to encode as per RFC 3986
+        $encoded = \rawurlencode($string);
+
+        // Convert %20 back to + for query string compatibility
+        $encoded = \str_replace('%20', '+', $encoded);
+
+        return $encoded;
     }
 
     private function hasFile(array $data): bool {

@@ -14,9 +14,9 @@ class OrderProduct extends Model
         'product_id',
         'quantity',
         'unit_price',
-        'promotion_discount_percent',  //  ??
-        'personal_discount_percent',   // ??
-        'final_unit_price',            //  ??
+        'promotion_discount_percent',  
+        'personal_discount_percent',   
+        'final_unit_price',            
         'total_price'
     ];
 
@@ -47,6 +47,20 @@ class OrderProduct extends Model
         static::saving(function ($model) {
             if ($model->quantity && $model->final_unit_price) {
                 $model->total_price = $model->quantity * $model->final_unit_price;
+            }
+        });
+    }
+    protected static function booted()
+    {
+        static::saved(function ($orderProduct) {
+            if ($orderProduct->order) {
+                $orderProduct->order->recalculateProductsTotal();
+            }
+        });
+    
+        static::deleted(function ($orderProduct) {
+            if ($orderProduct->order) {
+                $orderProduct->order->recalculateProductsTotal();
             }
         });
     }

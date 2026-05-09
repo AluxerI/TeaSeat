@@ -1,4 +1,5 @@
 <?php
+// database/factories/CategoryFactory.php
 
 namespace Database\Factories;
 
@@ -12,6 +13,7 @@ class CategoryFactory extends Factory
         
         return [
             'name' => $this->faker->unique()->randomElement($teaTypes),
+            'icon' => null, // Будет заполнено в сидере
         ];
     }
 }

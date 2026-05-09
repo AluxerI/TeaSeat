@@ -1,15 +1,16 @@
 <?php
-// app/Models/ProductImage.php
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Storage;
+use App\Traits\ClearsModelCache;
+use App\Traits\HasImage;
 
 class ProductImage extends Model
 {
-    use HasFactory;
+    use HasFactory, ClearsModelCache, HasImage;
 
     protected $fillable = [
         'product_id',
@@ -28,60 +29,30 @@ class ProductImage extends Model
         'sort_order' => 'integer',
     ];
 
-    /**
-     * Связь с товаром
-     */
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
 
     /**
-     * Получить полный URL изображения
+     * Получить путь к файлу с учетом ID товара
      */
-    public function getUrlAttribute(): string
+    public static function getProductDirectory(Product $product): string
     {
-        return $this->getUrl();
+        return 'products/' . $product->id;
     }
 
     /**
-     * Метод для получения URL
+     * Переопределяем сохранение файла
      */
-    public function getUrl(): string
+    public static function booted()
     {
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk($this->disk);
-        
-        try {
-            // @phpstan-ignore-next-line
-            return $disk->url($this->path);
-        } catch (\Exception $e) {
-            return '/storage/' . $this->path;
-        }
-    }
+        static::saved(function ($image) {
+            $image->product?->clearCache();
+        });
 
-    /**
-     * Получить путь для вставки в img src
-     */
-    public function getImageUrlAttribute(): string
-    {
-        if ($this->disk === 'public') {
-            return asset('storage/' . $this->path);
-        }
-        
-        /** @var \Illuminate\Filesystem\FilesystemAdapter $disk */
-        $disk = Storage::disk($this->disk);
-        
-        // @phpstan-ignore-next-line
-        return $disk->url($this->path);
-    }
-
-    /**
-     * Удаление файла при удалении модели
-     */
-    protected static function booted()
-    {
-        static::deleting(function ($image) {
+        static::deleted(function ($image) {
+            $image->product?->clearCache();
             Storage::disk($image->disk)->delete($image->path);
         });
     }

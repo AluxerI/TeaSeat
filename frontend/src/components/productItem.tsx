@@ -90,7 +90,7 @@ export const ProductItem = ({
                   ></Images>
                 </button>
               </div>
-              
+
               <p className="price">{pricing} Р</p>
             </form>
           </div>

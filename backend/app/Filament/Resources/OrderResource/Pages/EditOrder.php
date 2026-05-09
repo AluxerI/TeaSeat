@@ -1,0 +1,49 @@
+<?php
+
+namespace App\Filament\Resources\OrderResource\Pages;
+
+use App\Filament\Resources\OrderResource;
+use App\Models\OrderStatusHistory;
+use Filament\Actions;
+use Filament\Resources\Pages\EditRecord;
+use Illuminate\Support\Facades\Auth;
+
+class EditOrder extends EditRecord
+{
+    protected static string $resource = OrderResource::class;
+
+    protected function getHeaderActions(): array
+    {
+        return [
+            Actions\ViewAction::make(),
+            Actions\DeleteAction::make(),
+        ];
+    }
+
+    protected function afterSave(): void
+    {
+        $record = $this->record;
+        $oldStatus = $record->getOriginal('status');
+        $newStatus = $record->status;
+
+        if ($oldStatus !== $newStatus) {
+            OrderStatusHistory::create([
+                'order_id' => $record->id,
+                'from_status' => $oldStatus ?? $newStatus,
+                'to_status' => $newStatus,
+                'changed_by' => Auth::id(),
+                'notes' => 'Изменено через админ-панель'
+            ]);
+        }
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return $this->getResource()::getUrl('index');
+    }
+
+    protected function getSavedNotificationTitle(): ?string
+    {
+        return 'Заказ успешно обновлен';
+    }
+}

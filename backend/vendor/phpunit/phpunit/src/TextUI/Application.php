@@ -61,6 +61,7 @@ use PHPUnit\TextUI\CliArguments\Configuration as CliConfiguration;
 use PHPUnit\TextUI\CliArguments\Exception as ArgumentsException;
 use PHPUnit\TextUI\CliArguments\XmlConfigurationFileFinder;
 use PHPUnit\TextUI\Command\AtLeastVersionCommand;
+use PHPUnit\TextUI\Command\CheckPhpConfigurationCommand;
 use PHPUnit\TextUI\Command\GenerateConfigurationCommand;
 use PHPUnit\TextUI\Command\ListGroupsCommand;
 use PHPUnit\TextUI\Command\ListTestFilesCommand;
@@ -283,14 +284,7 @@ final readonly class Application
             }
 
             $shellExitCode = (new ShellExitCodeCalculator)->calculate(
-                $configuration->failOnDeprecation() || $configuration->failOnAllIssues(),
-                $configuration->failOnPhpunitDeprecation() || $configuration->failOnAllIssues(),
-                $configuration->failOnEmptyTestSuite() || $configuration->failOnAllIssues(),
-                $configuration->failOnIncomplete() || $configuration->failOnAllIssues(),
-                $configuration->failOnNotice() || $configuration->failOnAllIssues(),
-                $configuration->failOnRisky() || $configuration->failOnAllIssues(),
-                $configuration->failOnSkipped() || $configuration->failOnAllIssues(),
-                $configuration->failOnWarning() || $configuration->failOnAllIssues(),
+                $configuration,
                 $result,
             );
 
@@ -468,6 +462,10 @@ final readonly class Application
 
         if ($cliConfiguration->version()) {
             $this->execute(new ShowVersionCommand);
+        }
+
+        if ($cliConfiguration->checkPhpConfiguration()) {
+            $this->execute(new CheckPhpConfigurationCommand);
         }
 
         if ($cliConfiguration->checkVersion()) {
@@ -854,6 +852,8 @@ final readonly class Application
             ];
         }
 
-        ErrorHandler::instance()->useDeprecationTriggers($deprecationTriggers);
+        if ($deprecationTriggers !== ['functions' => [], 'methods' => []]) {
+            ErrorHandler::instance()->useDeprecationTriggers($deprecationTriggers);
+        }
     }
 }

@@ -1,28 +1,22 @@
 <?php
+// database/factories/Sub_SubcategoryFactory.php
 
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
 use App\Models\Subcategory;
 
-/**
- * @extends \Illuminate\Database\Eloquent\Factories\Factory<\App\Models\Sub_subcategory>
- */
 class Sub_SubcategoryFactory extends Factory
 {
     public function definition(): array
     {
-        // Создаем подкатегорию, если не передана
-        $subcategory = subcategory::inRandomOrder()->first() 
-                ?? subcategory::factory()->create();
+        $subcategory = Subcategory::inRandomOrder()->first() 
+            ?? Subcategory::factory()->create();
 
-        // Для чайных подкатегорий
         if (str_contains($subcategory->name, 'чай')) {
             $names = ['Белый', 'Зеленый', 'Черный', 'Улун', 'Пуэр'];
             $name = $this->faker->randomElement($names) . ' чай';
-        } 
-        // Для сладостей и всего остального
-        else {
+        } else {
             $names = ['Классический', 'Шоколадный', 'Фруктовый', 'популярный','Солёный', 'Мармеладный', 'Цветной','Цитрусовый'];
             $name = $this->faker->randomElement($names) . ' ' . $subcategory->name;
         }
@@ -30,6 +24,7 @@ class Sub_SubcategoryFactory extends Factory
         return [
             'subcategory_id' => $subcategory->id,
             'name' => $name,
+            'icon' => null,
         ];
     }
 }
