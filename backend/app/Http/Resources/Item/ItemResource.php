@@ -2,117 +2,72 @@
 
 namespace App\Http\Resources\Item;
 
-use App\Services\PriceCalculatorService;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Services\PriceCalculatorService;
 
 class ItemResource extends JsonResource
 {
     public function toArray($request)
     {
-        $priceData = app(PriceCalculatorService::class)
-            ->calculateForProduct($this->resource);
-
-        // Основная информация о товаре
-        return [
-            'id' => $this->id,
-            'name' => $this->name,
-            'ingredients' => $this->ingredients,
-            'description' => $this->description,
-
-            // ИСПРАВЛЕНО: используем новые методы из модели
-            'image' => $this->main_image_url, // для обратной совместимости
-            'images' => $this->images_data,   // используем метод из модели
-           
-            'weight_grams' => $this->weight_grams,
-            
-            // Цены и скидки
-            'price' => $this->price,
-            'pricing' => $priceData,
-            
-            // Информация о бренде
-            'brand' => $this->brand->name ?? null,
-            
-            // Информация о категориях (через подкатегории)
-            'category' => $this->getCategoryPath(),
-            
-            // Данные о наличии на складах
-            'inventory' => $this->getInventoryData(),
-            'total_quantity' => $this->inventories->sum('quantity'),
-            
-            // Акции и скидки
-            'promotions' => $this->getPromotionsData(),
-            'available_discounts' => $this->getDiscountsData(),
-            'category_path' => $this->getCategoryPath(),
-            'is_available' => $this->inventories->sum('quantity') > 0,
-            'sold_count' => $this->sold_count,
-            'created_at' => $this->created_at,
-            'updated_at' => $this->updated_at,
-        ];
-    }
-
-     /**
-     * Формирует путь категории для товара.
-     */
-    protected function getCategoryPath()
-    {
-        // Получаем первую связанную подкатегорию (если есть)
-        $subSubcategory = $this->sub_subcategories->first();
+        $data = $this->getDetailedData();
         
-        if (!$subSubcategory) {
-            return null;
-        }
+        $user = $request->user();
+        $priceCalculator = app(PriceCalculatorService::class);
+        $priceData = $priceCalculator->calculateForProduct($this->resource, $user);
         
-        // Возвращаем информацию о категории, подкатегории и подподкатегории
+        $appliedDiscount = $priceCalculator->getAppliedDiscountObject($this->resource, $user);
+        $allDiscounts = $priceCalculator->getAllApplicableDiscounts($this->resource, $user);
+        
         return [
-            'category' => $subSubcategory->subcategory->category->name ?? null,
-            'subcategory' => $subSubcategory->subcategory->name ?? null,
-            'sub_subcategory' => $subSubcategory->name,
+            'id' => $data['id'],
+            'name' => $data['name'],
+            
+            'original_price' => $priceData['base_price'],
+            'final_price' => $priceData['final_price'],
+            'discount_percent' => $priceData['total_discount_percent'],
+            'discount_saved' => round($priceData['base_price'] - $priceData['final_price'], 2),
+            
+            'discount' => $appliedDiscount ? [
+                'id' => $appliedDiscount->id,
+                'name' => $appliedDiscount->name,
+                'description' => $appliedDiscount->description,
+                'type' => $appliedDiscount->type,
+                'value' => (float) $appliedDiscount->value,
+                'code' => $appliedDiscount->code,
+            ] : null,
+            
+            'available_discounts' => $allDiscounts->map(function($discount) {
+                return [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'type' => $discount->type,
+                    'value' => (float) $discount->value,
+                    'description' => $discount->description,
+                    'code' => $discount->code,
+                ];
+            })->values()->toArray(),
+            
+            'weight_grams' => $data['weight_grams'],
+            'ingredients' => $data['ingredients'],
+            'description' => $data['description'],
+            
+            'image' => $data['main_image_url'],
+            'main_image' => $data['main_image_url'],
+            'background_image' => $data['background_image_url'],
+            'gallery' => $data['gallery_data'],
+            
+            'category_path' => $data['category_path'],
+            
+            'brand' => $data['brand_name'],
+            'brand_id' => $this->brand?->id,
+            
+            'inventory' => $data['inventory'] ?? [],
+            'total_quantity' => $data['total_quantity'],
+            'is_available' => $data['is_available'],
+            'sold_count' => $data['sold_count'],
+            
+            'created_at' => $data['created_at'],
+            'updated_at' => $this->updated_at?->format('d.m.Y H:i'),
         ];
-    }
-
-    protected function getInventoryData()
-    {
-        return $this->inventories->map(function ($inventory) {
-            return [
-                'warehouse_id' => $inventory->warehouse_id,
-                'warehouse_name' => $inventory->warehouse->name,
-                'quantity' => $inventory->quantity,
-                'last_restock_date' => $inventory->last_restock_date,
-            ];
-        });
-    }
-    /**
-     * Данные об акциях на товар
-     */
-    protected function getPromotionsData()
-    {
-        return $this->promotions->map(function ($promotion) {
-            return [
-                'id' => $promotion->id,
-                'name' => $promotion->name,
-                'description' => $promotion->description,
-                'discount_percent' => $promotion->discount_percent,
-                'start_date' => $promotion->start_date,
-                'end_date' => $promotion->end_date,
-            ];
-        });
-    }
-
-    /**
-     * Данные о доступных скидках
-     */
-    protected function getDiscountsData()
-    {
-        return $this->discounts->map(function ($discount) {
-            return [
-                'id' => $discount->id,
-                'name' => $discount->name,
-                'code' => $discount->code,
-                'type' => $discount->type,
-                'value' => $discount->value,
-                'start_at' => $discount->start_at,
-                'end_at' => $discount->end_at,
-            ];
-        });
     }
 }

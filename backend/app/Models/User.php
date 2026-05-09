@@ -10,6 +10,8 @@ use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Cache;
+use App\Services\AdminBadgeService;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -17,7 +19,7 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function discounts()
     {
-        return $this->belongsToMany(Discount::class, 'discount_users')
+        return $this->belongsToMany(Discount::class, 'discount_user')
             ->withPivot(['is_used', 'used_count', 'activated_at'])
             ->withTimestamps();
     }
@@ -25,14 +27,20 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->discounts()
             ->where('discounts.is_active', true)
+            ->whereIn('discounts.type', [
+                Discount::TYPE_PERSONAL,
+                Discount::TYPE_FIRST_ORDER,
+                Discount::TYPE_LOYALTY,
+                Discount::TYPE_REFERRAL,
+            ])
             ->wherePivot('is_used', false)
             ->where(function($query) {
-                $query->whereNull('discounts.start_at')
-                      ->orWhere('discounts.start_at', '<=', now());
+                $query->whereNull('discounts.start_date')
+                      ->orWhere('discounts.start_date', '<=', now());
             })
             ->where(function($query) {
-                $query->whereNull('discounts.end_at')
-                      ->orWhere('discounts.end_at', '>=', now());
+                $query->whereNull('discounts.end_date')
+                      ->orWhere('discounts.end_date', '>=', now());
             });
     }
     public function usedDiscounts()
@@ -123,7 +131,65 @@ class User extends Authenticatable
     {
         return $this->hasMany(PhoneVerificationCode::class);
     }
+    /**
+     * Получить данные пользователя
+     */
+    public function getAllData(): array
+    {
+        $key = "user.{$this->id}.all";
+        
+        return Cache::remember($key, 3600, function () {
+            return [
+                'id' => $this->id,
+                'name' => $this->name,
+                'email' => $this->email,
+                'phone' => $this->phone,
+                'is_active' => $this->is_active,
+                'email_verified' => !is_null($this->email_verified_at),
+                'phone_verified' => !is_null($this->phone_verified_at),
+                'roles' => $this->roles->pluck('name')->toArray(),
+                'orders_count' => $this->orders()->count(),
+                'reviews_count' => $this->reviews()->count(),
+                'created_at' => $this->created_at?->format('d.m.Y'),
+            ];
+        });
+    }
 
+    /**
+     * Ключи кеша для очистки
+     */
+    protected function getCacheKeys(): array
+    {
+        return [
+            "user.{$this->id}.all",
+        ];
+    }
+
+    /**
+     * Очистка кеша
+     */
+    public function clearCache(): void
+    {
+        foreach ($this->getCacheKeys() as $key) {
+            Cache::forget($key);
+        }
+    }
+
+    /**
+     * События модели
+     */
+     protected static function booted()
+    {
+        static::saved(function ($user) {
+            $user->clearCache();
+            AdminBadgeService::clearCache(); // 👈 ОЧИЩАЕМ КЕШ БЕЙДЖЕРОВ
+        });
+
+        static::deleted(function ($user) {
+            $user->clearCache();
+            AdminBadgeService::clearCache(); // 👈 ОЧИЩАЕМ КЕШ БЕЙДЖЕРОВ
+        });
+    }
      protected static function boot()
     {
         parent::boot();
@@ -173,4 +239,20 @@ class User extends Authenticatable
         ];
 >>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)
     }
+
+
+=======
+    /**
+     * Get the attributes that should be cast.
+     *
+     * @return array<string, string>
+     */
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password' => 'hashed',
+        ];
+    }
+>>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)
 }

@@ -1,4 +1,5 @@
 <?php
+// database/factories/SubcategoryFactory.php
 
 namespace Database\Factories;
 
@@ -9,7 +10,6 @@ class SubcategoryFactory extends Factory
 {
     public function definition(): array
     {
-        // Группируем подкатегории по родительским категориям
         $subcategories = [
             'Чай' => ['Китайский чай', 'Японский чай', 'Индийский чай', 'Травяной чай'],
             'Сладости' => ['Зефир', 'Шоколад', 'Мармелад', 'Фрукт'],
@@ -21,13 +21,13 @@ class SubcategoryFactory extends Factory
             'чайный набор' => ['Для чайных церемоний','домашний','крафтовый','популярный']
         ];
 
-        // Сначала создаём категорию (или берём существующую)
         $category = Category::inRandomOrder()->first()
-        ?? Category::factory()->create();
+            ?? Category::factory()->create();
 
         return [
             'category_id' => $category->id,
-            'name' => $this->faker->unique()->randomElement($subcategories[$category->name]),
+            'name' => $this->faker->unique()->randomElement($subcategories[$category->name] ?? ['Обычная подкатегория']),
+            'icon' => null,
         ];
     }
 }

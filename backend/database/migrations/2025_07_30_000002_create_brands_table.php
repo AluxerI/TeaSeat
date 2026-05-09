@@ -16,6 +16,11 @@ return new class extends Migration
             $table->string('name');
             $table->string('country')->nullable();
             $table->timestamps();
+            
+            // Индексы для оптимизации
+            $table->index('name');
+            $table->index('country');
+            $table->index(['country', 'name']);
         });
     }
 

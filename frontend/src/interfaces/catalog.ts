@@ -1,4 +1,5 @@
 import { Warehouse } from "./warehouse";
+import { Warehouse } from "./warehouse";
 
 export interface Category {
   id: number;
@@ -76,7 +77,40 @@ export interface Product {
   sold_count: number;
   created_at: Date;
   update_at: Date;
+export interface Product {
+  id: number;
+  name: string;
+  ingredients: string;
+  description: string;
+  images: {
+    background: string;
+    main: string;
+  };
+  pricing: {
+    base_price: string;
+    price_with_promotions: number;
+    final_price: number;
+    promotion_discount: number;
+    personal_discount: number;
+    has_discount: boolean;
+  };
+  weight_grams: number;
+  brand: string;
+  category_path: {
+    category: string;
+    subcategory: string;
+    sub_subcategory: string;
+  };
+  inventory: Warehouse[];
+  total_quantity: number;
+  is_available: boolean;
+  sold_count: number;
+  created_at: Date;
+  update_at: Date;
 }
+export interface Meta {
+  total_products: number;
+  has_pagination: boolean;
 export interface Meta {
   total_products: number;
   has_pagination: boolean;
@@ -85,4 +119,9 @@ export interface Catalog {
   categories: Category[];
   products: Product[];
   meta: Meta;
+export interface Catalog {
+  categories: Category[];
+  products: Product[];
+  meta: Meta;
 }
+

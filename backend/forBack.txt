@@ -33,3 +33,39 @@ docker-compose build --no-cache                          === пересобра�
 Если бд делает мозги, удали папку data!!!
 Если бд делает мозги, удали папку data!!!
  
+
+
+
+
+Скрипт:
+-------------------------
+# Зайди в контейнер
+docker exec -it backend bash
+
+# 1. ОЧИЩАЕМ ВСЁ
+php artisan optimize:clear
+php artisan cache:clear
+php artisan config:clear
+php artisan route:clear
+php artisan view:clear
+php artisan filament:clear-cached-components
+
+# 2. СОЗДАЕМ СИМЛИНК (если не создан)
+php artisan storage:link
+
+# 3. КЕШИРУЕМ ЗАНОВО
+php artisan config:cache
+php artisan route:cache
+php artisan view:cache
+php artisan filament:cache-components
+
+
+# 4. ОПТИМИЗИРУЕМ АВТОЗАГРУЗКУ
+composer dump-autoload -o
+
+# Выйди
+exit
+------------------------------------
+
+php artisan octane:reload    - обновить код на сервере
+

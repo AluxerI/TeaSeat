@@ -18,11 +18,17 @@ return new class extends Migration {
             $table->string('phone')->nullable()->unique();
             $table->timestamp('phone_verified_at')->nullable();
             $table->string('password');
-            // $table->rememberToken();  // это для работы с куками. То есть это для браузера
+            $table->rememberToken();  // это для работы с куками. То есть это для браузера
             $table->string('timezone')->default('UTC');
             $table->boolean('is_active')->default(true);   // активен ли аккаунт? может он заблокирован?
             $table->timestamps();
             $table->softDeletes(); // Добавляем мягкое удаление
+
+            $table->index('email');
+            $table->index('phone');
+            $table->index('provider');
+            $table->index('is_active');
+            $table->index('created_at');
         });
 
         // Токены сброса пароля (стандартная таблица Laravel)

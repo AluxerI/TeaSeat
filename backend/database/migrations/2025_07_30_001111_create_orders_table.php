@@ -11,72 +11,80 @@ return new class extends Migration
      */
     public function up(): void
     {
-    Schema::create('orders', function (Blueprint $table) {
-        $table->id();
-        $table->foreignId('user_id')->constrained()->onDelete('cascade');
-        
-        // Статусы заказа
-        $table->enum('status', [
-            'cart', 
-            'pending', 
-            'confirmed',
-            'processing', 
-            'shipped', 
-            'delivered', 
-            'cancelled'
-        ])->default('cart');
-        
-        // Суммы (сохраняем расчеты из вашего сервиса)
-        $table->decimal('products_total', 10, 2)->default(0); // Сумма товаров без скидок
-        $table->decimal('promotion_discount', 10, 2)->default(0); // Скидка от акций на товары
-        $table->decimal('personal_discount', 10, 2)->default(0); // Скидка от персональных скидок
-        $table->decimal('cart_discount', 10, 2)->default(0); // Скидка от промокодов на заказ
-        $table->decimal('shipping_cost', 10, 2)->default(0);
-        $table->decimal('final_total', 10, 2)->default(0); // Итоговая сумма
-        
-        // Адреса
-        $table->foreignId('shipping_address_id')->nullable()->constrained('address_client');
-        $table->foreignId('warehouse_id')->nullable()->constrained('warehouses');
-        
-        // Промокоды и скидки
-        $table->foreignId('promotion_id')->nullable()->constrained()->onDelete('set null'); // Промокод на заказ
-        $table->string('applied_promotion_code')->nullable(); // Примененный промокод
-        
-        // Информация о доставке
-        $table->foreignId('delivery_method_id')->nullable()->constrained('delivery_methods');
-        $table->enum('payment_method', ['cash', 'card', 'online'])->nullable();
-        $table->string('tracking_number')->nullable();
-        $table->text('customer_notes')->nullable();
-        $table->text('internal_notes')->nullable();
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('contact_name')->nullable();
+            $table->string('contact_phone')->nullable();
+            $table->string('contact_email')->nullable();            
 
-        //Заказ от склада на склад
-         $table->foreignId('parent_order_id')
-            ->nullable()
-            ->constrained('orders')
-            ->onDelete('cascade');
+            // Статусы заказа
+            $table->enum('status', [
+                'cart', 
+                'pending', 
+                'confirmed',
+                'processing', 
+                'shipped', 
+                'delivered', 
+                'cancelled'
+            ])->default('cart');
 
-        // Для поставщиков    
-        $table->foreignId('supplier_order_id')->nullable()->constrained('supplier_orders');
-        $table->boolean('is_supplier_order')->default(false);
-        
-        // Временные метки
-        $table->timestamp('confirmed_at')->nullable();
-        $table->timestamp('paid_at')->nullable();
-        $table->timestamp('shipped_at')->nullable();
-        $table->timestamp('delivered_at')->nullable();
-        $table->timestamp('cancelled_at')->nullable();
-        
-        // Мягкое удаление
-        $table->softDeletes();
-        $table->timestamps();
-        
-        // Индексы
-        $table->index(['user_id', 'status']);
-        $table->index('status');
-        $table->index('warehouse_id');
-    });
-}
+            // Суммы (сохраняем расчеты)
+            $table->decimal('products_total', 10, 2)->default(0);
+            $table->decimal('promotion_discount', 10, 2)->default(0);
+            $table->decimal('personal_discount', 10, 2)->default(0);
+            $table->decimal('cart_discount', 10, 2)->default(0);
+            $table->decimal('shipping_cost', 10, 2)->default(0);
+            $table->decimal('final_total', 10, 2)->default(0);
 
+            // Адреса
+            $table->foreignId('shipping_address_id')->nullable()->constrained('address_client');
+            $table->foreignId('warehouse_id')->nullable()->constrained('warehouses');
+
+            // ✅ ИСПРАВЛЕНО: вместо promotion_id → discount_id
+            $table->foreignId('discount_id')->nullable()->constrained('discounts')->onDelete('set null');
+            $table->string('applied_promotion_code')->nullable(); // Примененный промокод
+
+            // Информация о доставке
+            $table->foreignId('delivery_method_id')->nullable()->constrained('delivery_methods');
+            $table->enum('payment_method', ['cash', 'card', 'online'])->nullable();
+            $table->string('tracking_number')->nullable();
+            $table->text('customer_notes')->nullable();
+            $table->text('internal_notes')->nullable();
+
+            // Заказ от склада на склад
+            $table->foreignId('parent_order_id')
+                ->nullable()
+                ->constrained('orders')
+                ->onDelete('cascade');
+
+            // Для поставщиков    
+            $table->foreignId('supplier_order_id')->nullable()->constrained('supplier_orders');
+            $table->boolean('is_supplier_order')->default(false);
+
+            // Временные метки
+            $table->timestamp('confirmed_at')->nullable();
+            $table->timestamp('paid_at')->nullable();
+            $table->timestamp('shipped_at')->nullable();
+            $table->timestamp('delivered_at')->nullable();
+            $table->timestamp('cancelled_at')->nullable();
+
+            // Мягкое удаление
+            $table->softDeletes();
+            $table->timestamps();
+
+            // Индексы
+            $table->index(['user_id', 'status']);
+            $table->index('status');
+            $table->index('warehouse_id');
+            $table->index('created_at');
+            $table->index('final_total');
+            $table->index('delivery_method_id');
+            $table->index(['status', 'created_at']);
+            $table->index(['user_id', 'created_at']);
+            $table->index('discount_id'); // добавляем индекс для нового поля
+        });
+    }
 
     /**
      * Reverse the migrations.

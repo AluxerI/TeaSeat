@@ -85,7 +85,7 @@ Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
     Route::get('/users', 'IndexController') -> name('user.index')
         ->middleware(['auth:sanctum', 'permission:view users']);
 
-    Route::get('/users/{user}', 'ShowController') -> name('user.show')
+    Route::get('/users/{user}', 'ShowController') -> name('user.show.admin')
         ->middleware(['auth:sanctum', 'permission:view users']);
 
     Route::put('/users/{user}', 'UpdateController') -> name('user.update')
@@ -122,15 +122,26 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'permission:manage orders'])
     });
 });
 
+// каталоги
+Route::group(['namespace' => 'App\Http\Controllers\Item'], function() {
+    Route::get('/item/{productId}', 'ShowController')->name('item.show');
+    Route::get('/catalog', 'IndexController')->name('item.index');
+    Route::get('/categories', 'Category\IndexController')->name('category.index');
+    Route::get('/cities', 'LocationController@getCities');
+    Route::get('/cities/{city}/items', 'LocationController@getProductsInCity');
+    Route::get('/cities/{city}/items/{productId}/availability', 'LocationController@getProductAvailabilityDetails');
+});
+
+// для менеджеров
 Route::group([
     'namespace' => 'App\Http\Controllers\Item',
     'middleware' => 'auth:sanctum'
 ], function() {
-    Route::get('/items/create', 'CreateController')->name('item.create')->middleware('can:create products');
-    Route::post('/items', 'StoreController')->name('item.store')->middleware('can:create products');
-    Route::get('/items/{product}/edit', 'EditController')->name('item.edit')->middleware('can:edit products');
-    Route::put('/items/{product}', 'UpdateController')->name('item.update')->middleware('can:edit products');
-    Route::post('/items/upload-images', action: 'Image\StoreController')->name('image.store')->middleware('can:edit products');
-    Route::delete('/items/images/{image}', 'Image\DeleteController')->name('image.delete')->middleware('can:edit products');
+    Route::get('/items/create', 'CreateController')->name('item.create.man')->middleware('can:create products');
+    Route::post('/items', 'StoreController')->name('item.store.man')->middleware('can:create products');
+    Route::get('/items/{product}/edit', 'EditController')->name('item.edit.man')->middleware('can:edit products');
+    Route::put('/items/{product}', 'UpdateController')->name('item.update.man')->middleware('can:edit products');
+    Route::post('/items/upload-images', action: 'Image\StoreController')->name('image.store.man')->middleware('can:edit products');
+    Route::delete('/items/images/{image}', 'Image\DeleteController')->name('image.delete.man')->middleware('can:edit products');
     Route::post('/items/images/{image}/set-main', 'Image\SetmainController')->name('image.setMain')->middleware('can:edit products');
 });
