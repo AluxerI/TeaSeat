@@ -6,7 +6,7 @@ use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use App\Models\Category;
 use App\Models\Subcategory;
-use App\Models\Sub_subcategory;
+use App\Models\Sub_Subcategory;
 
 class CategoriesSeeder extends Seeder
 {
@@ -14,6 +14,6 @@ class CategoriesSeeder extends Seeder
     {
         Category::factory()->count(8)->create();
         Subcategory::factory()->count(11)->create();
-        Sub_subcategory::factory()->count(120)->create();
+        Sub_Subcategory::factory()->count(120)->create();
     }
 }

@@ -6,7 +6,7 @@ import { useAsync } from "../../../hooks/useAsync";
 interface Tag {
   id: string;
   label: string;
-  subcategories: {
+  subcategories?: {
     id: number;
     name: string;
     category_id: number;
@@ -64,9 +64,11 @@ const CatalogHeader = ({
       setTags(propTags);
       return;
     }
-
+    
+    // need bebug
     if (categoryState.data) {
-      setTags(mapCategoriesToTags(categoryState.data));
+      const tags = mapCategoriesToTags(categoryState.data)
+      setTags(Array.from(new Set(tags)));
     }
   }, [propTags, categoryState.data]);
 

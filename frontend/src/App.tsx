@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-
-
-
 import { PageCategory } from './pages/Category';
+
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ItemApi } from './api/productAPI';
 
@@ -81,6 +79,7 @@ const App: React.FC = () => {
            */}
 
            <Route path='catalog' Component={PageCatalog}/>
+           
         </Routes>
         
       </BrowserRouter>
