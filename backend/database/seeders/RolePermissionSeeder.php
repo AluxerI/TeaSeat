@@ -10,8 +10,8 @@ class RolePermissionSeeder extends Seeder
 {
     public function run()
     {
-        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions(); // очистка кэша
-        // Создание прав
+        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions();
+
         $permissions = [
             'view products',
             'create products',
@@ -31,18 +31,15 @@ class RolePermissionSeeder extends Seeder
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::findOrCreate($permission);
         }
 
-        // Создание ролей
-        $adminRole = Role::create(['name' => 'admin']);
-        $managerRole = Role::create(['name' => 'manager']);
-        $userRole = Role::create(['name' => 'user']);
+        $adminRole = Role::findOrCreate('admin');
+        $managerRole = Role::findOrCreate('manager');
+        $userRole = Role::findOrCreate('user');
 
-        // Назначение прав админу
         $adminRole->givePermissionTo(Permission::all());
 
-        // Назначение прав менеджеру
         $managerRole->givePermissionTo([
             'view products',
             'create products',
@@ -52,11 +49,10 @@ class RolePermissionSeeder extends Seeder
             'manage orders'
         ]);
 
-        // Назначение прав покупателю
         $userRole->givePermissionTo([
-        'view products',
-        'create orders',
-        'view orders'
-    ]);
+            'view products',
+            'create orders',
+            'view orders'
+        ]);
     }
 }

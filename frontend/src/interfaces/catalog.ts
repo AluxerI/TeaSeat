@@ -1,5 +1,5 @@
 import { Warehouse } from "./warehouse";
-import { Warehouse } from "./warehouse";
+import Images from "../utils/Images";
 
 export interface Category {
   id: number;
@@ -15,87 +15,28 @@ export interface Category {
     }[];
   }[];
 }
-export interface Product {
-  id: number;
-  name: string;
-  ingredients: string;
-  description: string;
-  images: {
-    background: string;
-    main: string;
-  };
-  pricing: {
-    base_price: string;
-    price_with_promotions: number;
-    final_price: number;
-    promotion_discount: number;
-    personal_discount: number;
-    has_discount: boolean;
-  };
-  weight_grams: number;
-  brand: string;
-  category_path: {
-    category: string;
-    subcategory: string;
-    sub_subcategory: string;
-  };
-  inventory: Warehouse[];
 
-  total_quantity: number;
-  is_available: boolean;
-  sold_count: number;
-  created_at: Date;
-  update_at: Date;
-}
 export interface Product {
   id: number;
   name: string;
+  original_price:number;
+  final_price:number;
   ingredients: string;
   description: string;
-  images: {
-    background: string;
-    main: string;
+  main_image: string;
+  background_image: string;
+  discount: {
+    id: number;
+    name: string;
+    type:string;
+    value:number;
+    code:string;
   };
-  pricing: {
-    base_price: string;
-    price_with_promotions: number;
-    final_price: number;
-    promotion_discount: number;
-    personal_discount: number;
-    has_discount: boolean;
-  };
+  discount_percent: number;
+  galery:typeof Images[];
   weight_grams: number;
   brand: string;
-  category_path: {
-    category: string;
-    subcategory: string;
-    sub_subcategory: string;
-  };
-  inventory: Warehouse[];
-  total_quantity: number;
-  is_available: boolean;
-  sold_count: number;
-  created_at: Date;
-  update_at: Date;
-export interface Product {
-  id: number;
-  name: string;
-  ingredients: string;
-  description: string;
-  images: {
-    background: string;
-    main: string;
-  };
-  pricing: {
-    base_price: string;
-    price_with_promotions: number;
-    final_price: number;
-    promotion_discount: number;
-    personal_discount: number;
-    has_discount: boolean;
-  };
-  weight_grams: number;
-  brand: string;
+  brand_id:number;
   category_path: {
     category: string;
     subcategory: string;
@@ -108,20 +49,14 @@ export interface Product {
   created_at: Date;
   update_at: Date;
 }
-export interface Meta {
-  total_products: number;
-  has_pagination: boolean;
+
 export interface Meta {
   total_products: number;
   has_pagination: boolean;
 }
-export interface Catalog {
-  categories: Category[];
-  products: Product[];
-  meta: Meta;
+
 export interface Catalog {
   categories: Category[];
   products: Product[];
   meta: Meta;
 }
-

@@ -23,7 +23,7 @@ class LocationController extends Controller
     {
         $cacheKey = "city_{$city}_products_" . md5($request->fullUrl());
         
-        return Cache::remember($cacheKey, 300, function () use ($request, $city) {
+        $responseData = Cache::remember($cacheKey, 300, function () use ($request, $city) {
             try {
                 $filters = $request->only(['category_id', 'brand_id', 'search', 'page', 'per_page']);
                 
@@ -33,12 +33,12 @@ class LocationController extends Controller
                     ->orderBy('name')
                     ->get();
                 
-                return new CatalogResource([
+                return (new CatalogResource([
                     'categories' => $categories,
                     'products' => $products,
                     'total_products' => $products->count(),
                     'city' => $city
-                ]);
+                ]))->toResponse($request)->getData(true);
                 
             } catch (\Exception $e) {
                 Log::error('Ошибка при получении товаров для города', [
@@ -52,6 +52,8 @@ class LocationController extends Controller
                 ], 500);
             }
         });
+        
+        return $responseData;
     }
 
     public function getProductAvailabilityDetails(string $city, int $productId)

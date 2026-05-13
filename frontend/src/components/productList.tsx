@@ -1,28 +1,26 @@
 import { Grid } from "@mui/material";
-import { catalogApi } from "../api/catalogAPI";
-import { useAsync } from "../hooks/useAsync";
 import { ProductItem } from "./productItem";
-import { Product } from "../interfaces/catalog";
+import { Product, Category } from "../interfaces/catalog";
 import { Picture } from "../types/utils";
 import { typePic } from "./catalog";
 import { Discount } from "../types/catalog";
-import { CategoryAPI } from "../api/categoryAPI";
 import { useMemo } from "react";
 
-export const ProductList = () => {
-  const products = useAsync(() => catalogApi.getProducts(), true);
-  const category = useAsync(() => catalogApi.getCategory(), true);
+interface ProductListProps {
+  products: Product[];
+  categories: Category[];
+}
 
-  const EnrichedProducts = useMemo(() => {
-    if (!products || !category) return [];
-    const categoryMap = new Map(category.data?.map((c) => [c.name, c]));
-    return products.data?.map((product) => ({
+export const ProductList = ({ products, categories }: ProductListProps) => {
+  const enriched = useMemo(() => {
+    const categoryMap = new Map(categories?.map((c) => [c.name, c]));
+    return products?.map((product) => ({
       ...product,
       category_path: {
         category: categoryMap.get(product.category_path.category),
       },
     }));
-  }, [products, category]);
+  }, [products, categories]);
 
   return (
     <Grid
@@ -35,17 +33,16 @@ export const ProductList = () => {
       rowSpacing={2}
       columnSpacing={3}
     >
-      {EnrichedProducts?.map((value) => {
-        console.log(value.images.background.split("."));
+      {enriched?.map((value) => {
         const part_background: Picture = {
-          name: value.images.background.split(".")[0],
-          type: value.images.background.split(".")[1] as typePic,
-          alt: value.images.background.split(".")[0],
+          name: value.background_image.split(".").slice(0,-1).join(),
+          type: value.background_image.split(".").slice(-1).join() as typePic,
+          alt: value.background_image.split(".").slice(0,-1).join()
         };
         const part_product: Picture = {
-          name: value.images.main.split(".")[0],
-          type: value.images.main.split(".")[1] as typePic,
-          alt: value.images.main.split(".")[0],
+          name: value.main_image.split(".").slice(0,-1).join(),
+          type: value.main_image.split(".").slice(-1).join() as typePic,
+          alt: value.main_image.split(".").slice(0,-1).join(),
         };
 
         return (
@@ -54,15 +51,14 @@ export const ProductList = () => {
             brand={value.brand}
             label={value.name}
             weight={value.weight_grams}
-            has_discount={value.pricing.has_discount}
-            discounts={Array(Discount.form(value.pricing.personal_discount))}
+            has_discount={value.discount != null}
+            discounts={value.discount ? Array(Discount.form(value.discount.value)) : []}
             pic_product={part_product}
             inventory={value.inventory}
             is_available={value.is_available && value.total_quantity > 0}
-            pricing={value.sold_count}
+            pricing={value.final_price}
             key={value.id}
-            which_category={value.category_path.category!} // not safefull
-            //rating={}
+            which_category={value.category_path.category!}
             date_create={value.created_at}
             date_update={value.update_at}
           ></ProductItem>

@@ -3,7 +3,6 @@
 namespace App\Http\Controllers\Item;
 
 use App\Http\Controllers\Controller;
-<<<<<<< HEAD
 use App\Http\Resources\Item\CatalogResource;
 use App\Models\Product;
 use App\Models\Category;
@@ -15,90 +14,71 @@ class IndexController extends Controller
     public function __invoke(Request $request)
     {
         $cacheKey = $this->generateCacheKey($request);
-        
-        return Cache::remember($cacheKey, 300, function () use ($request) {
-            // Получаем категории
-            $categories = Category::with(['subcategories.sub_subcategories'])
-                ->orderBy('name')
+
+        $responseData = Cache::remember($cacheKey, 300, function () use ($request) {
+            $categories = Category::with(["subcategories.sub_subcategories"])
+                ->orderBy("name")
                 ->get();
 
-            // Получаем товары
             $productsQuery = Product::with([
-                'brand',
-                'inventories.warehouse',
-            ])->whereHas('inventories', function($query) {
-                $query->where('quantity', '>', 0);
+                "brand",
+                "inventories.warehouse",
+            ])->whereHas("inventories", function($query) {
+                $query->where("quantity", ">", 0);
             });
-            
-            // Применяем фильтры
+
             $productsQuery = $this->applyFilters($productsQuery, $request);
-            
-            // Пагинация
+
             $totalProducts = $productsQuery->count();
             $paginationThreshold = 1000;
-            
+
             if ($totalProducts >= $paginationThreshold) {
-                $products = $productsQuery->paginate($request->get('per_page', 24));
+                $products = $productsQuery->paginate($request->get("per_page", 24));
             } else {
                 $products = $productsQuery->get();
             }
-            
-            return new CatalogResource([
-                'categories' => $categories,
-                'products' => $products,
-                'total_products' => $totalProducts
-            ]);
+
+            return (new CatalogResource([
+                "categories" => $categories,
+                "products" => $products,
+                "total_products" => $totalProducts,
+            ]))->toResponse($request)->getData(true);
         });
+
+        return $responseData;
     }
-    
+
     private function generateCacheKey(Request $request): string
     {
-        $params = $request->only(['category_id', 'brand_id', 'search', 'page', 'per_page', 'sort_by', 'sort_order']);
+        $params = $request->only(["category_id", "brand_id", "search", "page", "per_page", "sort_by", "sort_order"]);
         ksort($params);
-        return 'catalog_' . md5(json_encode($params));
+        return "catalog_" . md5(json_encode($params));
     }
-    
+
     private function applyFilters($query, Request $request)
     {
-        if ($request->has('category_id')) {
-            $query->whereHas('sub_subcategories.subcategory', function($q) use ($request) {
-                $q->where('category_id', $request->category_id);
+        if ($request->has("category_id")) {
+            $query->whereHas("sub_subcategories.subcategory", function($q) use ($request) {
+                $q->where("category_id", $request->category_id);
             });
         }
-        
-        if ($request->has('brand_id')) {
-            $query->where('brand_id', $request->brand_id);
+
+        if ($request->has("brand_id")) {
+            $query->where("brand_id", $request->brand_id);
         }
-        
-        if ($request->has('search')) {
-            $query->where('name', 'ilike', '%' . $request->search . '%');
+
+        if ($request->has("search")) {
+            $query->where("name", "ilike", "%" . $request->search . "%");
         }
-        
-        $sortBy = $request->get('sort_by', 'created_at');
-        $sortOrder = $request->get('sort_order', 'desc');
-        $allowedSorts = ['price', 'sold_count', 'created_at', 'name'];
-        
+
+        $sortBy = $request->get("sort_by", "created_at");
+        $sortOrder = $request->get("sort_order", "desc");
+        $allowedSorts = ["price", "sold_count", "created_at", "name"];
+
         if (in_array($sortBy, $allowedSorts)) {
             $query->orderBy($sortBy, $sortOrder);
         }
-        
+
         return $query;
     }
 }
-=======
-use App\Models\Products;
-use App\Http\Resources\ItemResource;
-
-class indexController extends Controller
-{
-    public function __invoke($productId)
-    {
-        $product = Products::with(['nameProduct','VolumeWarehouse'])->find($productId);
-        // dd($product);
-        if (!$product) {
-            return response()->json(['error' => 'Товар не найден'], 404);
-        }
-        return new ItemResource($product);
-    }
-}
->>>>>>> f90afea8 (Загрузка проекта без докерфайлов для фронта)
