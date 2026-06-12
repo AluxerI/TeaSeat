@@ -1,5 +1,4 @@
 import { Catalog, Category, Meta, Product } from "../interfaces/catalog";
-import { Json } from "../types/utils";
 import { api } from "./api";
 
 const catalog_path = `/catalog`;
@@ -7,39 +6,31 @@ const catalog_path = `/catalog`;
 async function getCatalog(): Promise<Catalog | undefined> {
 
   try {
-    const response = await api.get<Catalog>(catalog_path);
-    return response.data as Catalog;
+    const response = await api.get<{ data: Catalog }>(catalog_path);
+    return response.data.data;
   } catch (e: unknown) {
     if (e instanceof Error) {
       console.error(`Error when loading catalog: ${e}`);
     } else {
 
-      console.error(`Unknow error`);
+      console.error(`Unknown error`);
     }
     return undefined;
   }
 }
 
-async function parseCatalog() {
-  let catalog: Catalog | string = (await getCatalog())!;
-  catalog = JSON.stringify(catalog);
-  const answer: Json = JSON.parse(catalog);
-  const ans: Catalog = answer["data"] as Catalog;
-  return ans;
-}
-
 export const catalogApi = {
   async getProducts(): Promise<Product[]> {
-    const ans: Catalog = await parseCatalog();
-    return ans["products"] as Product[];
+    const ans = await getCatalog();
+    return ans?.products ?? [];
   },
   async getCategory(): Promise<Category[]> {
-    const ans: Catalog = await parseCatalog();
-    return ans["categories"] as Category[];
+    const ans = await getCatalog();
+    return ans?.categories ?? [];
   },
   async getMeta(): Promise<Meta> {
-    const ans: Catalog = await parseCatalog();
-    return ans["meta"] as Meta;
+    const ans = await getCatalog();
+    return ans?.meta ?? { total_products: 0, has_pagination: false };
   },
 
 };
