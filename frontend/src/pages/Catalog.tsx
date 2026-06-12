@@ -1,16 +1,13 @@
 import { useState, useMemo } from "react";
 import CatalogHeader from "../components/catalog-part/CatalogHeaderSort/CatalogHeaderProps";
-import FilterPanel, {CATEGORIES, PRICE_RANGES, BRANDS, FilterState, CategoryProp, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
+import FilterPanel, {CATEGORIES, PRICE_RANGES, FilterState, CategoryProp, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
 import { ProductList } from "../components/productList";
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/footer";
 import { catalogApi } from "../api/catalogAPI";
 import { useAsync } from "../hooks/useAsync";
 import { Category, Product } from "../interfaces/catalog";
-
-// Простейший map id бренда → его label (чтобы не перебирать BRANDS каждый раз)
-const BRAND_LABELS: Record<string, string> = {};
-for (const b of BRANDS) BRAND_LABELS[b.id] = b.label;
+import { sort_by_category, sort_by_brands } from "../utils/product_methods";
 
 // Дефолтное состояние — все фильтры пустые (показаны все товары)
 const DEFAULT_FILTERS: FilterState = {
@@ -113,24 +110,68 @@ function filterProducts(products: Product[], filters: FilterState,categories: Ca
 export const PageCatalog = () => {
   // Состояние фильтров — живёт здесь, а FilterPanel только отображает и сообщает об изменениях
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
+  const [sortValue, setSortValue] = useState("popular");
 
   // Загрузка данных с бэкенда (один раз при монтировании)
   const products = useAsync(() => catalogApi.getProducts(), true);
   const categories = useAsync(() => catalogApi.getCategory(), true);
   const meta = useAsync(() => catalogApi.getMeta(), true);
 
-  // Отфильтрованный список — пересчитывается при изменении products.data или filters
-  const filtered = useMemo(
-    () => filterProducts(products.data ?? [], filters),
-    [products.data, filters]
-  );
+  // Вычисляем категории и бренды динамически из данных API
+  const categories_prop: CategoryProp[] = useMemo(() => {
+    if (!categories.data || !products.data) return [];
+    const catMap = sort_by_category(categories.data, products.data, "object");
+    return (catMap instanceof Set)
+      ? categories.data.map(cat => ({
+          id: cat.name.toLowerCase().replace(/\s+/g, '_'),
+          label: cat.name,
+          count: catMap.add(cat.name)?.size ?? 0,
+        }))
+      : [];
+  }, [categories.data, products.data]);
+
+  // Собираем уникальные бренды через Set (sort_by_brands), превращаем в BrandProp[]
+  const brand_prop: BrandProp[] = useMemo(() => {
+    const brandsSet = sort_by_brands(products.data ?? [], "object");
+    if (brandsSet instanceof Set) {
+      return Array.from(brandsSet).map(name => ({
+        id: name.toLowerCase().replace(/\s+/g, '_'),
+        label: name,
+      }));
+    }
+    return [];
+  }, [products.data]);
+
+  console.info(brand_prop);
+  console.info(categories_prop)
+
+  const brandLabelsRecord: Record<string, string> = useMemo(() => {
+    const record: Record<string, string> = {};
+    for (const b of brand_prop) record[b.id] = b.label;
+    return record;
+  }, [brand_prop]);
+
+  const filtered = useMemo(() => {
+    const f = filterProducts(products.data ?? [], filters, categories_prop, brand_prop);
+    switch (sortValue) {
+      case "price_asc":
+        return [...f].sort((a, b) => a.final_price - b.final_price);
+      case "price_desc":
+        return [...f].sort((a, b) => b.final_price - a.final_price);
+      case "new":
+        return [...f].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      case "popular":
+      default:
+        return [...f].sort((a, b) => b.sold_count - a.sold_count);
+    }
+  }, [products.data, filters, categories_prop, brand_prop, sortValue]);
 
   // Обработчики для FilterPanel
   const handleChange = (next: FilterState) => setFilters(next);
   const handleReset = () => setFilters(DEFAULT_FILTERS);
 
   // Теги активных фильтров (показываются в CatalogHeader как чипы)
-  const filterTags = useMemo(() => filtersToTags(filters), [filters]);
+  const filterTags = useMemo(() => filtersToTags(filters, categories_prop, brandLabelsRecord, PRICE_RANGES), [filters, categories_prop, brandLabelsRecord]);
 
   // Когда пользователь тыкает крестик на чипе → убираем соответствующий фильтр
   const handleRemoveTag = (tagId: string) => {
@@ -160,13 +201,15 @@ export const PageCatalog = () => {
     <>
       <Header />
       <span className="filters-and-grid">
-        <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset}/>
+        <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} brands={brand_prop} categories={categories_prop}/>
         <div className="product-and-header">
           <CatalogHeader
             total={meta.data?.total_products ?? filtered.length}
             tags={filterTags}
             onRemoveTag={handleRemoveTag}
             onShowAll={handleShowAll}
+            sortValue={sortValue}
+            onSortChange={setSortValue}
           />
           <ProductList products={filtered} categories={categories.data ?? []}/>
         </div>
