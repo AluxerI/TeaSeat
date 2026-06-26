@@ -1,13 +1,13 @@
 import { useState, useMemo } from "react";
 import CatalogHeader from "../components/catalog-part/CatalogHeaderSort/CatalogHeaderProps";
-import FilterPanel, {CATEGORIES, PRICE_RANGES, FilterState, CategoryProp, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
+import FilterPanel, {PRICE_RANGES, FilterState, CategoryTreeNode, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
 import { ProductList } from "../components/productList";
 import Header from "../ui/header/header";
-import Footer from "../ui/footer/footer";
+import Footer from "../ui/footer/Footer";
 import { catalogApi } from "../api/catalogAPI";
 import { useAsync } from "../hooks/useAsync";
 import { Category, Product } from "../interfaces/catalog";
-import { sort_by_category, sort_by_brands } from "../utils/product_methods";
+import { sort_by_brands } from "../utils/product_methods";
 
 // Дефолтное состояние — все фильтры пустые (показаны все товары)
 const DEFAULT_FILTERS: FilterState = {
@@ -21,14 +21,60 @@ const DEFAULT_FILTERS: FilterState = {
 
 // ---------- Утилиты ----------
 
+// Строит из API-категорий дерево CategoryTreeNode с подсчётом продуктов
+function buildCategoryTree(categories: { id: number; name: string; subcategories: { id: number; name: string; sub_subcategories: { id: number; name: string }[] }[] }[], products: { category_path: { category: string; subcategory: string; sub_subcategory: string } }[]): CategoryTreeNode[] {
+  return categories
+    .map(cat => {
+      const catProducts = products.filter(p => p.category_path.category === cat.name);
+      const subTree = cat.subcategories
+        .map(sub => {
+          const subProducts = catProducts.filter(p => p.category_path.subcategory === sub.name);
+          const subsubTree = sub.sub_subcategories
+            .map(ss => ({
+              id: `subsub_${ss.id}`,
+              label: ss.name,
+              count: subProducts.filter(p => p.category_path.sub_subcategory === ss.name).length,
+            }))
+            .filter(n => n.count > 0);
+          return {
+            id: `sub_${sub.id}`,
+            label: sub.name,
+            count: subProducts.length,
+            children: subsubTree.length > 0 ? subsubTree : undefined,
+          };
+        })
+        .filter(n => n.count > 0);
+      return {
+        id: `cat_${cat.id}`,
+        label: cat.name,
+        count: catProducts.length,
+        children: subTree.length > 0 ? subTree : undefined,
+      };
+    })
+    .filter(n => n.count > 0);
+}
+
+// Превращает дерево категорий в плоский lookup для фильтрации
+function flattenCategoryTree(nodes: CategoryTreeNode[]): Record<string, { level: "category" | "subcategory" | "sub_subcategory"; label: string }> {
+  const lookup: Record<string, { level: "category" | "subcategory" | "sub_subcategory"; label: string }> = {};
+  function walk(list: CategoryTreeNode[]) {
+    for (const n of list) {
+      const level = n.id.startsWith("cat_") ? "category" : n.id.startsWith("sub_") ? "subcategory" : "sub_subcategory";
+      lookup[n.id] = { level, label: n.label };
+      if (n.children) walk(n.children);
+    }
+  }
+  walk(nodes);
+  return lookup;
+}
+
 // Превращает текущие фильтры в массив тегов для хедера.
-// Каждый тег — это чип с id ("cat_tea", "brand_ahmad") и человекопонятной подписью.
-function filtersToTags(filters: FilterState,categories:CategoryProp[],brand: Record<string, string>,price:PriceRangeProp[]): { id: string; label: string }[] {
+function filtersToTags(filters: FilterState, categoryLookup: Record<string, { level: string; label: string }>, brand: Record<string, string>, price: PriceRangeProp[]): { id: string; label: string }[] {
   const tags: { id: string; label: string }[] = [];
 
   for (const id of filters.categories) {
-    const cat = categories.find((c) => c.id === id);
-    tags.push({ id: `cat_${id}`, label: cat?.label ?? id });
+    const entry = categoryLookup[id];
+    tags.push({ id, label: entry?.label ?? id });
   }
 
   for (const id of filters.brands) {
@@ -53,24 +99,20 @@ function filtersToTags(filters: FilterState,categories:CategoryProp[],brand: Rec
 }
 
 // Фильтрация массива продуктов по текущему состоянию фильтров.
-// Фильтры хранят id ("tea", "ahmad"), а в продуктах лежат названия ("Чай", "Ahmad Tea").
-// Поэтому сначала маппим id → label, а потом сравниваем label с полем продукта.
-function filterProducts(products: Product[], filters: FilterState,categories: CategoryProp[],brands:BrandProp[]): Product[] {
-  // Маппим id выбранных категорий в их label ("Чай", "Кофе"...)
-  const catLabels = filters.categories.map(
-    (id) => categories.find((c) => c.id === id)?.label
-  ).filter(Boolean);
+function filterProducts(products: Product[], filters: FilterState, categoryLookup: Record<string, { level: "category" | "subcategory" | "sub_subcategory"; label: string }>, brands: BrandProp[]): Product[] {
   // Маппим id выбранных брендов в их label ("Ahmad Tea"...)
   const brandLabels = filters.brands.map(
     (id) => brands.find((b) => b.id === id)?.label
   ).filter(Boolean);
 
   return products.filter((p) => {
-    // ----- Категории -----
-    if (catLabels.length > 0) {
-      const catMatch = catLabels.some(
-        (label) => p.category_path.category === label
-      );
+    // ----- Категории (иерархические: category / subcategory / sub_subcategory) -----
+    if (filters.categories.length > 0) {
+      const catMatch = filters.categories.some((id) => {
+        const entry = categoryLookup[id];
+        if (!entry) return false;
+        return p.category_path[entry.level] === entry.label;
+      });
       if (!catMatch) return false;
     }
 
@@ -117,18 +159,14 @@ export const PageCatalog = () => {
   const categories = useAsync(() => catalogApi.getCategory(), true);
   const meta = useAsync(() => catalogApi.getMeta(), true);
 
-  // Вычисляем категории и бренды динамически из данных API
-  const categories_prop: CategoryProp[] = useMemo(() => {
+  // Строим дерево категорий из API-данных
+  const categoryTree: CategoryTreeNode[] = useMemo(() => {
     if (!categories.data || !products.data) return [];
-    const catMap = sort_by_category(categories.data, products.data, "object");
-    return (catMap instanceof Set)
-      ? categories.data.map(cat => ({
-          id: cat.name.toLowerCase().replace(/\s+/g, '_'),
-          label: cat.name,
-          count: catMap.add(cat.name)?.size ?? 0,
-        }))
-      : [];
+    return buildCategoryTree(categories.data, products.data);
   }, [categories.data, products.data]);
+
+  // Плоский lookup id → { level, label } для быстрой фильтрации
+  const categoryLookup = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
 
   // Собираем уникальные бренды через Set (sort_by_brands), превращаем в BrandProp[]
   const brand_prop: BrandProp[] = useMemo(() => {
@@ -142,9 +180,6 @@ export const PageCatalog = () => {
     return [];
   }, [products.data]);
 
-  console.info(brand_prop);
-  console.info(categories_prop)
-
   const brandLabelsRecord: Record<string, string> = useMemo(() => {
     const record: Record<string, string> = {};
     for (const b of brand_prop) record[b.id] = b.label;
@@ -152,7 +187,7 @@ export const PageCatalog = () => {
   }, [brand_prop]);
 
   const filtered = useMemo(() => {
-    const f = filterProducts(products.data ?? [], filters, categories_prop, brand_prop);
+    const f = filterProducts(products.data ?? [], filters, categoryLookup, brand_prop);
     switch (sortValue) {
       case "price_asc":
         return [...f].sort((a, b) => a.final_price - b.final_price);
@@ -164,33 +199,31 @@ export const PageCatalog = () => {
       default:
         return [...f].sort((a, b) => b.sold_count - a.sold_count);
     }
-  }, [products.data, filters, categories_prop, brand_prop, sortValue]);
+  }, [products.data, filters, categoryLookup, brand_prop, sortValue]);
 
   // Обработчики для FilterPanel
   const handleChange = (next: FilterState) => setFilters(next);
   const handleReset = () => setFilters(DEFAULT_FILTERS);
 
   // Теги активных фильтров (показываются в CatalogHeader как чипы)
-  const filterTags = useMemo(() => filtersToTags(filters, categories_prop, brandLabelsRecord, PRICE_RANGES), [filters, categories_prop, brandLabelsRecord]);
+  const filterTags = useMemo(() => filtersToTags(filters, categoryLookup, brandLabelsRecord, PRICE_RANGES), [filters, categoryLookup, brandLabelsRecord]);
 
   // Когда пользователь тыкает крестик на чипе → убираем соответствующий фильтр
   const handleRemoveTag = (tagId: string) => {
-    const [prefix, ...rest] = tagId.split("_");
-    const id = rest.join("_");
-
-    if (prefix === "cat") {
+    if (tagId.startsWith("cat_") || tagId.startsWith("sub_") || tagId.startsWith("subsub_")) {
       setFilters((prev) => ({
         ...prev,
-        categories: prev.categories.filter((c) => c !== id),
+        categories: prev.categories.filter((c) => c !== tagId),
       }));
-    } else if (prefix === "brand") {
+    } else if (tagId.startsWith("brand_")) {
+      const brandId = tagId.slice(6);
       setFilters((prev) => ({
         ...prev,
-        brands: prev.brands.filter((b) => b !== id),
+        brands: prev.brands.filter((b) => b !== brandId),
       }));
-    } else if (prefix === "price") {
+    } else if (tagId.startsWith("price_")) {
       setFilters((prev) => ({ ...prev, priceRange: null, priceFrom: "", priceTo: "" }));
-    } else if (prefix === "rating") {
+    } else if (tagId.startsWith("rating_")) {
       setFilters((prev) => ({ ...prev, rating: null }));
     }
   };
@@ -201,7 +234,7 @@ export const PageCatalog = () => {
     <>
       <Header />
       <span className="filters-and-grid">
-        <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} brands={brand_prop} categories={categories_prop}/>
+        <FilterPanel filters={filters} onChange={handleChange} onReset={handleReset} brands={brand_prop} categories={categoryTree}/>
         <div className="product-and-header">
           <CatalogHeader
             total={meta.data?.total_products ?? filtered.length}

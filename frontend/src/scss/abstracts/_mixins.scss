@@ -39,7 +39,7 @@
     font-weight: $weight;
 
     // Соберём список src-источников: сначала локальная проверка
-    $src-list: local(unquote($font-name));
+    $src-list: local("#{$font-name}");
     $fmt-type: "";
     // Пробегаемся по всем указанным форматам и добавляем url(... format(...))
     @each $fmt in $formats {
@@ -54,14 +54,14 @@
       } @else if $fmt == "eot" {
         $fmt-type: "embedded-opentype";
       } @else {
-        // Если какой‐то нестандартный формат передали, просто используем его как есть
         $fmt-type: #{$fmt};
       }
 
       // Добавляем запись в список src‐источников через запятую
       $src-list: append(
         $src-list,
-        url("#{$font-path}.#{$fmt}") format("#{$fmt-type}")
+        url("#{$font-path}.#{$fmt}") format("#{$fmt-type}"),
+        $separator: comma
       );
     }
 

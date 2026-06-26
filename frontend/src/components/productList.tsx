@@ -6,6 +6,11 @@ import { typePic } from "./catalog";
 import { Discount } from "../types/catalog";
 import { useMemo } from "react";
 
+// Убирает origin бэкенда из URL картинок, чтобы запрос шёл через CRA-прокси
+function stripOrigin(url: string): string {
+  return url.replace(/^https?:\/\/[^\/]+/, "");
+}
+
 interface ProductListProps {
   products: Product[];
   categories: Category[];
@@ -34,15 +39,17 @@ export const ProductList = ({ products, categories }: ProductListProps) => {
       columnSpacing={3}
     >
       {enriched?.map((value) => {
+        const bgUrl = stripOrigin(value.background_image);
+        const imgUrl = stripOrigin(value.main_image);
         const part_background: Picture = {
-          name: value.background_image.split(".").slice(0,-1).join(),
-          type: value.background_image.split(".").slice(-1).join() as typePic,
-          alt: value.background_image.split(".").slice(0,-1).join()
+          name: bgUrl.split(".").slice(0,-1).join(),
+          type: bgUrl.split(".").slice(-1).join() as typePic,
+          alt: bgUrl.split(".").slice(0,-1).join()
         };
         const part_product: Picture = {
-          name: value.main_image.split(".").slice(0,-1).join(),
-          type: value.main_image.split(".").slice(-1).join() as typePic,
-          alt: value.main_image.split(".").slice(0,-1).join(),
+          name: imgUrl.split(".").slice(0,-1).join(),
+          type: imgUrl.split(".").slice(-1).join() as typePic,
+          alt: imgUrl.split(".").slice(0,-1).join(),
         };
 
         return (

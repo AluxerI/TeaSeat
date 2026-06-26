@@ -1,10 +1,13 @@
+import { useState } from "react";
+
 // ---------- Типы данных для фильтров ----------
 // Каждая секция фильтра (категории, цена, бренд, рейтинг) описывается своим типом
 
-export interface CategoryProp {
-  id: string;    // уникальный ключ (tea, coffee…)
+export interface CategoryTreeNode {
+  id: string;    // уникальный ключ ("cat_3", "sub_12", "subsub_45")
   label: string; // человекопонятное название ("Чай")
-  count: number; // сколько товаров в этой категории
+  count: number; // сколько товаров в этой категории/подкатегории
+  children?: CategoryTreeNode[];
 }
 
 export interface BrandProp {
@@ -34,12 +37,14 @@ interface FilterPanelProps {
   filters: FilterState;           // текущее состояние
   onChange?: (filters: FilterState) => void; // сообщить об изменении
   onReset?: () => void;           // дополнительный колбэк при сбросе
+  categories?: CategoryTreeNode[]; // дерево категорий (из Catalog)
+  brands?: BrandProp[];           // динамические бренды (из Catalog)
 }
 
 // ---------- Статические данные для фильтров ----------
 // Они жёстко зашиты, но в будущем могут приходить с бэкенда
 
-export const CATEGORIES: CategoryProp[] = [
+export const CATEGORIES: CategoryTreeNode[] = [
   { id: "tea", label: "Чай", count: 156 },
   { id: "coffee", label: "Кофе", count: 89 },
   { id: "desserts", label: "Десерты", count: 67 },
@@ -142,9 +147,97 @@ function Radio({
   );
 }
 
+// ---------- Дерево категорий (рекурсивный компонент) ----------
+
+function CategoryNode({
+  node,
+  selected,
+  onToggle,
+  depth,
+}: {
+  node: CategoryTreeNode;
+  selected: string[];
+  onToggle: (id: string) => void;
+  depth: number;
+}) {
+  const [expanded, setExpanded] = useState(true);
+  const hasChildren = node.children && node.children.length > 0;
+  const checked = selected.includes(node.id);
+
+  return (
+    <div>
+      <div
+        className="filter-panel__tree-row"
+        style={{ paddingLeft: depth * 20 }}
+      >
+        {hasChildren ? (
+          <button
+            className="filter-panel__tree-toggle"
+            onClick={() => setExpanded((v) => !v)}
+            type="button"
+          >
+            {expanded ? (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            ) : (
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M3.5 2l3 3-3 3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
+          </button>
+        ) : (
+          <span className="filter-panel__tree-toggle" />
+        )}
+        <Checkbox checked={checked} onChange={() => onToggle(node.id)}>
+          {node.label}{" "}
+          <span className="filter-panel__count">({node.count})</span>
+        </Checkbox>
+      </div>
+      {hasChildren && expanded && (
+        <div className="filter-panel__tree-children">
+          {node.children!.map((child) => (
+            <CategoryNode
+              key={child.id}
+              node={child}
+              selected={selected}
+              onToggle={onToggle}
+              depth={depth + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryTree({
+  nodes,
+  selected,
+  onToggle,
+}: {
+  nodes: CategoryTreeNode[];
+  selected: string[];
+  onToggle: (id: string) => void;
+}) {
+  return (
+    <div className="filter-panel__tree">
+      {nodes.map((node) => (
+        <CategoryNode
+          key={node.id}
+          node={node}
+          selected={selected}
+          onToggle={onToggle}
+          depth={0}
+        />
+      ))}
+    </div>
+  );
+}
+
 // ---------- Основной компонент ----------
 
-export default function FilterPanel({ filters, onChange, onReset }: FilterPanelProps) {
+export default function FilterPanel({ filters, onChange, onReset,categories,brands }: FilterPanelProps) {
 
 
 
@@ -169,25 +262,21 @@ export default function FilterPanel({ filters, onChange, onReset }: FilterPanelP
     onReset?.();
   };
 
+  const catItems = categories ?? CATEGORIES;
+  const brandItems = brands ?? BRANDS;
+
   return (
     <div className="filter-panel">
       <h2 className="filter-panel__title">Фильтры</h2>
 
-      {/* -------- Категории (множественный выбор) -------- */}
+      {/* -------- Категории (дерево с expand/collapse) -------- */}
       <section className="filter-panel__section">
         <h3 className="filter-panel__section-title">Категории</h3>
-        <div className="filter-panel__list">
-          {CATEGORIES.map((cat) => (
-            <Checkbox
-              key={cat.id}
-              checked={filters.categories.includes(cat.id)}
-              onChange={() => toggleArr("categories", cat.id)}
-            >
-              {cat.label}{" "}
-              <span className="filter-panel__count">({cat.count})</span>
-            </Checkbox>
-          ))}
-        </div>
+        <CategoryTree
+          nodes={catItems}
+          selected={filters.categories}
+          onToggle={(id) => toggleArr("categories", id)}
+        />
       </section>
 
       {/* -------- Цена: кастомный ввод + готовые диапазоны -------- */}

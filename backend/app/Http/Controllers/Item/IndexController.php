@@ -33,7 +33,7 @@ class IndexController extends Controller
             $paginationThreshold = 1000;
 
             if ($totalProducts >= $paginationThreshold) {
-                $products = $productsQuery->paginate($request->get("per_page", 24));
+                $products = $productsQuery->paginate($request->input("per_page", 24));
             } else {
                 $products = $productsQuery->get();
             }
@@ -71,8 +71,8 @@ class IndexController extends Controller
             $query->where("name", "ilike", "%" . $request->search . "%");
         }
 
-        $sortBy = $request->get("sort_by", "created_at");
-        $sortOrder = $request->get("sort_order", "desc");
+        $sortBy = $request->input("sort_by", "created_at");
+        $sortOrder = $request->input("sort_order", "desc");
         $allowedSorts = ["price", "sold_count", "created_at", "name"];
 
         if (in_array($sortBy, $allowedSorts)) {

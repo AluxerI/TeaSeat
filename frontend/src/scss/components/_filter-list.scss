@@ -190,6 +190,45 @@ $filter-btn-reset-color: #6b7280;
     font-size: $filter-text-size;
   }
 
+  // ----- Дерево категорий -----
+
+  &__tree {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__tree-toggle {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: #9ca3af;
+    flex-shrink: 0;
+    padding: 0;
+    font-family: inherit;
+
+    &:hover {
+      color: #374151;
+    }
+  }
+
+  &__tree-children {
+    display: flex;
+    flex-direction: column;
+  }
+
   &__btn {
     width: 100%;
     border-radius: $filter-btn-radius;
