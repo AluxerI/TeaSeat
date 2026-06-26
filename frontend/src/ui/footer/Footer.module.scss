@@ -1,0 +1,159 @@
+@import "../../scss/abstracts/variable";
+@import "../../scss/abstracts/functions";
+@import "../../scss/abstracts/mixins";
+@import "../../scss/base/typography";
+
+$text-primary: #f0e6df;
+$text-muted: #a08070;
+$text-dim: #7a5f53;
+$divider: rgba(255, 255, 255, 0.08);
+$bp-md: 768px;
+$bp-lg: 1024px;
+
+.footer {
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+  background: $color-primary-coffee;
+  color: $text-muted;
+  @include typography($body-sm, 400, 1.5);
+}
+
+.footerInner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: spacing('xl');
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: space-mult('xl', 1) space-mult('xl', 1) space-mult('lg', 1.25);
+
+  @media (max-width: $bp-lg) {
+    grid-template-columns: 1fr 1fr;
+    padding: spacing('lg') spacing('md') spacing('md');
+    gap: spacing('md');
+  }
+
+  @media (max-width: $bp-md) {
+    grid-template-columns: 1fr;
+    padding: spacing('md') spacing('sm') spacing('sm');
+  gap: spacing('md');
+  }
+}
+
+.colBrand {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('sm');
+}
+
+.brandRow {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: spacing('md');
+  margin-left: -155px;
+}
+
+.brandText {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+}
+
+.brandName {
+  @include typography($body, 600);
+  color: $text-primary;
+  margin: 0;
+  letter-spacing: 0.01em;
+}
+
+.brandTagline {
+  @include typography($body-sm, 400, 1.6);
+  font-size: spacing('sm') + 2px;
+  color: $text-muted;
+  margin: 0;
+}
+
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+}
+
+.colTitle {
+  @include typography($body, 600);
+  color: $text-primary;
+  margin: 0 0 spacing('xs');
+  letter-spacing: 0.02em;
+}
+
+.colList {
+  @include removed;
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.colLink {
+  color: $text-muted;
+  text-decoration: none;
+  @include typography($body-sm, 400);
+  font-size: spacing('sm') + 2px;
+  @include smooth-transition(color);
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+.contactsAddress {
+  display: flex;
+  flex-direction: column;
+  gap: spacing('xs');
+  font-style: normal;
+  margin-bottom: spacing('sm');
+}
+
+.contactLink {
+  @include typography($body-sm, 400);
+  font-size: spacing('sm') + 2px;
+  color: $text-muted;
+  text-decoration: none;
+  @include smooth-transition(color);
+
+  &:hover {
+    color: $text-primary;
+  }
+}
+
+.socialWrap {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 340px;
+  height: 340px;
+  z-index: 20;
+}
+
+.footerBottom {
+  border-top: 2px solid $divider;
+  text-align: center;
+  padding: spacing('sm') space-mult('xl', 1);
+  max-width: 100%;
+
+  p {
+    @include typography($body-sm, 400);
+    font-size: spacing('sm') + 2px;
+    color: $text-dim;
+    margin: 0;
+  }
+
+  @media (max-width: $bp-md) {
+    padding: spacing('sm') spacing('sm');
+  }
+}

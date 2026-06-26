@@ -1,5 +1,5 @@
 import { Grid } from "@mui/material";
-import Footer from "../ui/footer/footer"
+import Footer from "../ui/footer/Footer"
 import Header from "../ui/header/header"
 import { useLocation } from 'react-router-dom';
 import { CatalogItem } from "../components/catalogItem";

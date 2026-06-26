@@ -142,18 +142,27 @@ $transition-normal: 0.25s ease;
 
 .background,
 .gramm-and-price {
-  width: 85%;
+  width: 100%;
   height: auto;
+  display: flex;
+  justify-content: center;
 }
 
 .grams-form {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 
-  width: 60%;
+  width: 100%;
   margin-bottom: $padding-body;
-  @include flex-any(space-between, center);
+
+  .count-gramms,
+  .price {
+    text-align: center;
+    min-width: 50px;
+  }
 
   button {
     width: $button-height;

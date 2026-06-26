@@ -1,46 +1,367 @@
-@use "../../abstracts/variable";
-@use "../../abstracts/functions";
-@use "../../abstracts/mixins";
-@use "../../base/typography";
-@use "./search";
+@import "../../abstracts/variable";
+@import "../../abstracts/functions";
+@import "../../abstracts/mixins";
 
-header{
-    @include flex-centre();
-    @include linearGradient(right,$color-primary-tea,$color-secondary-tea);
+// ── Variables ────────────────────────────────────────────────────────────────
+
+$header-bg-from:      #f5e4c3;
+$header-bg-to:        #f0dcb8;
+$header-border:       #e3cda0;
+$header-text:         #5c4a2a;
+$header-text-hover:   #3a2d16;
+$header-hover-bg:     #e9d4a8;
+$header-search-icon:  #a08652;
+$header-placeholder:  #b29a6e;
+$header-focus-ring:   #caa75e;
+$header-badge-bg:     #b5532e;
+$header-avatar-from:  #d8b97a;
+$header-avatar-to:    #b5532e;
+
+// ── Root ────────────────────────────────────────────────────────────────────
+
+.header {
+  position: relative;
+  background: linear-gradient(to right, $header-bg-from, $header-bg-to);
+  border-bottom: 1px solid $header-border;
+  z-index: 100;
 }
 
+// ── Leaves ───────────────────────────────────────────────────────────────────
 
-.main_buttons{
+.header__leaf {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  opacity: 0.35;
+  user-select: none;
+
+  &--left {
+    left: 0;
+    top: 0;
+    width: 56px;
+    height: auto;
+  }
+
+  &--right {
+    right: 0;
+    bottom: 8px;
+    width: 72px;
+    height: auto;
+    transform: scaleX(-1);
+  }
+}
+
+// ── Inner container ──────────────────────────────────────────────────────────
+
+.header__inner {
+  position: relative;
+  max-width: 1152px;
+  margin: 0 auto;
+  padding: 0 16px;
+
+  @include respond-to(map-get($breakpoints, sm)) {
+    padding: 0 24px;
+  }
+}
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+
+.header__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 0;
+  position: relative;
+}
+
+// ── Left part ────────────────────────────────────────────────────────────────
+
+.header__left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+// ── Logo ─────────────────────────────────────────────────────────────────────
+
+.header__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  text-decoration: none;
+
+  padding-bottom: 0;
+  margin-top: 4px;
+
+  svg {
+    filter: drop-shadow(0 2px 8px rgba(90, 45, 12, 0.25));
+    transition: transform 0.2s ease;
+  }
+
+  &:hover svg {
+    transform: scale(1.06) rotate(-3deg);
+  }
+}
+
+.header__logo-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: $header-text;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  opacity: 0.75;
+
+  @media (max-width: 400px) {
+    display: none;
+  }
+}
+
+// ── Burger ───────────────────────────────────────────────────────────────────
+
+.header__burger {
+  padding: 8px;
+  @include border-radius(8px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  transition: background 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+
+  &--mobile {
     display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    ul{
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    gap:spacing($md);
+
+    @include respond-to(map-get($breakpoints, lg)) {
+      display: none;
     }
-    @include removed();
-    font-family: "Chocolate Light";
-    @include typography($body,700,2.2);  
+  }
+
+  &--desktop {
+    display: none;
+
+    @include respond-to(map-get($breakpoints, lg)) {
+      display: flex;
+    }
+  }
 }
-.blocks{
-    @include removed();
+
+// ── Nav ──────────────────────────────────────────────────────────────────────
+
+.header__nav {
+  display: none;
+  align-items: center;
+  gap: 24px;
+
+  @include respond-to(map-get($breakpoints, md)) {
     display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    gap:spacing($lg);
-    
-    
+  }
 }
-.container{
-    @include typography($body-sm,400,2.2); 
+
+.header__nav-link {
+  font-size: 14px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  transition: color 0.18s ease;
+  white-space: nowrap;
+
+  &:hover {
+    color: $header-text-hover;
+  }
 }
-.media{
+
+// ── Right part: search + icons ──────────────────────────────────────────────
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+
+.header__search {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba($header-border, 0.6);
+  @include border-radius(9999px);
+  padding: 7px 14px;
+  width: 200px;
+  transition: box-shadow 0.18s ease, background 0.18s ease, width 0.25s ease;
+
+  &:focus-within {
+    box-shadow: 0 0 0 2px $header-focus-ring;
+    background: rgba(255, 255, 255, 0.9);
+    width: 240px;
+  }
+
+  @include respond-to(map-get($breakpoints, sm)) {
     display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    .number{color:white;}
-    gap:spacing($sm);
-    margin-left: spacing($xl);
+  }
+
+  @include respond-to(map-get($breakpoints, lg)) {
+    width: 260px;
+
+    &:focus-within {
+      width: 300px;
+    }
+  }
+}
+
+.header__search-icon {
+  color: $header-search-icon;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.header__search-input {
+  background: transparent;
+  outline: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 400;
+  color: $header-text;
+  width: 100%;
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+
+  &::placeholder {
+    color: $header-placeholder;
+  }
+}
+
+// ── Icon buttons ─────────────────────────────────────────────────────────────
+
+.header__icon-btn {
+  padding: 8px;
+  @include border-radius(9999px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: $header-badge-bg;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  @include border-radius(9999px);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+// ── User ─────────────────────────────────────────────────────────────────────
+
+.header__user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  @include border-radius(9999px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__avatar {
+  width: 32px;
+  height: 32px;
+  @include border-radius(9999px);
+  background: linear-gradient(135deg, $header-avatar-from, $header-avatar-to);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// ── Mobile menu ──────────────────────────────────────────────────────────────
+
+.header__mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    display: none;
+  }
+}
+
+.header__mobile-link {
+  padding: 10px 8px;
+  @include border-radius(8px);
+  font-size: 14px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__mobile-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba($header-border, 0.6);
+  @include border-radius(9999px);
+  padding: 8px 14px;
+  margin-top: 8px;
+
+  &:focus-within {
+    box-shadow: 0 0 0 2px $header-focus-ring;
+    background: rgba(255, 255, 255, 0.9);
+  }
 }
