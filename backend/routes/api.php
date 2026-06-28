@@ -145,3 +145,14 @@ Route::group([
     Route::delete('/items/images/{image}', 'Image\DeleteController')->name('image.delete.man')->middleware('can:edit products');
     Route::post('/items/images/{image}/set-main', 'Image\SetmainController')->name('image.setMain')->middleware('can:edit products');
 });
+//избранное
+Route::group([
+    'namespace' => 'App\Http\Controllers\Wishlist',
+    'middleware' => 'auth:sanctum',
+    'prefix' => 'wishlist'
+], function() {
+    Route::get('/', 'IndexController')-> name('wishlist.index');
+    Route::post('/', 'StoreController')-> name('wishlist.store');
+    Route::delete('/{productId}', 'DestroyController')-> name('wishlist.destroy');
+    Route::get('/check/{productId}', 'CheckController')-> name('wishlist.check');
+});
