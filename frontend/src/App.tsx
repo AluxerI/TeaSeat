@@ -9,6 +9,8 @@ import { useAsync } from './hooks/useAsync';
 import { catalogApi } from './api/catalogAPI';
 import { ProductList } from './components/productList';
 import { PageCatalog } from './pages/Catalog';
+import RegisterPage from './pages/RegisterPage';
+import LoginPage from './pages/LoginPage';
 
 
 interface Data {
@@ -79,6 +81,8 @@ const App: React.FC = () => {
            */}
 
            <Route path='catalog' Component={PageCatalog}/>
+           <Route path='register' Component={RegisterPage}/>
+           <Route path='login' Component={LoginPage}/>
            
         </Routes>
         
