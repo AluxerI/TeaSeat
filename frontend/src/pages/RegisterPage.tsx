@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { authApi } from "../api/authAPI";
 import { translateError, extractError } from "../utils/translateError";
-import styles from "./RegisterPage.module.scss";
+import { useAuth } from "../hooks/useAuth";
+import styles from "../scss/pages/RegisterPage.module.scss";
 
 // ── Иконки ──────────────────────────────────────────────────────────────────
 
@@ -194,6 +195,7 @@ interface FormErrors {
 
 export default function RegisterPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [form, setForm] = useState<FormState>({
     name: "", email: "", phone: "", password: "", confirm: "", agree: false,
   });
@@ -248,13 +250,14 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await authApi.register({
+      const res = await authApi.register({
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone ? '+7' + form.phone.replace(/\D/g, '').slice(-10) : undefined,
         password: form.password,
         password_confirmation: form.confirm,
       });
+      if (res.token) await login(res.token);
       setSuccess(true);
     } catch (err: any) {
       const msg = translateError(extractError(err));

@@ -26,6 +26,25 @@ const errorMap: Record<string, string> = {
   'The phone format is invalid.': 'Некорректный формат телефона.',
 
   'The given data was invalid.': 'Проверьте правильность заполнения полей.',
+
+  'The name field must be a string.': 'Имя должно быть строкой.',
+  'The email field must be a string.': 'Email должен быть строкой.',
+  'The phone field must be a string.': 'Телефон должен быть строкой.',
+
+  'The current password field is required.': 'Текущий пароль обязателен.',
+  'The new password field is required.': 'Новый пароль обязателен.',
+  'The current password is incorrect.': 'Текущий пароль неверен.',
+  'The password must be at least 8 characters.': 'Пароль должен быть минимум 8 символов.',
+  'The name must be at least 3 characters.': 'Имя должно содержать минимум 3 символа.',
+  'The phone has already been taken.': 'Этот телефон уже зарегистрирован.',
+
+  'No query results for model': 'Запись не найдена',
+  'Unauthenticated': 'Необходимо войти в систему',
+  'Forbidden': 'Доступ запрещён',
+  'Not Found': 'Ресурс не найден',
+  'Method Not Allowed': 'Метод не поддерживается',
+  'Too Many Attempts': 'Слишком много запросов. Повторите позже.',
+  'Internal Server Error': 'Внутренняя ошибка сервера',
 };
 
 export function translateError(msg: string): string {

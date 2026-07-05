@@ -3,8 +3,8 @@ import { api } from "./api";
 
 const catalog_path = `/catalog`;
 
+/** Приватный загрузчик каталога — одна ручка /catalog, все три метода (getProducts/getCategory/getMeta) дёргают её */
 async function getCatalog(): Promise<Catalog | undefined> {
-
   try {
     const response = await api.get<{ data: Catalog }>(catalog_path);
     return response.data.data;
@@ -12,7 +12,6 @@ async function getCatalog(): Promise<Catalog | undefined> {
     if (e instanceof Error) {
       console.error(`Error when loading catalog: ${e}`);
     } else {
-
       console.error(`Unknown error`);
     }
     return undefined;
@@ -20,17 +19,21 @@ async function getCatalog(): Promise<Catalog | undefined> {
 }
 
 export const catalogApi = {
+  /** Получить список товаров */
   async getProducts(): Promise<Product[]> {
     const ans = await getCatalog();
     return ans?.products ?? [];
   },
+
+  /** Получить список категорий */
   async getCategory(): Promise<Category[]> {
     const ans = await getCatalog();
     return ans?.categories ?? [];
   },
+
+  /** Получить мета-информацию каталога (общее кол-во, пагинация) */
   async getMeta(): Promise<Meta> {
     const ans = await getCatalog();
     return ans?.meta ?? { total_products: 0, has_pagination: false };
   },
-
 };

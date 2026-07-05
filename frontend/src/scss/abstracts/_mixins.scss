@@ -175,3 +175,11 @@
   color: $color;
   @include smooth-transition(color);
 }
+
+//——————————————————————————————
+// fullscreen — растягивает блок на всю ширину и высоту экрана
+//——————————————————————————————
+@mixin fullscreen($offset: 0) {
+  width: 100%;
+  min-height: calc(100vh - #{$offset});
+}

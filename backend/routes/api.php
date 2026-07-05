@@ -50,6 +50,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/auth/logout-all', [LogoutFromAllDevicesController::class, '__invoke']);
     Route::get('/auth/sessions', [SessionController::class, '__invoke']);
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
+    Route::put('/user', 'App\Http\Controllers\User\UpdateProfileController@update')->name('user.update.profile');
+    Route::put('/user/password', 'App\Http\Controllers\User\UpdateProfileController@changePassword')->name('user.update.password');
     Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
 
     //Адреса
