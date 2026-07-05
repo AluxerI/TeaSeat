@@ -1,6 +1,7 @@
 import { Warehouse } from "./warehouse";
 import Images from "../utils/Images";
 
+/** Категория товаров с вложенными подкатегориями */
 export interface Category {
   id: number;
   name: string;
@@ -16,11 +17,14 @@ export interface Category {
   }[];
 }
 
+/** Полная информация о товаре в каталоге */
 export interface Product {
   id: number;
   name: string;
-  original_price:number;
-  final_price:number;
+  /** Цена без скидки */
+  original_price: number;
+  /** Цена со скидкой */
+  final_price: number;
   ingredients: string;
   description: string;
   main_image: string;
@@ -28,20 +32,21 @@ export interface Product {
   discount: {
     id: number;
     name: string;
-    type:string;
-    value:number;
-    code:string;
+    type: string;
+    value: number;
+    code: string;
   };
   discount_percent: number;
-  galery:typeof Images[];
+  galery: typeof Images[];
   weight_grams: number;
   brand: string;
-  brand_id:number;
+  brand_id: number;
   category_path: {
     category: string;
     subcategory: string;
     sub_subcategory: string;
   };
+  /** Остатки по складам */
   inventory: Warehouse[];
   total_quantity: number;
   is_available: boolean;
@@ -50,11 +55,13 @@ export interface Product {
   update_at: Date;
 }
 
+/** Мета-информация о каталоге */
 export interface Meta {
   total_products: number;
   has_pagination: boolean;
 }
 
+/** Полный ответ каталога (одна ручка /catalog отдаёт всё сразу) */
 export interface Catalog {
   categories: Category[];
   products: Product[];

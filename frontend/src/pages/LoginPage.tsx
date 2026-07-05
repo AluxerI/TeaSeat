@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { authApi, setAuthToken } from "../api/authAPI";
+import { authApi } from "../api/authAPI";
 import { translateError, extractError } from "../utils/translateError";
-import styles from "./LoginPage.module.scss";
+import { useAuth } from "../hooks/useAuth";
+import styles from "../scss/pages/LoginPage.module.scss";
 
 function EyeIcon({ size = 18 }: { size?: number }) {
   return (
@@ -113,6 +114,7 @@ interface FormErrors {
 
 export default function LoginPage() {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
@@ -137,7 +139,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await authApi.login({ email: email.trim(), password });
-      if (res.token) setAuthToken(res.token);
+      if (res.token) await login(res.token);
       navigate("/catalog");
     } catch (err: any) {
       const msg = translateError(extractError(err));

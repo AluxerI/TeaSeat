@@ -11,6 +11,9 @@ import { ProductList } from './components/productList';
 import { PageCatalog } from './pages/Catalog';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
+import OrderPage from './pages/Order';
+import { AuthProvider } from './contexts/AuthContext';
 
 
 interface Data {
@@ -69,23 +72,26 @@ const App: React.FC = () => {
   return (
     <>
       <BrowserRouter>
-        <Routes>
-          <Route path='category' Component={PageCategory}/>
-          
-          {/**
-          <Grid>
-              <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
-          
-              
-          </Grid>
-           */}
+        <AuthProvider>
+          <Routes>
+            <Route path='category' Component={PageCategory}/>
+            
+            {/**
+            <Grid>
+                <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
+            
+                
+            </Grid>
+             */}
 
-           <Route path='catalog' Component={PageCatalog}/>
-           <Route path='register' Component={RegisterPage}/>
-           <Route path='login' Component={LoginPage}/>
-           
-        </Routes>
-        
+             <Route path='catalog' Component={PageCatalog}/>
+             <Route path='register' Component={RegisterPage}/>
+             <Route path='login' Component={LoginPage}/>
+             <Route path='profile' Component={ProfilePage}/>
+             <Route path='order/:id' Component={OrderPage}/>
+             
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </>
   );

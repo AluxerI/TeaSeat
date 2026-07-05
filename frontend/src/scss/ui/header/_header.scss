@@ -10,7 +10,6 @@ $header-border:       #e3cda0;
 $header-text:         #5c4a2a;
 $header-text-hover:   #3a2d16;
 $header-hover-bg:     #e9d4a8;
-$header-search-icon:  #a08652;
 $header-placeholder:  #b29a6e;
 $header-focus-ring:   #caa75e;
 $header-badge-bg:     #b5532e;
@@ -44,7 +43,7 @@ $header-avatar-to:    #b5532e;
 
   &--right {
     right: 0;
-    bottom: 8px;
+    top: 0;
     width: 72px;
     height: auto;
     transform: scaleX(-1);
@@ -54,8 +53,7 @@ $header-avatar-to:    #b5532e;
 // ── Inner container ──────────────────────────────────────────────────────────
 
 .header__inner {
-  position: relative;
-  max-width: 1152px;
+  max-width: 1213px;
   margin: 0 auto;
   padding: 0 16px;
 
@@ -64,24 +62,71 @@ $header-avatar-to:    #b5532e;
   }
 }
 
+// ── Body (row: main + actions) ───────────────────────────────
+
+.header__body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+  margin: 0 calc((spacing(xxl) + spacing(lg) + spacing(xxs)) * -1);
+}
+
+// ── Main (column: top row + bottom row) ──────────────────────
+
+.header__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Actions column (♡ 🛒 👤) ──────────────────────────────────
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: spacing(lg);
+  flex-shrink: 0;
+}
+
 // ── Row ──────────────────────────────────────────────────────────────────────
 
-.header__row {
+.header__row--top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
   padding: 10px 0;
   position: relative;
 }
 
-// ── Left part ────────────────────────────────────────────────────────────────
+// ── Row — bottom ─────────────────────────────────────────────
+
+.header__row--bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 14px;
+  position: relative;
+}
+
+// ── Left part (top row) ──────────────────────────────────────
 
 .header__left {
   display: flex;
   align-items: center;
   gap: 24px;
   flex: 1;
+}
+
+// ── Right part (top row) ─────────────────────────────────────
+
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 // ── Logo ─────────────────────────────────────────────────────────────────────
@@ -94,13 +139,8 @@ $header-avatar-to:    #b5532e;
   z-index: 2;
 
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
   text-decoration: none;
-
-  padding-bottom: 0;
-  margin-top: 4px;
 
   svg {
     filter: drop-shadow(0 2px 8px rgba(90, 45, 12, 0.25));
@@ -109,19 +149,6 @@ $header-avatar-to:    #b5532e;
 
   &:hover svg {
     transform: scale(1.06) rotate(-3deg);
-  }
-}
-
-.header__logo-text {
-  font-size: 11px;
-  font-weight: 600;
-  color: $header-text;
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-  opacity: 0.75;
-
-  @media (max-width: 400px) {
-    display: none;
   }
 }
 
@@ -166,7 +193,7 @@ $header-avatar-to:    #b5532e;
 .header__nav {
   display: none;
   align-items: center;
-  gap: 24px;
+  gap: space-mult(xxl, 2.5);
 
   @include respond-to(map-get($breakpoints, md)) {
     display: flex;
@@ -174,7 +201,7 @@ $header-avatar-to:    #b5532e;
 }
 
 .header__nav-link {
-  font-size: 14px;
+  font-size: 18px;
   font-weight: 600;
   color: $header-text;
   text-decoration: none;
@@ -186,73 +213,54 @@ $header-avatar-to:    #b5532e;
   }
 }
 
-// ── Right part: search + icons ──────────────────────────────────────────────
+// ── Search block (bottom row) ────────────────────────────────
 
-.header__actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.header__search-block {
+  position: relative;
   flex: 1;
-  justify-content: flex-end;
+  max-width: 591px;
+  height: 53px;
 }
 
-// ── Search ───────────────────────────────────────────────────────────────────
-
-.header__search {
-  display: none;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba($header-border, 0.6);
-  @include border-radius(9999px);
-  padding: 7px 14px;
-  width: 200px;
-  transition: box-shadow 0.18s ease, background 0.18s ease, width 0.25s ease;
-
-  &:focus-within {
-    box-shadow: 0 0 0 2px $header-focus-ring;
-    background: rgba(255, 255, 255, 0.9);
-    width: 240px;
-  }
-
-  @include respond-to(map-get($breakpoints, sm)) {
-    display: flex;
-  }
-
-  @include respond-to(map-get($breakpoints, lg)) {
-    width: 260px;
-
-    &:focus-within {
-      width: 300px;
-    }
-  }
-}
-
-.header__search-icon {
-  color: $header-search-icon;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
+.header__search-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
 }
 
 .header__search-input {
-  background: transparent;
-  outline: none;
-  border: none;
-  font-size: 13px;
-  font-weight: 400;
-  color: $header-text;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   width: 100%;
+  max-width: 575px;
+  background: #C5AF7F;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 14px;
+  font-size: font-size(body-sm);
+  font-weight: 400;
+  color: #FFFFFF;
+  outline: none;
+  z-index: 1;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
+  
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
 
   &::-webkit-search-decoration,
   &::-webkit-search-cancel-button {
     -webkit-appearance: none;
   }
-
-  &::placeholder {
-    color: $header-placeholder;
-  }
 }
+
 
 // ── Icon buttons ─────────────────────────────────────────────────────────────
 
@@ -293,6 +301,10 @@ $header-avatar-to:    #b5532e;
 
 // ── User ─────────────────────────────────────────────────────────────────────
 
+.header__user-wrap {
+  position: relative;
+}
+
 .header__user {
   display: flex;
   align-items: center;
@@ -323,6 +335,115 @@ $header-avatar-to:    #b5532e;
   font-weight: 600;
 }
 
+// ── User dropdown ────────────────────────────────────────────────────────────
+
+.header__user-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+}
+
+.header__user-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  background: white;
+  border: 1px solid $header-border;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(90, 45, 12, 0.12);
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.header__user-dropdown-header {
+  padding: 12px 16px 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $header-text;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header__user-dropdown-email {
+  font-size: 12px;
+  font-weight: 400;
+  color: $header-placeholder;
+}
+
+.header__user-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: $header-text;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+
+  &--danger {
+    color: $header-badge-bg;
+
+    &:hover {
+      background: #fef0ed;
+    }
+  }
+}
+
+.header__user-dropdown-divider {
+  border: none;
+  border-top: 1px solid $header-border;
+  margin: 4px 0;
+}
+
+// ── Auth buttons (guest) ─────────────────────────────────────────────────────
+
+.header__auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header__auth-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+
+  &:hover {
+    background: $header-hover-bg;
+    color: $header-text-hover;
+  }
+}
+
+.header__auth-btn {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: $header-badge-bg;
+  transition: background 0.18s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #9a4225;
+  }
+}
+
 // ── Mobile menu ──────────────────────────────────────────────────────────────
 
 .header__mobile-nav {
@@ -351,17 +472,5 @@ $header-avatar-to:    #b5532e;
 }
 
 .header__mobile-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: rgba(255, 255, 255, 0.65);
-  border: 1px solid rgba($header-border, 0.6);
-  @include border-radius(9999px);
-  padding: 8px 14px;
   margin-top: 8px;
-
-  &:focus-within {
-    box-shadow: 0 0 0 2px $header-focus-ring;
-    background: rgba(255, 255, 255, 0.9);
-  }
 }

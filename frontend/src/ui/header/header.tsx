@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useAuth } from "../../hooks/useAuth";
 import "./../../scss/main.scss";
 
 function MenuIcon({ size = 22 }: { size?: number }) {
@@ -16,15 +17,6 @@ function XIcon({ size = 22 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <line x1="18" y1="6" x2="6" y2="18" />
       <line x1="6" y1="6" x2="18" y2="18" />
-    </svg>
-  );
-}
-
-function SearchIcon({ size = 18 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   );
 }
@@ -69,19 +61,23 @@ function Logo() {
         <path d="M34 22 Q33 18 35 15" stroke="#8ecfcf" strokeWidth="1.4" fill="none" strokeLinecap="round" opacity="0.8" />
         <ellipse cx="28" cy="31" rx="4" ry="2" fill="#5a2d0c" opacity="0.4" transform="rotate(-15 28 31)" />
       </svg>
-      <span className="header__logo-text">Чайные посиделки</span>
     </a>
   );
 }
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const { user, isAuthenticated, isAdmin, loading, logout } = useAuth();
 
-  const navItems = [
-    { label: "Главная",    href: "#" },
-    { label: "Контакты",   href: "#" },
+  const leftNav = [
+    { label: "Главная",  href: "#" },
+    { label: "Контакты", href: "#" },
+  ];
+
+  const rightNav = [
     { label: "О компании", href: "#" },
-    { label: "Каталог",    href: "#" },
+    { label: "Каталог",    href: "/catalog" },
   ];
 
   return (
@@ -90,71 +86,131 @@ export default function Header() {
       <img className="header__leaf header__leaf--right" src="/header/leaves.png" alt="" aria-hidden="true" />
 
       <div className="header__inner">
-        <div className="header__row">
 
-          <div className="header__left">
-            <button
-              onClick={() => setMenuOpen((o) => !o)}
-              className="header__burger header__burger--mobile"
-              aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
-              aria-expanded={menuOpen}
-            >
-              {menuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
-            </button>
+        <div className="header__body">
 
-            <button className="header__burger header__burger--desktop" aria-label="Меню">
-              <MenuIcon size={22} />
-            </button>
+          <div className="header__main">
 
-            <nav className="header__nav" aria-label="Основная навигация">
-              {navItems.map((item) => (
-                <a key={item.label} href={item.href} className="header__nav-link">
-                  {item.label}
-                </a>
-              ))}
-            </nav>
-          </div>
+            {/* ── Верхний ряд: ☰ Главная Контакты · Лого · О компании Каталог ── */}
+            <div className="header__row header__row--top">
+              <div className="header__left">
+                <button
+                  onClick={() => setMenuOpen((o) => !o)}
+                  className="header__burger header__burger--mobile"
+                  aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+                  aria-expanded={menuOpen}
+                >
+                  {menuOpen ? <XIcon size={22} /> : <MenuIcon size={22} />}
+                </button>
 
-          <Logo />
+                <button className="header__burger header__burger--desktop" aria-label="Меню">
+                  <MenuIcon size={22} />
+                </button>
 
-          <div className="header__actions">
-            <div className="header__search">
-              <span className="header__search-icon" aria-hidden="true">
-                <SearchIcon size={18} />
-              </span>
-              <input
-                type="search"
-                placeholder="Поиск товаров..."
-                className="header__search-input"
-                aria-label="Поиск товаров"
-              />
+                <nav className="header__nav header__nav--left" aria-label="Основная навигация">
+                  {leftNav.map((item) => (
+                    <a key={item.label} href={item.href} className="header__nav-link">
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
+
+              <Logo />
+
+              <div className="header__right">
+                <nav className="header__nav header__nav--right" aria-label="Дополнительная навигация">
+                  {rightNav.map((item) => (
+                    <a key={item.label} href={item.href} className="header__nav-link">
+                      {item.label}
+                    </a>
+                  ))}
+                </nav>
+              </div>
             </div>
 
+            {/* ── Нижний ряд: поиск ── */}
+            <div className="header__row header__row--bottom">
+              <div className="header__search-block">
+                <img src="/header/search.png" alt="" aria-hidden="true" className="header__search-frame" />
+                <input
+                  type="search"
+                  placeholder="Поиск товаров..."
+                  className="header__search-input"
+                  aria-label="Поиск товаров"
+                />
+              </div>
+            </div>
+
+          </div>
+
+          <div className="header__actions">
             <button className="header__icon-btn" aria-label="Избранное">
               <HeartIcon size={20} />
             </button>
-
-            <button className="header__icon-btn" aria-label="Корзина, 3 товара">
+            <button className="header__icon-btn" aria-label="Корзина">
               <CartIcon size={20} />
-              <span className="header__cart-badge" aria-hidden="true">3</span>
             </button>
 
-            <button className="header__user" aria-label="Профиль пользователя">
-              <div className="header__avatar" aria-hidden="true">U</div>
-              <ChevronDownIcon size={16} />
-            </button>
+            {loading ? (
+              <div className="header__user" />
+            ) : isAuthenticated ? (
+              <div className="header__user-wrap">
+                <button
+                  className="header__user"
+                  onClick={() => setUserMenuOpen(v => !v)}
+                  aria-label="Профиль пользователя"
+                  aria-expanded={userMenuOpen}
+                >
+                  <div className="header__avatar" aria-hidden="true">
+                    {user?.name?.charAt(0).toUpperCase() || "U"}
+                  </div>
+                  <ChevronDownIcon size={16} />
+                </button>
+
+                {userMenuOpen && (
+                  <>
+                    <div className="header__user-overlay" onClick={() => setUserMenuOpen(false)} />
+                    <div className="header__user-dropdown">
+                      <div className="header__user-dropdown-header">
+                        {user?.name}
+                        <span className="header__user-dropdown-email">{user?.email}</span>
+                      </div>
+                      {isAdmin && (
+                        <a href="/admin" className="header__user-dropdown-item">Админка</a>
+                      )}
+                      <a href="/profile" className="header__user-dropdown-item">Профиль</a>
+                      <a href="/orders" className="header__user-dropdown-item">Заказы</a>
+                      <hr className="header__user-dropdown-divider" />
+                      <button
+                        className="header__user-dropdown-item header__user-dropdown-item--danger"
+                        onClick={logout}
+                      >
+                        Выйти
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className="header__auth">
+                <a href="/login" className="header__auth-link">Войти</a>
+                <a href="/register" className="header__auth-btn">Регистрация</a>
+              </div>
+            )}
           </div>
+
         </div>
 
+        {/* ── Мобильное меню ── */}
         {menuOpen && (
           <nav className="header__mobile-nav" aria-label="Мобильная навигация">
-            {navItems.map((item) => (
+            {[...leftNav, ...rightNav].map((item) => (
               <a key={item.label} href={item.href} className="header__mobile-link">
                 {item.label}
               </a>
             ))}
             <div className="header__mobile-search">
-              <span aria-hidden="true"><SearchIcon size={18} /></span>
               <input
                 type="search"
                 placeholder="Поиск товаров..."
