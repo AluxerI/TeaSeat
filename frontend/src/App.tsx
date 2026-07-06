@@ -13,6 +13,7 @@ import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import OrderPage from './pages/Order';
+import CartPage from './pages/CartPage';
 import { AuthProvider } from './contexts/AuthContext';
 
 
@@ -89,6 +90,7 @@ const App: React.FC = () => {
              <Route path='login' Component={LoginPage}/>
              <Route path='profile' Component={ProfilePage}/>
              <Route path='order/:id' Component={OrderPage}/>
+             <Route path='cart' Component={CartPage}/>
              
           </Routes>
         </AuthProvider>

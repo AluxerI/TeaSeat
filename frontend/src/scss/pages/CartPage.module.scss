@@ -1,0 +1,338 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-bg-page: #faf5ee;
+$color-surface: #ffffff;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+$color-danger: #c9564e;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.loadingWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(md);
+  padding: spacing(xxl);
+}
+
+.emptyWrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(lg);
+  padding: spacing(xxl);
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 64px !important;
+  color: $color-text-secondary;
+  opacity: 0.4;
+}
+
+.errorText {
+  font-size: font-size(body) !important;
+  color: $color-text-secondary;
+}
+
+.cartPage {
+  flex: 1;
+  width: 100%;
+  max-width: max-width(full);
+  margin: 0 auto;
+  padding: spacing(lg) spacing(xxl) spacing(xxl);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: $color-text-primary;
+
+  @media (max-width: 900px) {
+    padding: spacing(md);
+  }
+}
+
+.backRow {
+  margin-bottom: spacing(md);
+}
+
+.backButton {
+  color: $color-text-secondary !important;
+  text-transform: none !important;
+  font-size: font-size(body-sm) !important;
+  padding: 0 !important;
+
+  &:hover {
+    color: $color-accent !important;
+    background: transparent !important;
+  }
+}
+
+.pageTitle {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(lg) !important;
+}
+
+.cartLayout {
+  display: flex;
+  gap: spacing(xl);
+  align-items: flex-start;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+  }
+}
+
+.cartMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemsList {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.itemCard {
+  display: flex;
+  gap: spacing(md);
+  padding: spacing(md);
+  border: 1px solid $color-border;
+  border-radius: 12px;
+  align-items: center;
+
+  &:hover {
+    background-color: #fbf8f3;
+  }
+}
+
+.itemImage {
+  flex: 0 0 80px;
+  height: 80px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0e8dc;
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: font-size(body-sm) !important;
+  font-weight: 600 !important;
+  color: $color-text-primary;
+  margin-bottom: 2px !important;
+}
+
+.itemWeight {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+  margin-bottom: spacing(xs) !important;
+}
+
+.itemUnitPrice {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+  margin-bottom: spacing(xs) !important;
+}
+
+.qtyControls {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border: 1px solid $color-border;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.qtyBtn {
+  min-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 0 !important;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  color: $color-text-primary !important;
+
+  &:hover {
+    background-color: #f0e8dc !important;
+  }
+
+  &:disabled {
+    color: #ccc !important;
+  }
+}
+
+.qtyValue {
+  min-width: 36px;
+  text-align: center;
+  font-size: font-size(body-sm) !important;
+  font-weight: 600 !important;
+  color: $color-text-primary;
+  padding: 0 spacing(xs);
+}
+
+.itemRight {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: spacing(xs);
+  flex-shrink: 0;
+}
+
+.itemTotalPrice {
+  font-size: font-size(body) !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  white-space: nowrap;
+}
+
+.itemSaved {
+  font-size: 12px !important;
+  color: #5a8a2a;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.removeBtn {
+  min-width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
+  color: $color-text-secondary !important;
+
+  &:hover {
+    color: $color-danger !important;
+    background: transparent !important;
+  }
+}
+
+// ── Sidebar ────────────────────────────────────────────────────────────────
+
+.cartSidebar {
+  flex: 0 0 340px;
+  position: sticky;
+  top: spacing(lg);
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+
+  @media (max-width: 900px) {
+    flex: 1 1 auto;
+    width: 100%;
+    position: static;
+  }
+}
+
+.sidebarCard {
+  padding: spacing(md) spacing(lg);
+  border: 1px solid $color-border;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  background: $color-surface;
+}
+
+.sidebarTitle {
+  font-size: font-size(body-sm) !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(xs) !important;
+}
+
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: spacing(sm);
+}
+
+.totalLabel {
+  font-size: font-size(caption) !important;
+  color: $color-text-secondary;
+}
+
+.totalValue {
+  font-size: font-size(caption) !important;
+  font-weight: 600 !important;
+  color: $color-text-primary;
+}
+
+.totalDiscount {
+  font-size: font-size(caption) !important;
+  font-weight: 600 !important;
+  color: #5a8a2a;
+}
+
+.totalDivider {
+  border-color: $color-border !important;
+}
+
+.totalLabelFinal {
+  font-size: font-size(body-sm) !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+}
+
+.totalValueFinal {
+  font-size: font-size(body-sm) !important;
+  font-weight: 700 !important;
+  color: $color-accent;
+}
+
+.checkoutBtn {
+  width: 100%;
+  background-color: $color-accent !important;
+  color: #ffffff !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+  font-size: font-size(body-sm) !important;
+  padding: 12px 22px !important;
+  border-radius: 10px !important;
+  margin-top: spacing(sm) !important;
+
+  &:hover {
+    background-color: $color-accent-hover !important;
+  }
+
+  &:disabled {
+    background-color: #ccc !important;
+    color: #888 !important;
+  }
+}
+
+.secondaryButton {
+  border-color: $color-text-primary !important;
+  color: $color-text-primary !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: font-size(body-sm) !important;
+  border-radius: 10px !important;
+
+  &:hover {
+    border-color: $color-accent-hover !important;
+    background-color: #f7f0e6 !important;
+  }
+}
+
+.itemUpdating {
+  opacity: 0.5;
+  pointer-events: none;
+}
