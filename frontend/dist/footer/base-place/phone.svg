@@ -1,0 +1,13 @@
+<?xml version="1.0"?>
+<svg width="24" height="24" xmlns="http://www.w3.org/2000/svg" xmlns:svg="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <defs>
+  <pattern height="1" id="pattern0_30_12" patternContentUnits="objectBoundingBox" width="1">
+   <use id="svg_1" transform="scale(0.0333333)" xlink:href="#image0_30_12"/>
+  </pattern>
+  <image height="30" id="image0_30_12" width="30" xlink:href="data:image/png;svgedit_url=data%3Aimage%2Fpng%3Bbase64%2CiVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAbElEQVR4nO2WQQqAMAwE511S7xb%2F%2FwHrPyIevHloGkoEd2DPA2EOgY%2ByAydgzjWgRsRtQPrsiIgtuLDYi8RudOpeFJcbxdWL4nKjuHpRXG7%2BG5dlPXv2sgUoGeICrLPELeuhr4PyW7pFxNO4ABSXyGvqpLKOAAAAAElFTkSuQmCC;base64,iVBORw0KGgoAAAANSUhEUgAAAB4AAAAeCAYAAAA7MK6iAAAABHNCSVQICAgIfAhkiAAAAAFzUkdCAK7OHOkAAACwSURBVEhLY2QYIMBIwF5voPxMIJYm0X1PgOrTgHg7Ln2ELH4M1ChDoqUw5SC9cuRa/J9MS2HacHqMkI9hFhNSh+4+gvoIGUjQABwhQlDfqMUkx9VoUENDYDRxYSSF0ew0mp0IZovRAmS0AKG06UOooCE5GxIycMBTNbltPoobe9gstgYKMgHxYTyuoonFtkALQQYfooXFA9ag9wT6ZhYZvQmQg0FdmB3kZidyExVBfQA84jgfyZf1lQAAAABJRU5ErkJggg=="/>
+ </defs>
+ <g class="layer">
+  <title>Layer 1</title>
+  <rect fill="url(#pattern0_30_12)" height="24" id="svg_2" width="24" x="-5" y="0"/>
+ </g>
+</svg>
