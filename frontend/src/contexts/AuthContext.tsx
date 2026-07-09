@@ -27,6 +27,9 @@ interface AuthState {
   loading: boolean;
   isAuthenticated: boolean;
   isAdmin: boolean;
+  isSeller: boolean;
+  isManager: boolean;
+  isCourier: boolean;
 }
 
 export interface AuthContextValue extends AuthState {
@@ -93,8 +96,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isAuthenticated = !!user;
   const isAdmin = user?.roles?.includes("admin") ?? false;
 
+  const isSeller = user?.roles?.includes("seller") ?? false;
+  const isManager = user?.roles?.includes("manager") ?? false;
+  const isCourier = user?.roles?.includes("courier") ?? false;
+
   return (
-    <AuthContext.Provider value={{ user, loading, isAuthenticated, isAdmin, login, logout, refreshUser }}>
+    <AuthContext.Provider value={{ user, loading, isAuthenticated, isAdmin, isSeller, isManager, isCourier, login, logout, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );

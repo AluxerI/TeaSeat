@@ -140,6 +140,91 @@ $color-input-bg: #ffffff;
   color: $color-logout !important;
 }
 
+$color-admin: #5f8a2a;
+$color-sell: #b8860b;
+$color-manager: #2a6f97;
+$color-courier: #d46a1e;
+
+.adminItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+
+  &:hover {
+    background-color: #edf5e3 !important;
+  }
+}
+
+.adminIcon {
+  min-width: 36px !important;
+  color: $color-admin !important;
+}
+
+.adminLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: $color-admin !important;
+}
+
+.sellItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+
+  &:hover {
+    background-color: #faf1df !important;
+  }
+}
+
+.sellIcon {
+  min-width: 36px !important;
+  color: $color-sell !important;
+}
+
+.sellLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: $color-sell !important;
+}
+
+.managerItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+
+  &:hover {
+    background-color: #e3eff5 !important;
+  }
+}
+
+.managerIcon {
+  min-width: 36px !important;
+  color: $color-manager !important;
+}
+
+.managerLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: $color-manager !important;
+}
+
+.courierItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+
+  &:hover {
+    background-color: #fdf0e4 !important;
+  }
+}
+
+.courierIcon {
+  min-width: 36px !important;
+  color: $color-courier !important;
+}
+
+.courierLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: $color-courier !important;
+}
+
 // ── Content ─────────────────────────────────────────────────────────────────
 
 .content {

@@ -1,9 +1,9 @@
 import axios from "axios";
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 /** Настроенный Axios-инстанс для всех API-запросов.
- *  - baseURL из REACT_APP_API_URL (по умолчанию пусто — тот же origin)
+ *  - baseURL из VITE_API_URL (по умолчанию пусто — тот же origin)
  *  - withCredentials: true для Sanctum SPA-аутентификации
  *  - CSRF через XSRF-TOKEN cookie
  *  - Bearer-токен автоматически проставляется в interceptor */
