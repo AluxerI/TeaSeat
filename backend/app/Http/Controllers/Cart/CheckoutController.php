@@ -23,12 +23,23 @@ class CheckoutController extends Controller
      */
     public function __invoke(Request $request)
     {
+        $request->merge([
+            'idempotency_key' => $request->header('Idempotency-Key'),
+        ]);
+
         $request->validate([
             'shipping_address_id' => 'required|exists:address_client,id',
             'delivery_method_id' => 'required|exists:delivery_methods,id',
             'payment_method' => 'required|in:cash,card,online',
             'customer_notes' => 'nullable|string|max:500',
-            'is_supplier_order' => 'boolean'
+            'is_supplier_order' => 'boolean',
+            'idempotency_key' => [
+                'required',
+                'string',
+                'min:8',
+                'max:128',
+                'regex:/^[A-Za-z0-9._:-]+$/',
+            ],
         ]);
 
         try {
@@ -40,7 +51,8 @@ class CheckoutController extends Controller
                 $request->delivery_method_id,
                 $request->payment_method,
                 $request->customer_notes,
-                $request->boolean('is_supplier_order')
+                $request->boolean('is_supplier_order'),
+                $request->idempotency_key,
             );
 
             return new OrderResource($order);

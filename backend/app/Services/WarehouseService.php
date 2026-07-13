@@ -8,6 +8,7 @@ use App\Models\Warehouse;
 use App\Models\Inventory;
 use App\Models\OrderProduct;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 
 class WarehouseService
@@ -100,18 +101,36 @@ class WarehouseService
 
     public function reserveStockByAllocation(array $warehouseAllocation): void
     {
-        foreach ($warehouseAllocation as $allocation) {
-            foreach ($allocation['items'] as $item) {
-                $inventory = Inventory::where('product_id', $item['product_id'])
-                    ->where('warehouse_id', $allocation['warehouse_id'])
-                    ->firstOrFail();
+        $stockRequests = collect($warehouseAllocation)
+            ->flatMap(function (array $allocation) {
+                return collect($allocation['items'])->map(fn (array $item) => [
+                    'warehouse_id' => (int) $allocation['warehouse_id'],
+                    'product_id' => (int) $item['product_id'],
+                    'quantity' => (int) $item['quantity'],
+                ]);
+            })
+            // Единый порядок блокировок уменьшает вероятность deadlock.
+            ->sortBy(fn (array $item) => sprintf(
+                '%020d:%020d',
+                $item['warehouse_id'],
+                $item['product_id']
+            ));
 
-                if ($inventory->quantity < $item['quantity']) {
-                    throw new \Exception("Недостаточно товара на складе. Требуется: {$item['quantity']}, Доступно: {$inventory->quantity}");
-                }
+        foreach ($stockRequests as $item) {
+            $inventory = Inventory::where('product_id', $item['product_id'])
+                ->where('warehouse_id', $item['warehouse_id'])
+                ->lockForUpdate()
+                ->firstOrFail();
 
-                $inventory->decrement('quantity', $item['quantity']);
+            if ($inventory->quantity < $item['quantity']) {
+                throw new \DomainException(
+                    "Недостаточно товара на складе. Требуется: {$item['quantity']}, Доступно: {$inventory->quantity}"
+                );
             }
+
+            $inventory->quantity -= $item['quantity'];
+            $inventory->save();
+            $this->clearAvailabilityCache($inventory);
         }
     }
 
@@ -120,24 +139,19 @@ class WarehouseService
         $orders = [];
 
         foreach ($warehouseAllocation as $index => $allocation) {
-            if ($index === 0) {
-                $this->updateMainOrderForWarehouse($mainOrder, $allocation);
-                $orders[] = $mainOrder;
-            } else {
-                $orders[] = $this->createPartialOrder($mainOrder, $allocation, $index);
-            }
+            $orders[] = $this->createPartialOrder($mainOrder, $allocation, $index + 1);
         }
 
-        return $orders;
-    }
-
-    private function updateMainOrderForWarehouse(Order $order, array $allocation): void
-    {
-        $order->update([
-            'warehouse_id' => $allocation['warehouse_id'],
-            'internal_notes' => ($order->internal_notes ?? '') . 
-                "\nОсновной заказ выполняется со склада ID: {$allocation['warehouse_id']}"
+        // Основной заказ — клиентский документ, а не исполнение конкретного склада.
+        $mainOrder->update([
+            'warehouse_id' => null,
+            'internal_notes' => trim(
+                ($mainOrder->internal_notes ?? '') .
+                "\nСоздано складских исполнений: " . count($orders)
+            ),
         ]);
+
+        return $orders;
     }
 
     private function createPartialOrder(Order $mainOrder, array $allocation, int $index): Order
@@ -153,6 +167,7 @@ class WarehouseService
             'customer_notes' => $mainOrder->customer_notes,
             'internal_notes' => "Частичный заказ #{$index} от основного заказа #{$mainOrder->id}",
             'parent_order_id' => $mainOrder->id,
+            'shipping_cost' => 0,
             'confirmed_at' => now(),
         ]);
 
@@ -167,7 +182,7 @@ class WarehouseService
                     'promotion_discount_percent' => $mainOrderItem->promotion_discount_percent ?? 0,
                     'personal_discount_percent' => $mainOrderItem->personal_discount_percent ?? 0,
                     'final_unit_price' => $mainOrderItem->final_unit_price ?? $mainOrderItem->unit_price,
-                    'total_price' => $mainOrderItem->unit_price * $item['quantity'],
+                    'total_price' => $mainOrderItem->final_unit_price * $item['quantity'],
                 ]);
             }
         }
@@ -181,13 +196,43 @@ class WarehouseService
         $order->load('items');
         
         $productsTotal = $order->items->sum('total_price');
-        $shippingCost = $order->deliveryMethod->cost ?? 0;
-
         $order->update([
             'products_total' => $productsTotal,
-            'shipping_cost' => $shippingCost,
-            'final_total' => $productsTotal + $shippingCost,
+            'shipping_cost' => 0,
+            'final_total' => $productsTotal,
         ]);
+    }
+
+    public function releaseStockForOrder(Order $order): void
+    {
+        if (!$order->warehouse_id) {
+            return;
+        }
+
+        $order->loadMissing(['items', 'warehouse']);
+
+        foreach ($order->items->sortBy('product_id') as $item) {
+            $inventory = Inventory::where('product_id', $item->product_id)
+                ->where('warehouse_id', $order->warehouse_id)
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $inventory->quantity += $item->quantity;
+            $inventory->save();
+            $this->clearAvailabilityCache($inventory);
+        }
+    }
+
+    private function clearAvailabilityCache(Inventory $inventory): void
+    {
+        $city = $inventory->warehouse?->city;
+
+        Cache::forget("product_{$inventory->product_id}_total_quantity");
+        Cache::forget("product_{$inventory->product_id}_available_cities");
+
+        if ($city) {
+            Cache::forget("product_{$inventory->product_id}_city_{$city}_quantity");
+        }
     }
 
     /**

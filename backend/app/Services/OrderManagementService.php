@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class OrderManagementService
 {
+    public function __construct(
+        protected CheckoutService $checkoutService
+    ) {}
+
     /**
      * Получить заказы с фильтрами
      */
@@ -17,6 +21,7 @@ class OrderManagementService
     {
         $query = Order::with(['user', 'deliveryMethod', 'shippingAddress'])
             ->realOrders()
+            ->whereNull('parent_order_id')
             ->latest();
 
         // Фильтр по статусу
@@ -108,32 +113,11 @@ class OrderManagementService
      */
     public function cancelOrderByManager(Order $order, ?string $reason, int $managerId): Order
     {
-        return DB::transaction(function () use ($order, $reason, $managerId) {
-            $oldStatus = $order->status;
-            
-            $order->update([
-                'status' => Order::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-                'internal_notes' => ($order->internal_notes ?? '') . 
-                    "\nОтменен менеджером ID: {$managerId}. Причина: " . ($reason ?? 'не указана')
-            ]);
-
-            // Логируем отмену
-            OrderStatusHistory::create([
-                'order_id' => $order->id,
-                'from_status' => $oldStatus,
-                'to_status' => Order::STATUS_CANCELLED,
-                'changed_by' => $managerId,
-                'notes' => $reason
-            ]);
-
-            // Возвращаем товары на склад (если не заказ у поставщика)
-            if (!$order->is_supplier_order && $order->warehouse_id) {
-                $this->returnItemsToStock($order);
-            }
-
-            return $order->fresh();
-        });
+        return $this->checkoutService->cancelOrderByManager(
+            $order->id,
+            $managerId,
+            $reason
+        );
     }
 
     /**
@@ -197,7 +181,7 @@ class OrderManagementService
      */
     public function getOrderStats(Request $request): array
     {
-        $query = Order::realOrders();
+        $query = Order::realOrders()->whereNull('parent_order_id');
 
         if ($request->has('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -242,18 +226,6 @@ class OrderManagementService
 
         if (!empty($updates)) {
             $order->update($updates);
-        }
-    }
-
-    /**
-     * Вернуть товары на склад
-     */
-    private function returnItemsToStock(Order $order): void
-    {
-        foreach ($order->items as $item) {
-            \App\Models\Inventory::where('product_id', $item->product_id)
-                ->where('warehouse_id', $order->warehouse_id)
-                ->increment('quantity', $item->quantity);
         }
     }
 

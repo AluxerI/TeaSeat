@@ -42,8 +42,9 @@ class Order extends Model
         'delivered_at',
         'cancelled_at',
         'parent_order_id',
-        'supplier_order_id',  'supplier_order_id', // связь с консолидированным заказом
-        'is_supplier_order'
+        'supplier_order_id', // связь с консолидированным заказом
+        'is_supplier_order',
+        'checkout_idempotency_key',
     ];
 
     protected $casts = [

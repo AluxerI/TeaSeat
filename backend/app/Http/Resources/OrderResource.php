@@ -43,8 +43,8 @@ class OrderResource extends JsonResource
 
             'delivery_info' => [
                 'estimated_days' => $this->deliveryMethod?->getEstimatedDaysFormatted() ?? 'уточняется',
-                'has_multiple_warehouses' => $this->partialOrders->isNotEmpty(),
-                'warehouse_count' => $this->partialOrders->count() + 1,
+                'has_multiple_warehouses' => $this->partialOrders->count() > 1,
+                'warehouse_count' => $this->partialOrders->count(),
             ],
             
             // Информация о доставке

@@ -9,7 +9,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\OrderResource;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
 
 class CancelController extends Controller
 {
@@ -27,29 +26,9 @@ class CancelController extends Controller
                 return response()->json(['message' => 'Заказ не найден'], 404);
             }
 
-            if (!$order->canBeCancelled()) {
-                return response()->json([
-                    'message' => 'Невозможно отменить заказ в текущем статусе'
-                ], 422);
-            }
+            $cancelledOrder = $this->checkoutService->cancelOrder(Auth::id(), $order->id);
 
-            // Отменяем ВСЕ связанные заказы (основной + частичные)
-            $cancelledOrders = DB::transaction(function () use ($order) {
-                $allOrders = [];
-                
-                // Отменяем основной заказ
-                $allOrders[] = $this->checkoutService->cancelOrder(Auth::id(), $order->id);
-                
-                // Отменяем все частичные заказы
-                $partialOrders = Order::where('parent_order_id', $order->id)->get();
-                foreach ($partialOrders as $partialOrder) {
-                    $allOrders[] = $this->checkoutService->cancelOrder(Auth::id(), $partialOrder->id);
-                }
-                
-                return $allOrders;
-            });
-
-            return new OrderResource($cancelledOrders[0]); // Возвращаем основной заказ
+            return new OrderResource($cancelledOrder);
 
         } catch (\Exception $e) {
             Log::error('Error cancelling order', [
