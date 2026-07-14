@@ -14,6 +14,7 @@ use App\Http\Controllers\Auth\DeleteAccountController;
 use App\Http\Controllers\Auth\LogoutFromAllDevicesController;
 use App\Http\Controllers\Auth\SessionController;
 use App\Http\Controllers\cart\CheckoutController;
+use App\Http\Controllers\Cart\QuoteController;
 use App\Http\Controllers\Order\Admin\AdminOrderActionController;
 use App\Http\Controllers\Order\Admin\AdminOrderController;
 
@@ -65,6 +66,9 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/update/{itemId}', 'UpdateItemController') -> name('cart.update');
         Route::delete('/remove/{itemId}', 'RemoveItemController') -> name('cart.remove');
         Route::delete('/clear', 'ClearCartController');
+        Route::post('/quote', QuoteController::class)
+            ->middleware('throttle:60,1')
+            ->name('cart.quote');
     });
         // Оформление заказа
     Route::prefix('checkout')->group(function () {

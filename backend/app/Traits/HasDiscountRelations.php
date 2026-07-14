@@ -85,22 +85,26 @@ trait HasDiscountRelations
     public function isAvailableForUser(?User $user): bool
     {
         if (!$user) {
-            // Для промо-акций (type = promotion) пользователь не требуется
-            return $this->type === 'promotion';
+            return in_array($this->type, ['promotion', 'cart', 'shipping'], true);
         }
 
         // Проверяем, привязана ли скидка к пользователю
         $userDiscount = $this->users()->where('user_id', $user->id)->first();
         
-        if (!$userDiscount && $this->type !== 'promotion') {
+        $doesNotRequireAssignment = in_array(
+            $this->type,
+            ['promotion', 'cart', 'shipping'],
+            true
+        );
+
+        if (!$userDiscount && !$doesNotRequireAssignment) {
             return false;
         }
 
         // Проверяем лимит использований для пользователя
-        if ($this->usage_per_user && $userDiscount) {
-            if ($userDiscount->pivot->used_count >= $this->usage_per_user) {
-                return false;
-            }
+        if ($this->usage_per_user
+            && (int) ($userDiscount?->pivot?->used_count ?? 0) >= $this->usage_per_user) {
+            return false;
         }
 
         return true;

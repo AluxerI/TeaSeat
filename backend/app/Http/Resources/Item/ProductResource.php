@@ -31,10 +31,14 @@ class ProductResource extends JsonResource
                 'name' => $appliedDiscount->name,
                 'type' => $appliedDiscount->type,
                 'value' => (float) $appliedDiscount->value,
+                'value_type' => $appliedDiscount->value_type,
                 'code' => $appliedDiscount->code,
             ] : null,
             
             'weight_grams' => $this->weight_grams,
+            'stock_unit' => $this->stockUnit(),
+            'sale_step' => $this->saleStep(),
+            'price_unit_quantity' => $this->priceUnitQuantity(),
             'ingredients' => $this->ingredients,
             'description' => $this->description,
             

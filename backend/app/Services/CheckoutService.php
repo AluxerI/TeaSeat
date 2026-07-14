@@ -7,6 +7,7 @@ use App\Models\DeliveryMethod;
 use App\Models\AddressClient;
 use App\Models\OrderStatusHistory;
 use App\Models\Supplier;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
@@ -16,6 +17,7 @@ class CheckoutService
 {
     public function __construct(
         protected CartService $cartService,
+        protected PricingService $pricingService,
         protected WarehouseService $warehouseService,
         protected LocationService $locationService,
         protected SupplierOrderService $supplierOrderService
@@ -31,7 +33,8 @@ class CheckoutService
         string $paymentMethod,
         ?string $customerNotes = null,
         bool $isSupplierOrder = false,
-        string $idempotencyKey = ''
+        string $idempotencyKey = '',
+        ?array $discountSelection = null
     ): Order {
         return DB::transaction(function () use (
             $userId,
@@ -40,7 +43,8 @@ class CheckoutService
             $paymentMethod,
             $customerNotes,
             $isSupplierOrder,
-            $idempotencyKey
+            $idempotencyKey,
+            $discountSelection
         ) {
             if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
                 return $existingOrder;
@@ -74,8 +78,20 @@ class CheckoutService
             $deliveryMethod = DeliveryMethod::active()->findOrFail($deliveryMethodId);
 
             if (!$deliveryMethod->isAvailableInCity($shippingAddress->city)) {
-                throw new \Exception("Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}");
+                throw new DomainException("Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}");
             }
+
+            // Цена и лимиты скидок проверяются в той же транзакции, что и остатки.
+            // Поэтому checkout никогда не доверяет цене, сохранённой в корзине ранее.
+            $user = User::findOrFail($userId);
+            $pricingQuote = $this->pricingService->quoteOrder(
+                $cart,
+                $user,
+                (float) $deliveryMethod->cost,
+                $discountSelection
+            );
+            $this->pricingService->applyQuoteToOrder($cart, $pricingQuote);
+            $this->pricingService->consumeUsage($user, $pricingQuote);
 
             // Если это заказ у поставщика
             if ($isSupplierOrder) {
@@ -105,7 +121,6 @@ class CheckoutService
                 'delivery_method_id' => $deliveryMethodId,
                 'payment_method' => $paymentMethod,
                 'shipping_cost' => $deliveryMethod->cost,
-                'final_total' => $this->calculateFinalTotal($cart, $deliveryMethod),
                 'customer_notes' => $customerNotes,
                 'checkout_idempotency_key' => $idempotencyKey,
                 'warehouse_id' => null,
@@ -147,15 +162,6 @@ class CheckoutService
             ]);
     }
 
-    private function calculateFinalTotal(Order $cart, DeliveryMethod $deliveryMethod): float
-    {
-        $itemsTotal = (float) $cart->items->sum('total_price');
-        $cartDiscount = (float) ($cart->cart_discount ?? 0);
-        $shippingCost = (float) $deliveryMethod->cost;
-
-        return round(max(0, $itemsTotal - $cartDiscount) + $shippingCost, 2);
-    }
-
     /**
      * Проверить доступность всех товаров в корзине в городе
      */
@@ -166,7 +172,7 @@ class CheckoutService
             
             if ($availableInCity < $item->quantity) {
                 $productName = $item->product->name;
-                throw new \Exception(
+                throw new DomainException(
                     "Товар '{$productName}' недоступен в городе {$city} в нужном количестве. " .
                     "Доступно: {$availableInCity}, требуется: {$item->quantity}"
                 );
@@ -193,7 +199,7 @@ class CheckoutService
             
             if (!$isAvailableFromSupplier) {
                 $productName = $item->product->name;
-                throw new \Exception("Товар '{$productName}' недоступен для заказа у поставщиков");
+                throw new DomainException("Товар '{$productName}' недоступен для заказа у поставщиков");
             }
             
             // Находим лучшего поставщика для товара
@@ -201,7 +207,7 @@ class CheckoutService
             
             if (!$bestSupplier) {
                 $productName = $item->product->name;
-                throw new \Exception("Не найден поставщик для товара '{$productName}'");
+                throw new DomainException("Не найден поставщик для товара '{$productName}'");
             }
             
             $supplierAllocations[$bestSupplier->id][] = [
@@ -218,7 +224,6 @@ class CheckoutService
             'delivery_method_id' => $deliveryMethod->id,
             'payment_method' => $paymentMethod,
             'shipping_cost' => $deliveryMethod->cost,
-            'final_total' => $this->calculateFinalTotal($cart, $deliveryMethod),
             'customer_notes' => $customerNotes,
             'is_supplier_order' => true,
             'checkout_idempotency_key' => $idempotencyKey,
@@ -370,6 +375,7 @@ class CheckoutService
             'cancelled_at' => now(),
             'internal_notes' => trim(($order->internal_notes ?? '') . "\n" . $notes),
         ]);
+        $this->pricingService->releaseUsage($order);
         $this->recordCancellation($order, $oldStatus, $actorId, $notes);
 
         Cache::forget("user_{$order->user_id}_orders");

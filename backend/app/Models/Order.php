@@ -26,7 +26,9 @@ class Order extends Model
         'personal_discount',
         'cart_discount',
         'shipping_cost',
+        'shipping_discount',
         'final_total',
+        'pricing_snapshot',
         'shipping_address_id',
         'warehouse_id',
         'discount_id',
@@ -41,6 +43,7 @@ class Order extends Model
         'shipped_at',
         'delivered_at',
         'cancelled_at',
+        'discount_usage_released_at',
         'parent_order_id',
         'supplier_order_id', // связь с консолидированным заказом
         'is_supplier_order',
@@ -53,12 +56,15 @@ class Order extends Model
         'personal_discount' => 'decimal:2',
         'cart_discount' => 'decimal:2',
         'shipping_cost' => 'decimal:2',
+        'shipping_discount' => 'decimal:2',
         'final_total' => 'decimal:2',
+        'pricing_snapshot' => 'array',
         'confirmed_at' => 'datetime',
         'paid_at' => 'datetime',
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'discount_usage_released_at' => 'datetime',
         'is_supplier_order' => 'boolean'
     ];
 

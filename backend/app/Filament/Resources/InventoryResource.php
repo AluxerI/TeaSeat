@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\InventoryResource\Pages;
 use App\Models\Inventory;
+use App\Models\Product;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -60,6 +61,7 @@ class InventoryResource extends Resource
                                     ->required()
                                     ->searchable()
                                     ->preload()
+                                    ->live()
                                     ->disabled(fn ($record) => $record !== null)
                                     ->rules([
                                         fn ($get, $record) => 
@@ -70,16 +72,16 @@ class InventoryResource extends Resource
                                     ]),
 
                                 Forms\Components\TextInput::make('quantity')
-                                    ->label('Количество (штук)')
-                                    ->numeric()
+                                    ->label('Физический остаток')
+                                    ->integer()
                                     ->minValue(0)
                                     ->default(0)
                                     ->required()
-                                    ->helperText('Для онлайн-продаж'),
-
-                                // Скрытое поле для оффлайн кассы (не отображаем в админке)
-                                Forms\Components\Hidden::make('weight_quantity')
-                                    ->default(0),
+                                    ->suffix(function ($get) {
+                                        $product = Product::find($get('product_id'));
+                                        return $product?->isWeighted() ? 'г' : 'шт.';
+                                    })
+                                    ->helperText('Остаток хранится в штуках или в целых граммах'),
                                 
                                 Forms\Components\DatePicker::make('last_restock_date')
                                     ->label('Дата последней поставки')
@@ -124,7 +126,8 @@ class InventoryResource extends Resource
                     ->toggleable(),
 
                 TextColumn::make('quantity')
-                    ->label('Количество (шт)')
+                    ->label('Физический остаток')
+                    ->formatStateUsing(fn ($state, Inventory $record) => $state . ($record->product?->isWeighted() ? ' г' : ' шт.'))
                     ->sortable()
                     ->alignCenter()
                     ->color(fn ($state) => ($state ?? 0) > 0 ? 'success' : 'danger')

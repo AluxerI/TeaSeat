@@ -5,6 +5,7 @@ namespace Tests\Feature\Checkout;
 use App\Models\AddressClient;
 use App\Models\Brand;
 use App\Models\DeliveryMethod;
+use App\Models\Discount;
 use App\Models\Inventory;
 use App\Models\Order;
 use App\Models\Product;
@@ -76,6 +77,16 @@ class CheckoutIntegrityTest extends TestCase
             'final_unit_price' => 100,
             'total_price' => 300,
         ]);
+        $promotion = Discount::create([
+            'name' => 'Минус 10 ₽ с единицы',
+            'value' => 10,
+            'value_type' => Discount::VALUE_FIXED,
+            'type' => Discount::TYPE_PROMOTION,
+            'is_active' => true,
+            'is_global' => false,
+            'usage_limit' => 3,
+        ]);
+        $promotion->products()->attach($product);
 
         $service = app(CheckoutService::class);
         $idempotencyKey = 'checkout-integrity-test-0001';
@@ -92,7 +103,8 @@ class CheckoutIntegrityTest extends TestCase
 
         $this->assertSame(Order::STATUS_PENDING, $order->status);
         $this->assertNull($order->warehouse_id);
-        $this->assertSame(350.0, (float) $order->final_total);
+        $this->assertSame(320.0, (float) $order->final_total);
+        $this->assertSame(3, (int) $promotion->fresh()->used_count);
         $this->assertSame(2, $order->partialOrders()->count());
         $this->assertSame(0, Inventory::sum('quantity'));
 
@@ -109,11 +121,13 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertSame($order->id, $repeatedOrder->id);
         $this->assertSame(1, Order::whereNull('parent_order_id')->realOrders()->count());
         $this->assertSame(0, Inventory::sum('quantity'));
+        $this->assertSame(3, (int) $promotion->fresh()->used_count);
 
         $cancelledOrder = $service->cancelOrder($user->id, $order->id);
 
         $this->assertSame(Order::STATUS_CANCELLED, $cancelledOrder->status);
         $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(0, (int) $promotion->fresh()->used_count);
         $this->assertSame(
             2,
             Order::where('parent_order_id', $order->id)
@@ -124,6 +138,7 @@ class CheckoutIntegrityTest extends TestCase
         $service->cancelOrder($user->id, $order->id);
 
         $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(0, (int) $promotion->fresh()->used_count);
     }
 
     public function test_failed_multi_item_reservation_rolls_back_all_decrements(): void

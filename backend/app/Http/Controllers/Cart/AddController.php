@@ -7,7 +7,9 @@ use App\Services\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\CartResource;
+use DomainException;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class AddController extends Controller
 {
@@ -25,7 +27,7 @@ class AddController extends Controller
     {
         $request->validate([
             'product_id' => 'required|exists:products,id',
-            'quantity' => 'required|integer|min:1|max:100',
+            'quantity' => 'required|integer|min:1|max:2147483647',
             'city' => 'nullable|string',
             'is_supplier_order' => 'boolean' 
         ]);
@@ -41,7 +43,11 @@ class AddController extends Controller
             );
 
             return new CartResource($cart);
-        } catch (\Exception $e) {
+        } catch (DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (Throwable $e) {
             Log::error('Ошибка при добавлении товара в корзину', [
                 'user_id' => Auth::id(),
                 'product_id' => $request->product_id,
@@ -50,8 +56,8 @@ class AddController extends Controller
 
             return response()->json([
                 'message' => 'Ошибка при добавлении товара в корзину',
-                'error' => $e->getMessage() // Показываем пользователю понятную ошибку
-            ], 422);
+                'error' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
         }
     }
 }

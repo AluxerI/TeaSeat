@@ -32,7 +32,6 @@ class User extends Authenticatable implements MustVerifyEmail
                 Discount::TYPE_LOYALTY,
                 Discount::TYPE_REFERRAL,
             ])
-            ->wherePivot('is_used', false)
             ->where(function($query) {
                 $query->whereNull('discounts.start_date')
                       ->orWhere('discounts.start_date', '<=', now());

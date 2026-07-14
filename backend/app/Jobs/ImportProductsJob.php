@@ -206,14 +206,12 @@ class ImportProductsJob implements ShouldQueue
                             
                             // Остатки
                             $quantityToAdd = 0;
-                            $weightToAdd = null;
 
                             if (!empty($stockPieces) && is_numeric($stockPieces) && $stockPieces > 0) {
                                 $quantityToAdd = (int) $stockPieces;
                             } elseif (!empty($stockWeight) && is_numeric($stockWeight) && $stockWeight > 0) {
                                 if ($weightGrams && $weightGrams > 0) {
                                     $quantityToAdd = floor($stockWeight / $weightGrams);
-                                    $weightToAdd = $stockWeight - ($quantityToAdd * $weightGrams);
                                 }
                             }
 
@@ -224,7 +222,6 @@ class ImportProductsJob implements ShouldQueue
                                 ]);
                                 
                                 $inventory->quantity = ($inventory->quantity ?? 0) + $quantityToAdd;
-                                $inventory->weight_quantity = $weightToAdd;
                                 $inventory->last_restock_date = now()->toDateString();
                                 $inventory->save();
                                 $stockUpdated++;
@@ -247,12 +244,10 @@ class ImportProductsJob implements ShouldQueue
 
                             // Остатки для нового
                             $quantityToAdd = 0;
-                            $weightToAdd = null;
 
                             if (!empty($stockWeight) && is_numeric($stockWeight) && $stockWeight > 0) {
                                 if ($weightGrams && $weightGrams > 0) {
                                     $quantityToAdd = floor($stockWeight / $weightGrams);
-                                    $weightToAdd = $stockWeight - ($quantityToAdd * $weightGrams);
                                 }
                             } elseif (!empty($stockPieces) && is_numeric($stockPieces) && $stockPieces > 0) {
                                 $quantityToAdd = (int) $stockPieces;
@@ -265,7 +260,6 @@ class ImportProductsJob implements ShouldQueue
                                 ]);
 
                                 $inventory->quantity = ($inventory->quantity ?? 0) + $quantityToAdd;
-                                $inventory->weight_quantity = $weightToAdd;
                                 $inventory->last_restock_date = now()->toDateString();
                                 $inventory->save();
                             }

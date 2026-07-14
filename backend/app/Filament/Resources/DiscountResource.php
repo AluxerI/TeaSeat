@@ -37,7 +37,7 @@ class DiscountResource extends Resource
     protected static ?string $model = Discount::class;
     protected static ?string $navigationIcon = 'heroicon-o-gift';
     protected static ?string $navigationGroup = 'Маркетинг';
-    protected static ?string $navigationLabel = 'Персональные скидки';
+    protected static ?string $navigationLabel = 'Скидки и промокоды';
     protected static ?string $modelLabel = 'Скидка';
     protected static ?string $pluralModelLabel = 'Скидки';
     protected static ?string $recordTitleAttribute = 'name';
@@ -45,7 +45,7 @@ class DiscountResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->whereIn('type', ['personal', 'first_order', 'loyalty', 'referral'])
+            ->where('type', '!=', Discount::TYPE_PROMOTION)
             ->with(['users', 'products', 'categories', 'subcategories', 'subSubcategories']);
     }
 
@@ -76,12 +76,11 @@ class DiscountResource extends Resource
                                                         'first_order' => 'Первый заказ',
                                                         'loyalty' => 'Программа лояльности',
                                                         'referral' => 'Реферальная',
-                                                        'promotion' => 'Акция на товары',
                                                         'cart' => 'Скидка на корзину',
                                                         'shipping' => 'Скидка на доставку',
                                                     ])
                                                     ->required()
-                                                    ->default('promotion')
+                                                    ->default(Discount::TYPE_PERSONAL)
                                                     ->reactive()
                                                     ->afterStateUpdated(function ($state, callable $set) {
                                                         $set('is_global', false);
@@ -90,23 +89,44 @@ class DiscountResource extends Resource
                                                         $set('sub_subcategories', []);
                                                         $set('products', []);
                                                         $set('users', []);
+                                                        if (!in_array($state, ['cart', 'shipping'])) {
+                                                            $set('code', null);
+                                                        }
                                                     }),
+
+                                                TextInput::make('code')
+                                                    ->label('Промокод')
+                                                    ->required(fn ($get) => in_array($get('type'), ['cart', 'shipping']))
+                                                    ->visible(fn ($get) => in_array($get('type'), ['cart', 'shipping']))
+                                                    ->unique(ignoreRecord: true)
+                                                    ->maxLength(100)
+                                                    ->helperText('Регистр букв при вводе промокода не важен'),
                                                 
+                                                Select::make('value_type')
+                                                    ->label('Способ расчёта')
+                                                    ->options([
+                                                        Discount::VALUE_PERCENT => 'Процент',
+                                                        Discount::VALUE_FIXED => 'Фиксированная сумма',
+                                                    ])
+                                                    ->default(Discount::VALUE_PERCENT)
+                                                    ->required()
+                                                    ->reactive(),
+
                                                 TextInput::make('value')
                                                     ->label('Размер скидки')
                                                     ->required()
                                                     ->numeric()
                                                     ->minValue(0)
-                                                    ->maxValue(100)
+                                                    ->maxValue(fn ($get) => $get('value_type') === Discount::VALUE_PERCENT ? 100 : 99999999.99)
                                                     ->step(0.01)
-                                                    ->suffix('%'),
+                                                    ->suffix(fn ($get) => $get('value_type') === Discount::VALUE_FIXED ? '₽' : '%'),
                                                 
                                                 Toggle::make('is_global')
                                                     ->label('Глобальная скидка')
                                                     ->helperText('Применяется ко всем товарам')
                                                     ->reactive()
                                                     ->default(false)
-                                                    ->visible(fn ($get) => $get('type') === 'personal'),
+                                                    ->visible(fn ($get) => in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                                                 
                                                 Toggle::make('is_active')
                                                     ->label('Активна')
@@ -118,18 +138,18 @@ class DiscountResource extends Resource
                                     ->schema([
                                         Grid::make(2)
                                             ->schema([
-                                                DateTimePicker::make('start_at')
+                                                DateTimePicker::make('start_date')
                                                     ->label('Дата начала')
                                                     ->nullable()
                                                     ->native(false)
                                                     ->displayFormat('d.m.Y H:i'),
                                                 
-                                                DateTimePicker::make('end_at')
+                                                DateTimePicker::make('end_date')
                                                     ->label('Дата окончания')
                                                     ->nullable()
                                                     ->native(false)
                                                     ->displayFormat('d.m.Y H:i')
-                                                    ->after('start_at'),
+                                                    ->after('start_date'),
                                             ]),
                                     ]),
 
@@ -150,7 +170,14 @@ class DiscountResource extends Resource
                                                     ->numeric()
                                                     ->minValue(1)
                                                     ->default(1)
-                                                    ->helperText('Сколько раз можно использовать'),
+                                                    ->helperText('Для скидки на товар считается по единицам товара; для промокода — по заказам'),
+
+                                                TextInput::make('usage_per_user')
+                                                    ->label('Лимит на пользователя')
+                                                    ->numeric()
+                                                    ->minValue(1)
+                                                    ->nullable()
+                                                    ->helperText('Пусто — без отдельного лимита'),
                                             ]),
                                     ]),
                             ]),
@@ -167,7 +194,7 @@ class DiscountResource extends Resource
                                             ->optionsLimit(100)
                                             ->dehydrated(false)
                                             ->columnSpanFull()
-                                            ->visible(fn ($get) => $get('type') === 'category')
+                                            ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral']))
                                             ->options(function () {
                                                 return Category::select('id', 'name')
                                                     ->orderBy('name')
@@ -182,9 +209,9 @@ class DiscountResource extends Resource
                                         Forms\Components\Placeholder::make('categories_count')
                                             ->label('Категорий выбрано')
                                             ->content(fn ($record) => $record ? $record->categories()->count() : 0)
-                                            ->visible(fn ($get, $record) => $record && $get('type') === 'category'),
+                                            ->visible(fn ($get, $record) => $record && !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'category'),
+                                    ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                             ]),
 
                         Tab::make('Подкатегории')
@@ -199,7 +226,7 @@ class DiscountResource extends Resource
                                             ->optionsLimit(100)
                                             ->dehydrated(false)
                                             ->columnSpanFull()
-                                            ->visible(fn ($get) => $get('type') === 'subcategory')
+                                            ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral']))
                                             ->options(function () {
                                                 return Subcategory::with('category')
                                                     ->select('id', 'name', 'category_id')
@@ -219,9 +246,9 @@ class DiscountResource extends Resource
                                         Forms\Components\Placeholder::make('subcategories_count')
                                             ->label('Подкатегорий выбрано')
                                             ->content(fn ($record) => $record ? $record->subcategories()->count() : 0)
-                                            ->visible(fn ($get, $record) => $record && $get('type') === 'subcategory'),
+                                            ->visible(fn ($get, $record) => $record && !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'subcategory'),
+                                    ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                             ]),
 
                         Tab::make('Под-подкатегории')
@@ -236,7 +263,7 @@ class DiscountResource extends Resource
                                             ->optionsLimit(100)
                                             ->dehydrated(false)
                                             ->columnSpanFull()
-                                            ->visible(fn ($get) => $get('type') === 'sub_subcategory')
+                                            ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral']))
                                             ->options(function () {
                                                 return Sub_Subcategory::with('subcategory.category')
                                                     ->select('id', 'name', 'subcategory_id')
@@ -258,9 +285,9 @@ class DiscountResource extends Resource
                                         Forms\Components\Placeholder::make('sub_subcategories_count')
                                             ->label('Под-подкатегорий выбрано')
                                             ->content(fn ($record) => $record ? $record->subSubcategories()->count() : 0)
-                                            ->visible(fn ($get, $record) => $record && $get('type') === 'sub_subcategory'),
+                                            ->visible(fn ($get, $record) => $record && !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                                     ])
-                                    ->visible(fn ($get) => $get('type') === 'sub_subcategory'),
+                                    ->visible(fn ($get) => !$get('is_global') && in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral'])),
                             ]),
 
                         Tab::make('Товары')
@@ -295,6 +322,7 @@ class DiscountResource extends Resource
                             ]),
 
                         Tab::make('Пользователи')
+                            ->visible(fn ($get) => in_array($get('type'), ['personal', 'first_order', 'loyalty', 'referral']))
                             ->schema([
                                 Section::make('Пользователи, имеющие скидку')
                                     ->schema([
@@ -354,9 +382,8 @@ class DiscountResource extends Resource
                         'first_order' => 'Первый заказ',
                         'loyalty' => 'Лояльность',
                         'referral' => 'Реферальная',
-                        'category' => 'На категорию',
-                        'subcategory' => 'На подкатегорию',
-                        'sub_subcategory' => 'На под-подкатегорию',
+                        'cart' => 'Промокод на корзину',
+                        'shipping' => 'Промокод на доставку',
                         default => $state,
                     })
                     ->color(fn (string $state): string => match ($state) {
@@ -364,15 +391,16 @@ class DiscountResource extends Resource
                         'first_order' => 'success',
                         'loyalty' => 'warning',
                         'referral' => 'info',
-                        'category' => 'danger',
-                        'subcategory' => 'purple',
-                        'sub_subcategory' => 'pink',
+                        'cart' => 'danger',
+                        'shipping' => 'purple',
                         default => 'gray',
                     }),
                 
                 TextColumn::make('value')
                     ->label('Размер')
-                    ->suffix('%')
+                    ->formatStateUsing(fn ($state, Discount $record) => $record->value_type === Discount::VALUE_FIXED
+                        ? number_format((float) $state, 2, ',', ' ') . ' ₽'
+                        : number_format((float) $state, 2, ',', ' ') . '%')
                     ->sortable()
                     ->alignCenter(),
                 
@@ -425,13 +453,13 @@ class DiscountResource extends Resource
                     ->alignCenter()
                     ->toggleable(),
                 
-                TextColumn::make('start_at')
+                TextColumn::make('start_date')
                     ->label('С')
                     ->dateTime('d.m.Y')
                     ->sortable()
                     ->toggleable(),
                 
-                TextColumn::make('end_at')
+                TextColumn::make('end_date')
                     ->label('По')
                     ->dateTime('d.m.Y')
                     ->sortable()
@@ -445,9 +473,8 @@ class DiscountResource extends Resource
                         'first_order' => 'Первый заказ',
                         'loyalty' => 'Лояльность',
                         'referral' => 'Реферальная',
-                        'category' => 'На категорию',
-                        'subcategory' => 'На подкатегорию',
-                        'sub_subcategory' => 'На под-подкатегорию',
+                        'cart' => 'Промокод на корзину',
+                        'shipping' => 'Промокод на доставку',
                     ]),
                 
                 Filter::make('is_active')
@@ -457,9 +484,9 @@ class DiscountResource extends Resource
                 Filter::make('active_period')
                     ->label('Действующие')
                     ->query(fn (Builder $query): Builder => $query->where(function ($q) {
-                        $q->whereNull('start_at')->orWhere('start_at', '<=', now());
+                        $q->whereNull('start_date')->orWhere('start_date', '<=', now());
                     })->where(function ($q) {
-                        $q->whereNull('end_at')->orWhere('end_at', '>=', now());
+                        $q->whereNull('end_date')->orWhere('end_date', '>=', now());
                     })),
             ])
             ->actions([

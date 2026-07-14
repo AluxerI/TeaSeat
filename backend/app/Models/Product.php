@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Cache;
@@ -13,6 +14,9 @@ class Product extends Model
 {
     use HasFactory, ClearsModelCache, ResetsAdminBadges;
 
+    public const STOCK_UNIT_PIECE = 'piece';
+    public const STOCK_UNIT_GRAM = 'gram';
+
     protected $table = 'products';
 
 
@@ -22,6 +26,9 @@ class Product extends Model
         'description',
         'brand_id',
         'price',
+        'stock_unit',
+        'sale_step',
+        'price_unit_quantity',
         'weight_grams',
         'sold_count',
         'is_available',
@@ -32,10 +39,68 @@ class Product extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'sale_step' => 'integer',
+        'price_unit_quantity' => 'integer',
         'is_available' => 'boolean',
         'total_quantity' => 'integer',
         'cached_data' => 'array',
     ];
+
+    public function stockUnit(): string
+    {
+        return $this->stock_unit ?: self::STOCK_UNIT_PIECE;
+    }
+
+    public function saleStep(): int
+    {
+        return max(1, (int) ($this->sale_step ?: 1));
+    }
+
+    public function priceUnitQuantity(): int
+    {
+        return max(1, (int) ($this->price_unit_quantity ?: 1));
+    }
+
+    public function isWeighted(): bool
+    {
+        return $this->stockUnit() === self::STOCK_UNIT_GRAM;
+    }
+
+    public function assertValidSaleQuantity(int $quantity): void
+    {
+        $step = $this->saleStep();
+
+        if ($quantity < $step || $quantity % $step !== 0) {
+            $unit = $this->isWeighted() ? 'г' : 'шт.';
+            throw new DomainException(
+                "Количество товара «{$this->name}» должно быть кратно {$step} {$unit}"
+            );
+        }
+    }
+
+    public function baseTotalForQuantity(int $quantity): float
+    {
+        $this->assertValidSaleQuantity($quantity);
+
+        return round(
+            (float) $this->price * $quantity / $this->priceUnitQuantity(),
+            2
+        );
+    }
+
+    public function discountUsesForQuantity(int $quantity): int
+    {
+        return $this->isWeighted() ? 1 : $quantity;
+    }
+
+    public function measurementSnapshot(): array
+    {
+        return [
+            'stock_unit' => $this->stockUnit(),
+            'sale_step' => $this->saleStep(),
+            'price_unit_quantity' => $this->priceUnitQuantity(),
+        ];
+    }
 
     /**
      * Отношения
@@ -210,24 +275,15 @@ class Product extends Model
     /**
      * Получить общее количество на складах
      */
-    private function getTotalQuantity(): float
+    private function getTotalQuantity(): int
     {
         $key = "product.{$this->id}.total_quantity";
 
-        return Cache::remember($key, 300, function () {
-            $inventories = $this->inventories()->get();
-            $total = 0;
-
-            foreach ($inventories as $inv) {
-                if ($inv->unit === 'gram') {
-                    $total += $inv->weight_quantity;
-                } else {
-                    $total += $inv->quantity;
-                }
-            }
-
-            return $total;
-        });
+        return (int) Cache::remember(
+            $key,
+            300,
+            fn () => $this->inventories()->sum('quantity')
+        );
     }
 
     /**
@@ -242,6 +298,9 @@ class Product extends Model
                 'id' => $this->id,
                 'name' => $this->name,
                 'price' => (float) $this->price,
+                'stock_unit' => $this->stockUnit(),
+                'sale_step' => $this->saleStep(),
+                'price_unit_quantity' => $this->priceUnitQuantity(),
                 'main_image_path' => $this->getMainImagePath(),
                 'main_image_url' => $this->getMainImageUrl(),
                 'background_image_path' => $this->getBackgroundImagePath(),
@@ -434,7 +493,6 @@ public function getInventoryData(): array
                 'warehouse_name' => $inventory->warehouse->name,
                 'warehouse_city' => $inventory->warehouse->city,
                 'quantity' => $inventory->quantity,
-                'weight_quantity' => $inventory->weight_quantity,
                 'last_restock_date' => $inventory->last_restock_date?->format('d.m.Y'),
             ];
         })->values()->toArray();
@@ -456,8 +514,9 @@ public function getInventoryData(): array
                     'name' => $discount->name,
                     'type' => $discount->type,
                     'value' => (float) $discount->value,
-                    'start_at' => $discount->start_at?->format('d.m.Y'),
-                    'end_at' => $discount->end_at?->format('d.m.Y'),
+                    'value_type' => $discount->value_type,
+                    'start_date' => $discount->start_date?->format('d.m.Y'),
+                    'end_date' => $discount->end_date?->format('d.m.Y'),
                 ];
             })->values()->toArray();
         });

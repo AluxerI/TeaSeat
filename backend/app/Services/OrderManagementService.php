@@ -234,12 +234,22 @@ class OrderManagementService
      */
     private function recalculateOrderTotal(Order $order): void
     {
-        $productsTotal = $order->items->sum('total_price');
-        $shippingCost = $order->shipping_cost;
-        
+        $itemsTotal = (float) $order->items()->sum('total_price');
+        $shippingCost = (float) $order->shipping_cost;
+        $shippingDiscount = (float) ($order->shipping_discount ?? 0);
+
+        $order->loadMissing('discount');
+        if ($order->discount?->type === \App\Models\Discount::TYPE_SHIPPING) {
+            $shippingDiscount = $order->discount->calculateDiscountAmount($shippingCost);
+        }
+
         $order->update([
-            'products_total' => $productsTotal,
-            'final_total' => $productsTotal + $shippingCost
+            'shipping_discount' => $shippingDiscount,
+            'final_total' => round(
+                max(0, $itemsTotal - (float) ($order->cart_discount ?? 0))
+                + max(0, $shippingCost - $shippingDiscount),
+                2
+            ),
         ]);
     }
 }

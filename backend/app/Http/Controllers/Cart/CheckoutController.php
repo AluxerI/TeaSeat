@@ -8,6 +8,8 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\OrderResource;
 use Illuminate\Support\Facades\Log;
+use DomainException;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class CheckoutController extends Controller
 {
@@ -33,6 +35,10 @@ class CheckoutController extends Controller
             'payment_method' => 'required|in:cash,card,online',
             'customer_notes' => 'nullable|string|max:500',
             'is_supplier_order' => 'boolean',
+            'discount_selection' => 'nullable|array',
+            'discount_selection.type' => 'required_with:discount_selection|in:personal,coupon',
+            'discount_selection.discount_id' => 'required_if:discount_selection.type,personal|prohibited_unless:discount_selection.type,personal|integer|exists:discounts,id',
+            'discount_selection.code' => 'required_if:discount_selection.type,coupon|prohibited_unless:discount_selection.type,coupon|string|max:100',
             'idempotency_key' => [
                 'required',
                 'string',
@@ -53,10 +59,19 @@ class CheckoutController extends Controller
                 $request->customer_notes,
                 $request->boolean('is_supplier_order'),
                 $request->idempotency_key,
+                $request->input('discount_selection'),
             );
 
             return new OrderResource($order);
 
+        } catch (DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (ModelNotFoundException $e) {
+            return response()->json([
+                'message' => 'Некорректный адрес, способ доставки или товар',
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Checkout error', [
                 'user_id' => Auth::id(),
@@ -66,7 +81,7 @@ class CheckoutController extends Controller
             return response()->json([
                 'message' => 'Ошибка при оформлении заказа',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
-            ], 422);
+            ], 500);
         }
     }
 

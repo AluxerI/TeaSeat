@@ -74,16 +74,26 @@ class PromotionResource extends Resource
                                                     ->label('Промокод')
                                                     ->maxLength(50)
                                                     ->unique(ignoreRecord: true, ignorable: fn ($record) => $record)
-                                                    ->helperText('Оставьте пустым, если акция без промокода'),
+                                                    ->helperText('Необязательный маркер. Акция применяется автоматически; клиентские промокоды создаются в разделе «Скидки и промокоды»'),
                                                 
+                                                Select::make('value_type')
+                                                    ->label('Способ расчёта')
+                                                    ->options([
+                                                        Discount::VALUE_PERCENT => 'Процент',
+                                                        Discount::VALUE_FIXED => 'Фиксированная сумма за единицу товара',
+                                                    ])
+                                                    ->default(Discount::VALUE_PERCENT)
+                                                    ->required()
+                                                    ->reactive(),
+
                                                 TextInput::make('value')
-                                                    ->label('Процент скидки')
+                                                    ->label('Размер скидки')
                                                     ->required()
                                                     ->numeric()
                                                     ->minValue(0)
-                                                    ->maxValue(100)
+                                                    ->maxValue(fn ($get) => $get('value_type') === Discount::VALUE_PERCENT ? 100 : 99999999.99)
                                                     ->step(0.01)
-                                                    ->suffix('%'),
+                                                    ->suffix(fn ($get) => $get('value_type') === Discount::VALUE_FIXED ? '₽' : '%'),
                                                 
                                                 Toggle::make('is_global')
                                                     ->label('Глобальная акция')
@@ -138,7 +148,7 @@ class PromotionResource extends Resource
                                                     ->numeric()
                                                     ->minValue(0)
                                                     ->nullable()
-                                                    ->helperText('0 или пусто - без лимита'),
+                                                    ->helperText('Считается по единицам товара; 0 или пусто — без лимита'),
                                                 
                                                 TextInput::make('usage_per_user')
                                                     ->label('Лимит на пользователя')
@@ -278,7 +288,9 @@ class PromotionResource extends Resource
                 
                 TextColumn::make('value')
                     ->label('Скидка')
-                    ->suffix('%')
+                    ->formatStateUsing(fn ($state, Discount $record) => $record->value_type === Discount::VALUE_FIXED
+                        ? number_format((float) $state, 2, ',', ' ') . ' ₽/ед.'
+                        : number_format((float) $state, 2, ',', ' ') . '%')
                     ->sortable()
                     ->alignCenter(),
                 

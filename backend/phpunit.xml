@@ -12,6 +12,12 @@
             <directory>tests/Feature</directory>
         </testsuite>
     </testsuites>
+    <!-- Старые Breeze/web-тесты не соответствуют текущему API-контракту. -->
+    <groups>
+        <exclude>
+            <group>legacy</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>

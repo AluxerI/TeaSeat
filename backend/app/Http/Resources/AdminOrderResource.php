@@ -22,9 +22,12 @@ class AdminOrderResource extends JsonResource
                 'products_total' => (float) $this->products_total,
                 'promotion_discount' => (float) ($this->promotion_discount ?? 0),
                 'personal_discount' => (float) ($this->personal_discount ?? 0),
+                'cart_discount' => (float) ($this->cart_discount ?? 0),
                 'shipping_cost' => (float) $this->shipping_cost,
+                'shipping_discount' => (float) ($this->shipping_discount ?? 0),
                 'final_total' => (float) $this->final_total,
             ],
+            'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
             
             // Информация о клиенте
             'customer' => $this->whenLoaded('user', function() {

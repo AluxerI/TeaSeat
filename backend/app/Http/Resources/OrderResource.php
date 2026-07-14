@@ -38,8 +38,10 @@ class OrderResource extends JsonResource
                 'personal_discount' => (float) ($this->personal_discount ?? 0),
                 'cart_discount' => (float) ($this->cart_discount ?? 0),
                 'shipping_cost' => (float) $this->shipping_cost,
+                'shipping_discount' => (float) ($this->shipping_discount ?? 0),
                 'final_total' => (float) $this->final_total,
             ],
+            'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
 
             'delivery_info' => [
                 'estimated_days' => $this->deliveryMethod?->getEstimatedDaysFormatted() ?? 'уточняется',

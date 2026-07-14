@@ -8,7 +8,8 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\AddressClient;
 use App\Models\Inventory;
-use App\Services\PriceCalculatorService;
+use App\Models\Discount;
+use App\Services\PricingService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -38,13 +39,6 @@ class OrderResource extends Resource
     protected static ?string $navigationGroup = 'Управление продажами';
     protected static ?string $navigationLabel = 'Заказы';
     protected static ?string $recordTitleAttribute = 'id';
-
-    protected PriceCalculatorService $priceCalculator;
-
-    public function __construct()
-    {
-        $this->priceCalculator = app(PriceCalculatorService::class);
-    }
 
     public static function getEloquentQuery(): Builder
     {
@@ -229,22 +223,51 @@ class OrderResource extends Resource
                                             })
                                             ->searchable()
                                             ->required()
+                                            ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                                             ->reactive()
                                             ->afterStateUpdated(function ($state, callable $set, callable $get, $livewire) {
                                                 $product = Product::find($state);
                                                 $user = User::find($get('../../user_id'));
                                                 
                                                 if ($product) {
-                                                    // Получаем расчёт цен через сервис
-                                                    $priceCalculator = app(PriceCalculatorService::class);
-                                                    $priceData = $priceCalculator->calculateForProduct($product, $user);
-                                                    
+                                                    $quantity = max(
+                                                        $product->saleStep(),
+                                                        (int) ($get('quantity') ?? $product->saleStep())
+                                                    );
+                                                    if ($quantity % $product->saleStep() !== 0) {
+                                                        $quantity = $product->saleStep();
+                                                    }
+                                                    $line = app(PricingService::class)->quoteProductLine(
+                                                        $product,
+                                                        $quantity,
+                                                        $user
+                                                    );
+
+                                                    $set('quantity', $quantity);
                                                     $set('unit_price', $product->price);
-                                                    $set('final_unit_price', $priceData['final_price']);
+                                                    $set('stock_unit', $product->stockUnit());
+                                                    $set('sale_step', $product->saleStep());
+                                                    $set('price_unit_quantity', $product->priceUnitQuantity());
+                                                    $set('final_unit_price', $line['final_unit_price']);
+                                                    $promotion = $line['promotion'] ?? null;
+                                                    $set('promotion_discount_id', $promotion['id'] ?? null);
+                                                    $set(
+                                                        'promotion_discount_percent',
+                                                        ($promotion['value_type'] ?? null) === Discount::VALUE_PERCENT
+                                                            ? $promotion['value']
+                                                            : 0
+                                                    );
+                                                    $set('personal_discount_percent', 0);
+                                                    $set(
+                                                        'promotion_discount_amount',
+                                                        $line['promotion_discount_amount']
+                                                    );
+                                                    $set('selected_discount_id', null);
+                                                    $set('selected_discount_amount', 0);
                                                     
                                                     // Информация о скидках для отображения
-                                                    $set('_promotion_discount', $priceData['promotion_discount']);
-                                                    $set('_personal_discount', $priceData['personal_discount']);
+                                                    $set('_promotion_discount', $line['total_discount_percent']);
+                                                    $set('_personal_discount', 0);
                                                     
                                                     // Получаем общий остаток на складах
                                                     $totalStock = Inventory::where('product_id', $state)->sum('quantity');
@@ -259,9 +282,46 @@ class OrderResource extends Resource
                                             ->numeric()
                                             ->default(1)
                                             ->minValue(1)
+                                            ->step(function ($get) {
+                                                return Product::find($get('product_id'))?->saleStep() ?? 1;
+                                            })
+                                            ->rules([
+                                                fn ($get) => function (string $attribute, mixed $value, \Closure $fail) use ($get) {
+                                                    $product = Product::find($get('product_id'));
+                                                    if (!$product) {
+                                                        return;
+                                                    }
+
+                                                    try {
+                                                        $product->assertValidSaleQuantity((int) $value);
+                                                    } catch (\DomainException $exception) {
+                                                        $fail($exception->getMessage());
+                                                    }
+                                                },
+                                            ])
                                             ->required()
                                             ->reactive()
                                             ->afterStateUpdated(function (callable $get, callable $set) {
+                                                $product = Product::find($get('product_id'));
+                                                if (!$product) {
+                                                    return;
+                                                }
+
+                                                $quantity = (int) ($get('quantity') ?? 0);
+                                                try {
+                                                    $product->assertValidSaleQuantity($quantity);
+                                                } catch (\DomainException) {
+                                                    return;
+                                                }
+
+                                                $line = app(PricingService::class)
+                                                    ->quoteProductLine(
+                                                        $product,
+                                                        $quantity,
+                                                        User::find($get('../../user_id'))
+                                                    );
+                                                $set('final_unit_price', $line['final_unit_price']);
+                                                $set('promotion_discount_amount', $line['promotion_discount_amount']);
                                                 self::calculateTotals($get, $set);
                                             })
                                             ->columnSpan(2),
@@ -306,19 +366,31 @@ class OrderResource extends Resource
                                             ->content(function ($get) {
                                                 $stock = $get('_stock_info');
                                                 if ($stock === null) return '—';
-                                                return $stock . ' шт.';
+                                                return $stock . ($get('stock_unit') === Product::STOCK_UNIT_GRAM ? ' г' : ' шт.');
                                             })
                                             ->columnSpan(1),
                                         
                                         Placeholder::make('total')
                                             ->label('Сумма')
                                             ->content(function ($get) {
-                                                $qty = $get('quantity') ?? 0;
-                                                $price = $get('final_unit_price') ?? 0;
-                                                return number_format($qty * $price, 2) . ' ₽';
+                                                return number_format(self::lineTotalFromState([
+                                                    'quantity' => $get('quantity'),
+                                                    'final_unit_price' => $get('final_unit_price'),
+                                                    'price_unit_quantity' => $get('price_unit_quantity'),
+                                                ]), 2) . ' ₽';
                                             })
                                             ->columnSpan(1),
                                     ]),
+
+                                Hidden::make('promotion_discount_id'),
+                                Hidden::make('selected_discount_id'),
+                                Hidden::make('stock_unit')->default(Product::STOCK_UNIT_PIECE),
+                                Hidden::make('sale_step')->default(1),
+                                Hidden::make('price_unit_quantity')->default(1),
+                                Hidden::make('promotion_discount_percent')->default(0),
+                                Hidden::make('personal_discount_percent')->default(0),
+                                Hidden::make('promotion_discount_amount')->default(0),
+                                Hidden::make('selected_discount_amount')->default(0),
                             ])
                             ->defaultItems(0)
                             ->collapsible()
@@ -329,11 +401,13 @@ class OrderResource extends Resource
                                     : 'Новый товар'
                             )
                             ->mutateRelationshipDataBeforeCreateUsing(function (array $data): array {
-                                $data['total_price'] = ($data['quantity'] ?? 0) * ($data['final_unit_price'] ?? 0);
+                                $data['total_price'] = self::lineTotalFromState($data);
+                                $data['pricing_snapshot'] = self::makeLinePricingSnapshot($data);
                                 return $data;
                             })
                             ->mutateRelationshipDataBeforeSaveUsing(function (array $data): array {
-                                $data['total_price'] = ($data['quantity'] ?? 0) * ($data['final_unit_price'] ?? 0);
+                                $data['total_price'] = self::lineTotalFromState($data);
+                                $data['pricing_snapshot'] = self::makeLinePricingSnapshot($data);
                                 return $data;
                             })
                             ->afterStateUpdated(function (callable $get, callable $set) {
@@ -345,13 +419,13 @@ class OrderResource extends Resource
                     ->schema([
                         Grid::make(4)
                             ->schema([
-                                Placeholder::make('products_total')
+                                Placeholder::make('products_total_display')
                                     ->label('Товары')
                                     ->content(function ($get) {
                                         $items = $get('items') ?? [];
                                         $total = 0;
                                         foreach ($items as $item) {
-                                            $total += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                            $total += self::lineTotalFromState($item, 'unit_price');
                                         }
                                         return number_format($total, 2) . ' ₽';
                                     }),
@@ -360,21 +434,19 @@ class OrderResource extends Resource
                                     ->label('Доставка')
                                     ->content(fn ($get) => number_format($get('shipping_cost') ?? 0, 2) . ' ₽'),
                                 
-                                TextInput::make('promotion_discount')
+                                Placeholder::make('promotion_discount_display')
                                     ->label('Скидка по акции')
-                                    ->numeric()
-                                    ->prefix('₽')
-                                    ->default(0)
-                                    ->reactive()
-                                    ->afterStateUpdated(fn (callable $get, callable $set) => self::calculateTotals($get, $set)),
+                                    ->content(fn ($get) => number_format(
+                                        collect($get('items') ?? [])->sum('promotion_discount_amount'),
+                                        2
+                                    ) . ' ₽'),
                                 
-                                TextInput::make('personal_discount')
+                                Placeholder::make('personal_discount_display')
                                     ->label('Перс. скидка')
-                                    ->numeric()
-                                    ->prefix('₽')
-                                    ->default(0)
-                                    ->reactive()
-                                    ->afterStateUpdated(fn (callable $get, callable $set) => self::calculateTotals($get, $set)),
+                                    ->content(fn ($get) => number_format(
+                                        collect($get('items') ?? [])->sum('selected_discount_amount'),
+                                        2
+                                    ) . ' ₽'),
                                 
                                 Placeholder::make('final_total_display')
                                     ->label('Итого')
@@ -382,14 +454,14 @@ class OrderResource extends Resource
                                         $items = $get('items') ?? [];
                                         $productsTotal = 0;
                                         foreach ($items as $item) {
-                                            $productsTotal += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                            $productsTotal += self::lineTotalFromState($item);
                                         }
                                         
                                         $shipping = $get('shipping_cost') ?? 0;
-                                        $promoDiscount = $get('promotion_discount') ?? 0;
-                                        $personalDiscount = $get('personal_discount') ?? 0;
-                                        
-                                        $final = $productsTotal + $shipping - $promoDiscount - $personalDiscount;
+                                        $cartDiscount = $get('cart_discount') ?? 0;
+                                        $shippingDiscount = $get('shipping_discount') ?? 0;
+                                        $final = max(0, $productsTotal - $cartDiscount)
+                                            + max(0, $shipping - $shippingDiscount);
                                         
                                         return number_format(max(0, $final), 2) . ' ₽';
                                     })
@@ -401,15 +473,28 @@ class OrderResource extends Resource
                                         $items = $get('items') ?? [];
                                         $productsTotal = 0;
                                         foreach ($items as $item) {
-                                            $productsTotal += ($item['quantity'] ?? 0) * ($item['final_unit_price'] ?? 0);
+                                            $productsTotal += self::lineTotalFromState($item);
                                         }
                                         
                                         $shipping = $get('shipping_cost') ?? 0;
-                                        $promoDiscount = $get('promotion_discount') ?? 0;
-                                        $personalDiscount = $get('personal_discount') ?? 0;
-                                        
-                                        return max(0, $productsTotal + $shipping - $promoDiscount - $personalDiscount);
+                                        $cartDiscount = $get('cart_discount') ?? 0;
+                                        $shippingDiscount = $get('shipping_discount') ?? 0;
+
+                                        return max(0, $productsTotal - $cartDiscount)
+                                            + max(0, $shipping - $shippingDiscount);
                                     }),
+
+                                Hidden::make('products_total')
+                                    ->dehydrateStateUsing(fn ($state, callable $get) => collect($get('items') ?? [])
+                                        ->sum(fn (array $item) => self::lineTotalFromState($item, 'unit_price'))),
+                                Hidden::make('promotion_discount')
+                                    ->dehydrateStateUsing(fn ($state, callable $get) => collect($get('items') ?? [])
+                                        ->sum('promotion_discount_amount')),
+                                Hidden::make('personal_discount')
+                                    ->dehydrateStateUsing(fn ($state, callable $get) => collect($get('items') ?? [])
+                                        ->sum('selected_discount_amount')),
+                                Hidden::make('cart_discount')->default(0),
+                                Hidden::make('shipping_discount')->default(0),
                             ]),
                     ]),
             ]);
@@ -418,6 +503,40 @@ class OrderResource extends Resource
     protected static function calculateTotals(callable $get, callable $set): void
     {
         // Триггер для пересчета - всё обновляется через Placeholder
+    }
+
+    private static function lineTotalFromState(
+        array $data,
+        string $priceField = 'final_unit_price'
+    ): float {
+        return round(
+            (float) ($data[$priceField] ?? 0)
+                * (int) ($data['quantity'] ?? 0)
+                / max(1, (int) ($data['price_unit_quantity'] ?? 1)),
+            2
+        );
+    }
+
+    private static function makeLinePricingSnapshot(array $data): array
+    {
+        return [
+            'product_id' => $data['product_id'] ?? null,
+            'quantity' => (int) ($data['quantity'] ?? 0),
+            'stock_unit' => $data['stock_unit'] ?? Product::STOCK_UNIT_PIECE,
+            'sale_step' => (int) ($data['sale_step'] ?? 1),
+            'price_unit_quantity' => (int) ($data['price_unit_quantity'] ?? 1),
+            'unit_price' => (float) ($data['unit_price'] ?? 0),
+            'base_total' => self::lineTotalFromState($data, 'unit_price'),
+            'discount_uses' => ($data['stock_unit'] ?? Product::STOCK_UNIT_PIECE) === Product::STOCK_UNIT_GRAM
+                ? 1
+                : (int) ($data['quantity'] ?? 0),
+            'promotion_discount_id' => $data['promotion_discount_id'] ?? null,
+            'promotion_discount_amount' => (float) ($data['promotion_discount_amount'] ?? 0),
+            'selected_discount_id' => $data['selected_discount_id'] ?? null,
+            'selected_discount_amount' => (float) ($data['selected_discount_amount'] ?? 0),
+            'final_unit_price' => (float) ($data['final_unit_price'] ?? 0),
+            'final_total' => self::lineTotalFromState($data),
+        ];
     }
 
     public static function table(Table $table): Table

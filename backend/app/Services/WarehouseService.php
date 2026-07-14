@@ -175,14 +175,38 @@ class WarehouseService
             $mainOrderItem = OrderProduct::find($item['order_product_id']);
             
             if ($mainOrderItem) {
+                $allocationRatio = $mainOrderItem->quantity > 0
+                    ? $item['quantity'] / $mainOrderItem->quantity
+                    : 0;
+                $partialTotal = round((float) $mainOrderItem->total_price * $allocationRatio, 2);
+
                 $partialOrder->items()->create([
                     'product_id' => $item['product_id'],
                     'quantity' => $item['quantity'],
+                    'stock_unit' => $mainOrderItem->stock_unit,
+                    'sale_step' => $mainOrderItem->sale_step,
+                    'price_unit_quantity' => $mainOrderItem->price_unit_quantity,
                     'unit_price' => $mainOrderItem->unit_price,
+                    'promotion_discount_id' => $mainOrderItem->promotion_discount_id,
+                    'selected_discount_id' => $mainOrderItem->selected_discount_id,
                     'promotion_discount_percent' => $mainOrderItem->promotion_discount_percent ?? 0,
                     'personal_discount_percent' => $mainOrderItem->personal_discount_percent ?? 0,
+                    'promotion_discount_amount' => round(
+                        ((float) $mainOrderItem->promotion_discount_amount / $mainOrderItem->quantity)
+                        * $item['quantity'],
+                        2
+                    ),
+                    'selected_discount_amount' => round(
+                        ((float) $mainOrderItem->selected_discount_amount / $mainOrderItem->quantity)
+                        * $item['quantity'],
+                        2
+                    ),
                     'final_unit_price' => $mainOrderItem->final_unit_price ?? $mainOrderItem->unit_price,
-                    'total_price' => $mainOrderItem->final_unit_price * $item['quantity'],
+                    'total_price' => $partialTotal,
+                    'pricing_snapshot' => array_merge($mainOrderItem->pricing_snapshot ?? [], [
+                        'quantity' => $item['quantity'],
+                        'final_total' => $partialTotal,
+                    ]),
                 ]);
             }
         }

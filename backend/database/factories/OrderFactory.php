@@ -20,7 +20,9 @@ class OrderFactory extends Factory
             'personal_discount' => 0,
             'cart_discount' => 0,
             'shipping_cost' => 0,
+            'shipping_discount' => 0,
             'final_total' => 0,
+            'pricing_snapshot' => null,
         ];
     }
 
