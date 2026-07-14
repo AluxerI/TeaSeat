@@ -11,7 +11,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CategoryImageSeeder extends Seeder
 {
-    protected string $tempImagesPath = 'public/temp_category_images';
+    protected string $sourceImagesPath = 'seeders/assets/category-images';
     protected array $availableImages = [];
 
     public function run(): void
@@ -46,14 +46,14 @@ class CategoryImageSeeder extends Seeder
 
     protected function loadAvailableImages(): void
     {
-        $tempPath = Storage::disk('public')->path('temp_category_images');
+        $sourcePath = database_path($this->sourceImagesPath);
         
-        if (!File::exists($tempPath)) {
-            $this->command->warn('Папка temp_category_images не найдена');
+        if (!File::isDirectory($sourcePath)) {
+            $this->command->warn('Папка database/seeders/assets/category-images не найдена');
             return;
         }
 
-        $categories = File::directories($tempPath);
+        $categories = File::directories($sourcePath);
         
         foreach ($categories as $categoryPath) {
             $categoryName = basename($categoryPath);
@@ -62,7 +62,7 @@ class CategoryImageSeeder extends Seeder
             $categoryImages = [];
             foreach ($images as $image) {
                 $categoryImages[] = [
-                    'path' => 'temp_category_images/' . $categoryName . '/' . $image->getFilename(),
+                    'path' => $image->getPathname(),
                     'name' => $image->getFilename(),
                     'type' => $this->getImageType($image->getFilename()),
                 ];
@@ -113,18 +113,18 @@ class CategoryImageSeeder extends Seeder
         }
     }
 
-    protected function createCategoryImage(Category $category, string $tempPath, string $type): void
+    protected function createCategoryImage(Category $category, string $sourcePath, string $type): void
     {
-        if (!Storage::disk('public')->exists($tempPath)) {
+        if (!File::exists($sourcePath)) {
             return;
         }
 
-        $extension = pathinfo($tempPath, PATHINFO_EXTENSION);
+        $extension = pathinfo($sourcePath, PATHINFO_EXTENSION);
         $filename = time() . '_' . uniqid() . '.' . $extension;
         $path = "category-images/{$category->id}/{$filename}";
         
         Storage::disk('public')->makeDirectory("category-images/{$category->id}");
-        Storage::disk('public')->copy($tempPath, $path);
+        Storage::disk('public')->put($path, File::get($sourcePath));
         
         CategoryImage::create([
             'category_id' => $category->id,

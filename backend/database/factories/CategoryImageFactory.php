@@ -13,7 +13,7 @@ class CategoryImageFactory extends Factory
     {
         return [
             'category_id' => Category::factory(),
-            'path' => 'temp_category_images/placeholder.jpg',
+            'path' => 'category-images/placeholder.jpg',
             'disk' => 'public',
             'sort_order' => 0,
             'is_main' => false,
