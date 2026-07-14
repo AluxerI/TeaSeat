@@ -10,6 +10,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Warehouse;
+use App\Services\FulfillmentIssueService;
 use App\Services\StaffAccessService;
 use Database\Seeders\RolePermissionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -182,12 +183,22 @@ class SellerPwaTest extends TestCase
         $this->assertSame(2, (int) $context['inventory']->fresh()->quantity);
 
         $issue = FulfillmentIssue::firstOrFail();
-        $issue->update(['status' => FulfillmentIssue::STATUS_IN_REVIEW]);
-        $issue->update(['status' => FulfillmentIssue::STATUS_CLOSED]);
+        $manager = User::factory()->create();
+        $manager->assignRole(User::ROLE_MANAGER);
+        app(StaffAccessService::class)->syncActiveLocations(
+            $manager,
+            [$context['warehouse']->id]
+        );
+
+        $issueService = app(FulfillmentIssueService::class);
+        $issueService->take($manager, $issue->id);
+        $issueService->close($manager, $issue->id);
+
         $this->assertSame(
             FulfillmentIssue::STATUS_CLOSED,
             $issue->fresh()->status
         );
+        $this->assertSame($manager->id, $issue->fresh()->manager_id);
     }
 
     public function test_sync_batch_processes_each_event_independently_and_rejects_tampered_price(): void

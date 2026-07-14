@@ -20,6 +20,7 @@ class FulfillmentIssue extends Model
         'source_order_id',
         'product_id',
         'warehouse_id',
+        'manager_id',
         'reason',
         'shortage_quantity',
         'reserved_online_before',
@@ -28,6 +29,7 @@ class FulfillmentIssue extends Model
     ];
 
     protected $casts = [
+        'manager_id' => 'integer',
         'shortage_quantity' => 'integer',
         'reserved_online_before' => 'integer',
         'reserved_seller_before' => 'integer',
@@ -46,5 +48,10 @@ class FulfillmentIssue extends Model
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function manager()
+    {
+        return $this->belongsTo(User::class, 'manager_id');
     }
 }

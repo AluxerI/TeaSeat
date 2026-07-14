@@ -21,6 +21,7 @@ use App\Http\Controllers\Seller\BootstrapController as SellerBootstrapController
 use App\Http\Controllers\Seller\DeviceController as SellerDeviceController;
 use App\Http\Controllers\Seller\OrderController as SellerOrderController;
 use App\Http\Controllers\Seller\SyncController as SellerSyncController;
+use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmentIssueController;
 
 
 Route::prefix('auth')->group(function () {
@@ -122,6 +123,31 @@ Route::prefix('seller')->middleware('auth:sanctum')->group(function () {
             'permission:complete own seller orders',
             'throttle:30,1',
         ]);
+});
+
+// Отдельный API менеджера. В отличие от Filament, для менеджера здесь
+// обязательно применяется ограничение по назначенным активным складам.
+Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
+    Route::prefix('fulfillment-issues')->group(function () {
+        Route::get('/', [ManagerFulfillmentIssueController::class, 'index'])
+            ->middleware('permission:view fulfillment issues');
+        Route::get('/{issue}', [ManagerFulfillmentIssueController::class, 'show'])
+            ->whereNumber('issue')
+            ->middleware('permission:view fulfillment issues');
+        Route::get('/{issue}/affected-orders', [ManagerFulfillmentIssueController::class, 'affectedOrders'])
+            ->whereNumber('issue')
+            ->middleware('permission:view fulfillment issues');
+
+        Route::post('/{issue}/take', [ManagerFulfillmentIssueController::class, 'take'])
+            ->whereNumber('issue')
+            ->middleware('permission:manage fulfillment issues');
+        Route::post('/{issue}/release', [ManagerFulfillmentIssueController::class, 'release'])
+            ->whereNumber('issue')
+            ->middleware('permission:manage fulfillment issues');
+        Route::post('/{issue}/close', [ManagerFulfillmentIssueController::class, 'close'])
+            ->whereNumber('issue')
+            ->middleware('permission:manage fulfillment issues');
+    });
 });
 
 // Управление пользователями (только для админов)

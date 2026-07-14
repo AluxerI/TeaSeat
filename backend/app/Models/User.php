@@ -131,6 +131,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->hasMany(StaffDevice::class);
     }
 
+    public function managedFulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class, 'manager_id');
+    }
+
     public function isStaff(): bool
     {
         return $this->hasAnyRole(self::STAFF_ROLES);
