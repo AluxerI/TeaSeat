@@ -120,7 +120,13 @@ class Product extends Model
     public function inventories()
     {
         return $this->hasMany(Inventory::class)->select([
-            'product_id', 'warehouse_id', 'quantity'
+            'id',
+            'product_id',
+            'warehouse_id',
+            'quantity',
+            'reserved_online_quantity',
+            'reserved_seller_quantity',
+            'last_restock_date',
         ]);
     }
 
@@ -282,7 +288,9 @@ class Product extends Model
         return (int) Cache::remember(
             $key,
             300,
-            fn () => $this->inventories()->sum('quantity')
+            fn () => Inventory::sumOnlineAvailable(
+                $this->inventories()->onlineFulfillment()
+            )
         );
     }
 
@@ -383,6 +391,8 @@ class Product extends Model
      */
     public function updateCacheFields(): void
     {
+        // Остаток мог измениться через Inventory или настройки точки хранения.
+        $this->clearCache();
         $totalQuantity = $this->getTotalQuantity();
         
         $this->updateQuietly([
@@ -464,8 +474,12 @@ class Product extends Model
     public function scopeAvailableInCity($query, string $city)
     {
         return $query->where(function($q) use ($city) {
-            $q->whereHas('inventories.warehouse', function($query) use ($city) {
-                $query->where('city', $city)->where('quantity', '>', 0);
+            $q->whereHas('inventories', function($inventoryQuery) use ($city) {
+                $inventoryQuery
+                    ->availableForOnline()
+                    ->whereHas('warehouse', fn ($warehouseQuery) =>
+                        $warehouseQuery->where('city', $city)
+                    );
             })
             ->orWhereHas('suppliers');
         });
@@ -492,7 +506,14 @@ public function getInventoryData(): array
                 'warehouse_id' => $inventory->warehouse_id,
                 'warehouse_name' => $inventory->warehouse->name,
                 'warehouse_city' => $inventory->warehouse->city,
+                'warehouse_type' => $inventory->warehouse->type,
+                'is_online_fulfillment_enabled' =>
+                    $inventory->warehouse->is_online_fulfillment_enabled,
                 'quantity' => $inventory->quantity,
+                'reserved_online_quantity' => $inventory->reserved_online_quantity,
+                'reserved_seller_quantity' => $inventory->reserved_seller_quantity,
+                'available_quantity' => $inventory->availableQuantity(),
+                'shortage_quantity' => $inventory->shortageQuantity(),
                 'last_restock_date' => $inventory->last_restock_date?->format('d.m.Y'),
             ];
         })->values()->toArray();

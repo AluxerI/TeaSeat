@@ -11,7 +11,8 @@ use Illuminate\Support\Facades\DB;
 class OrderManagementService
 {
     public function __construct(
-        protected CheckoutService $checkoutService
+        protected CheckoutService $checkoutService,
+        protected WarehouseService $warehouseService
     ) {}
 
     /**
@@ -66,30 +67,83 @@ class OrderManagementService
      */
     public function updateOrderStatus(Order $order, string $status, ?string $notes = null, ?int $managerId = null): Order
     {
+        if ($status === Order::STATUS_CANCELLED) {
+            return $this->cancelOrderByManager(
+                $order,
+                $notes,
+                $managerId ?? $order->user_id
+            );
+        }
+
         return DB::transaction(function () use ($order, $status, $notes, $managerId) {
-            $oldStatus = $order->status;
-            
-            $order->update(['status' => $status]);
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
+            $oldStatus = $lockedOrder->status;
+            $actorId = $managerId ?? $lockedOrder->user_id;
+
+            if ($oldStatus === $status) {
+                return $lockedOrder->fresh();
+            }
+
+            if (
+                in_array($status, [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED], true)
+                && $lockedOrder->sales_channel === Order::SALES_CHANNEL_ONLINE
+                && !$lockedOrder->is_supplier_order
+            ) {
+                $this->warehouseService->commitOnlineStockForOrder(
+                    $lockedOrder,
+                    $actorId
+                );
+            }
+
+            $lockedOrder->update(['status' => $status]);
         
             // Логируем смену статуса
             OrderStatusHistory::create([
-                'order_id' => $order->id,
+                'order_id' => $lockedOrder->id,
                 'from_status' => $oldStatus,
                 'to_status' => $status,
-                'changed_by' => $managerId, // ← используем переданный ID
+                'changed_by' => $actorId,
                 'notes' => $notes
             ]);
         
             // Обновляем internal_notes если есть
             if ($notes) {
-                $order->update([
-                    'internal_notes' => ($order->internal_notes ?? '') . "\n" . now()->format('d.m.Y H:i') . ": " . $notes
+                $lockedOrder->update([
+                    'internal_notes' => ($lockedOrder->internal_notes ?? '') . "\n" . now()->format('d.m.Y H:i') . ": " . $notes
                 ]);
             }
         
-            $this->updateStatusTimestamps($order, $status);
+            $this->updateStatusTimestamps($lockedOrder, $status);
+
+            if (!$lockedOrder->parent_order_id) {
+                $partialOrders = Order::query()
+                    ->where('parent_order_id', $lockedOrder->id)
+                    ->where('status', '!=', Order::STATUS_CANCELLED)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($partialOrders as $partialOrder) {
+                    $partialOldStatus = $partialOrder->status;
+                    if ($partialOldStatus === $status) {
+                        continue;
+                    }
+
+                    $partialOrder->update(['status' => $status]);
+                    $this->updateStatusTimestamps($partialOrder, $status);
+                    OrderStatusHistory::create([
+                        'order_id' => $partialOrder->id,
+                        'from_status' => $partialOldStatus,
+                        'to_status' => $status,
+                        'changed_by' => $actorId,
+                        'notes' => 'Синхронизировано с основным заказом',
+                    ]);
+                }
+            }
         
-            return $order->fresh();
+            return $lockedOrder->fresh();
         });
     }
 
@@ -128,7 +182,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_CONFIRMED, 
-            "Подтвержден менеджером ID: {$managerId}"
+            "Подтвержден менеджером ID: {$managerId}",
+            $managerId
         );
     }
 
@@ -140,7 +195,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_SHIPPED, 
-            "Отмечен как отправленный менеджером ID: {$managerId}"
+            "Отмечен как отправленный менеджером ID: {$managerId}",
+            $managerId
         );
     }
 
@@ -152,7 +208,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_DELIVERED, 
-            "Отмечен как доставленный менеджером ID: {$managerId}"
+            "Отмечен как доставленный менеджером ID: {$managerId}",
+            $managerId
         );
     }
 

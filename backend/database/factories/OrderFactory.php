@@ -14,6 +14,7 @@ class OrderFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
             'status' => Order::STATUS_CART,
             'products_total' => 0,
             'promotion_discount' => 0,

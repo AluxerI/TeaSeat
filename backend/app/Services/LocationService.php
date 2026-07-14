@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Product;
 use App\Models\Warehouse;
 use App\Models\Supplier;
+use App\Models\Inventory;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Pagination\LengthAwarePaginator;
 
@@ -30,7 +31,7 @@ class LocationService
                 $warehouseIds = $this->getWarehouseIdsInCity($city);
                 $query->whereHas('inventories', function($query) use ($warehouseIds) {
                     $query->whereIn('warehouse_id', $warehouseIds)
-                          ->where('quantity', '>', 0);
+                          ->availableForOnline();
                 });
             } elseif ($filters['availability'] === 'supplier') {
                 // Только товары у поставщиков
@@ -45,7 +46,7 @@ class LocationService
             $query->where(function($q) use ($warehouseIds) {
                 $q->whereHas('inventories', function($query) use ($warehouseIds) {
                     $query->whereIn('warehouse_id', $warehouseIds)
-                          ->where('quantity', '>', 0);
+                          ->availableForOnline();
                 })->orWhereHas('suppliers', function($query) {
                     $query->where('product_supplier.is_active', true)
                           ->where('suppliers.is_active', true);
@@ -107,11 +108,13 @@ class LocationService
      */
     public function enrichProductWithAvailability(Product $product, string $city): array
     {
-        // 1. Наличие на складах (физическое)
+        // 1. Доступный остаток: физический минус оба вида резерва.
         $warehouseIds = $this->getWarehouseIdsInCity($city);
-        $localQuantity = $product->inventories()
-            ->whereIn('warehouse_id', $warehouseIds)
-            ->sum('quantity');
+        $localQuantity = Inventory::sumOnlineAvailable(
+            $product->inventories()
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->onlineFulfillment()
+        );
         $isLocallyAvailable = $localQuantity > 0;
 
         // 2. Наличие у поставщиков (виртуальное)
@@ -166,7 +169,7 @@ class LocationService
     private function getWarehouseIdsInCity(string $city): array
     {
         return Warehouse::where('city', $city)
-            ->active()
+            ->onlineFulfillment()
             ->pluck('id')
             ->toArray();
     }
@@ -177,7 +180,7 @@ class LocationService
     public function getAvailableCities()
     {
         return Cache::remember('available_cities', 3600, function () {
-            return Warehouse::active()
+            return Warehouse::onlineFulfillment()
                 ->distinct()
                 ->pluck('city')
                 ->filter()
@@ -194,7 +197,7 @@ class LocationService
 
         return $product->inventories()
             ->whereIn('warehouse_id', $warehouseIds)
-            ->where('quantity', '>', 0)
+            ->availableForOnline()
             ->exists();
     }
 
@@ -208,9 +211,11 @@ class LocationService
         return Cache::remember($cacheKey, 300, function () use ($product, $city) {
             $warehouseIds = $this->getWarehouseIdsInCity($city);
             
-            return $product->inventories()
-                ->whereIn('warehouse_id', $warehouseIds)
-                ->sum('quantity');
+            return Inventory::sumOnlineAvailable(
+                $product->inventories()
+                    ->whereIn('warehouse_id', $warehouseIds)
+                    ->onlineFulfillment()
+            );
         });
     }
 

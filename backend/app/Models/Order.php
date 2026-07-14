@@ -17,6 +17,7 @@ class Order extends Model
 
     protected $fillable = [
         'user_id',
+        'sales_channel',
         'contact_name',     
         'contact_phone',      
         'contact_email',
@@ -43,6 +44,9 @@ class Order extends Model
         'shipped_at',
         'delivered_at',
         'cancelled_at',
+        'stock_reserved_at',
+        'stock_committed_at',
+        'stock_released_at',
         'discount_usage_released_at',
         'parent_order_id',
         'supplier_order_id', // связь с консолидированным заказом
@@ -64,6 +68,9 @@ class Order extends Model
         'shipped_at' => 'datetime',
         'delivered_at' => 'datetime',
         'cancelled_at' => 'datetime',
+        'stock_reserved_at' => 'datetime',
+        'stock_committed_at' => 'datetime',
+        'stock_released_at' => 'datetime',
         'discount_usage_released_at' => 'datetime',
         'is_supplier_order' => 'boolean'
     ];
@@ -76,6 +83,10 @@ class Order extends Model
     const STATUS_SHIPPED = 'shipped';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
+
+    const SALES_CHANNEL_ONLINE = 'online';
+    const SALES_CHANNEL_SELLER = 'seller';
+    const SALES_CHANNEL_INTERNAL = 'internal';
 
     // Способы оплаты
     const PAYMENT_CASH = 'cash';
@@ -90,6 +101,11 @@ class Order extends Model
     public function items()
     {
         return $this->hasMany(OrderProduct::class);
+    }
+
+    public function inventoryMovements()
+    {
+        return $this->hasMany(InventoryMovement::class);
     }
 
     public function shippingAddress()

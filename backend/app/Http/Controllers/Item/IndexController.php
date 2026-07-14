@@ -26,7 +26,7 @@ class IndexController extends Controller
                 'brand',
                 'inventories.warehouse',
             ])->whereHas('inventories', function($query) {
-                $query->where('quantity', '>', 0);
+                $query->availableForOnline();
             });
             
             // Применяем фильтры

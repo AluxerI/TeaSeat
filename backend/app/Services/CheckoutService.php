@@ -110,12 +110,10 @@ class CheckoutService
             
             // Определяем склады для заказа
             $warehouseAllocation = $this->warehouseService->determineWarehousesForOrder($cart, $shippingAddress);
-            
-            // Резервируем товары
-            $this->warehouseService->reserveStockByAllocation($warehouseAllocation);
 
             // Обновляем заказ
             $cart->update([
+                'sales_channel' => Order::SALES_CHANNEL_ONLINE,
                 'status' => Order::STATUS_PENDING,
                 'shipping_address_id' => $shippingAddressId,
                 'delivery_method_id' => $deliveryMethodId,
@@ -128,7 +126,18 @@ class CheckoutService
             ]);
 
             // Создаем частичные заказы по складам
-            $this->warehouseService->createPartialOrders($cart, $warehouseAllocation, $shippingAddress);
+            $partialOrders = $this->warehouseService->createPartialOrders(
+                $cart,
+                $warehouseAllocation,
+                $shippingAddress
+            );
+
+            // Физический остаток не меняется до отгрузки: checkout создаёт резерв.
+            $this->warehouseService->reserveOnlineStockForOrders(
+                $partialOrders,
+                $userId
+            );
+            $cart->update(['stock_reserved_at' => now()]);
             
             // Очищаем кеш корзины
             $this->cartService->clearCartCache($userId);
@@ -219,6 +228,7 @@ class CheckoutService
         
         // Обновляем заказ
         $cart->update([
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
             'status' => Order::STATUS_PENDING,
             'shipping_address_id' => $shippingAddress->id,
             'delivery_method_id' => $deliveryMethod->id,
@@ -349,7 +359,7 @@ class CheckoutService
         // исполнением первого склада.
         if ($partialOrders->isEmpty() && !$order->is_supplier_order && $order->warehouse_id) {
             $order->loadMissing(['items', 'warehouse']);
-            $this->warehouseService->releaseStockForOrder($order);
+            $this->warehouseService->releaseOnlineStockForOrder($order, $actorId);
         }
 
         foreach ($partialOrders as $partialOrder) {
@@ -358,7 +368,10 @@ class CheckoutService
             }
 
             if (!$partialOrder->is_supplier_order) {
-                $this->warehouseService->releaseStockForOrder($partialOrder);
+                $this->warehouseService->releaseOnlineStockForOrder(
+                    $partialOrder,
+                    $actorId
+                );
             }
 
             $oldStatus = $partialOrder->status;
@@ -373,6 +386,7 @@ class CheckoutService
         $order->update([
             'status' => Order::STATUS_CANCELLED,
             'cancelled_at' => now(),
+            'stock_released_at' => $order->stock_reserved_at ? now() : null,
             'internal_notes' => trim(($order->internal_notes ?? '') . "\n" . $notes),
         ]);
         $this->pricingService->releaseUsage($order);

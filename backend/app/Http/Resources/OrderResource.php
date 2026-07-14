@@ -12,6 +12,7 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status,
+            'sales_channel' => $this->sales_channel,
             'payment_method' => $this->payment_method,
             'order_number' => $this->order_number,
             
@@ -75,6 +76,9 @@ class OrderResource extends JsonResource
                 'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
                 'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
                 'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
+                'stock_reserved_at' => $this->stock_reserved_at?->format('d.m.Y H:i'),
+                'stock_committed_at' => $this->stock_committed_at?->format('d.m.Y H:i'),
+                'stock_released_at' => $this->stock_released_at?->format('d.m.Y H:i'),
             ],
             
             // Статус заказа

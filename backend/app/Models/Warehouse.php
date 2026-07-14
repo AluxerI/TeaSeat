@@ -10,12 +10,21 @@ class Warehouse extends Model
 {
     use HasFactory;
 
+    public const TYPE_WAREHOUSE = 'warehouse';
+    public const TYPE_STORE = 'store';
+
     protected $fillable = [
-        'name', 'city', 'location', 'is_active',
+        'name',
+        'city',
+        'location',
+        'type',
+        'is_active',
+        'is_online_fulfillment_enabled',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_online_fulfillment_enabled' => 'boolean',
     ];
 
     public function inventories()
@@ -26,12 +35,12 @@ class Warehouse extends Model
     public function products()
     {
         return $this->belongsToMany(Product::class, 'inventories')
-            ->withPivot('quantity', 'last_restock_date');
-    }
-
-    public function supplierOrders()
-    {
-        return $this->hasMany(SupplierOrder::class, 'supplier_id');
+            ->withPivot(
+                'quantity',
+                'reserved_online_quantity',
+                'reserved_seller_quantity',
+                'last_restock_date'
+            );
     }
 
     /**
@@ -46,9 +55,14 @@ class Warehouse extends Model
                 'id' => $this->id,
                 'name' => $this->name,
                 'city' => $this->city,
+                'type' => $this->type,
                 'is_active' => $this->is_active,
+                'is_online_fulfillment_enabled' => $this->is_online_fulfillment_enabled,
                 'inventories_count' => $this->inventories()->count(),
                 'total_quantity' => $this->inventories()->sum('quantity'),
+                'available_quantity' => Inventory::sumOnlineAvailable(
+                    $this->inventories()->onlineFulfillment()
+                ),
                 'created_at' => $this->created_at?->format('d.m.Y'),
             ];
         });
@@ -65,6 +79,9 @@ class Warehouse extends Model
             return [
                 'inventories_count' => $this->inventories()->count(),
                 'total_quantity' => $this->inventories()->sum('quantity'),
+                'available_quantity' => Inventory::sumOnlineAvailable(
+                    $this->inventories()->onlineFulfillment()
+                ),
             ];
         });
     }
@@ -72,6 +89,7 @@ class Warehouse extends Model
     protected function getCacheKeys(): array
     {
         return [
+            "warehouse.{$this->id}.all",
             "warehouse.{$this->id}.stats",
         ];
     }
@@ -92,45 +110,61 @@ class Warehouse extends Model
     {
         static::saved(function ($warehouse) {
             $warehouse->clearCache();
+            Cache::forget('available_cities');
+
+            if ($warehouse->wasChanged([
+                'city',
+                'is_active',
+                'is_online_fulfillment_enabled',
+            ])) {
+                $warehouse->refreshInventoryProductCaches(
+                    $warehouse->getOriginal('city')
+                );
+            }
+        });
+
+        static::deleting(function ($warehouse) {
+            $warehouse->setRelation(
+                'productsForCacheInvalidation',
+                $warehouse->products()->get()
+            );
         });
 
         static::deleted(function ($warehouse) {
             $warehouse->clearCache();
+            Cache::forget('available_cities');
+
+            if (!$warehouse->relationLoaded('productsForCacheInvalidation')) {
+                return;
+            }
+
+            $warehouse->getRelation('productsForCacheInvalidation')
+                ->each(function (Product $product) use ($warehouse) {
+                    $warehouse->forgetProductLocationCaches(
+                        $product,
+                        $warehouse->city
+                    );
+                    $product->updateCacheFields();
+                });
         });
     }
-    public function getNextOrderDate(): \Carbon\Carbon
+
+    private function refreshInventoryProductCaches(?string $oldCity): void
     {
-        $today = now();
-        $schedule = $this->order_schedule ?? ['days' => [8, 18, 28], 'type' => 'monthly'];
-        
-        foreach ($schedule['days'] as $day) {
-            $nextDate = $today->copy()->day($day);
-            if ($nextDate->gte($today)) {
-                return $nextDate;
-            }
+        $this->products()->get()->each(function (Product $product) use ($oldCity) {
+            $this->forgetProductLocationCaches($product, $oldCity);
+            $this->forgetProductLocationCaches($product, $this->city);
+            $product->updateCacheFields();
+        });
+    }
+
+    private function forgetProductLocationCaches(Product $product, ?string $city): void
+    {
+        Cache::forget("product_{$product->id}_available_cities");
+
+        if ($city) {
+            Cache::forget("product_{$product->id}_city_{$city}_quantity");
         }
-        
-        return $today->copy()->addMonth()->day($schedule['days'][0]);
-    }
-
-    public function activeSupplierOrders()
-    {
-        return $this->hasMany(SupplierOrder::class)
-            ->where('status', SupplierOrder::STATUS_CONSOLIDATING)
-            ->where('scheduled_date', '>=', now());
-    }
-
-    /**
-     * Scope для поставщиков
-     */
-    public function scopeSuppliers($query)
-    {
-        return $query->where('is_supplier', true);
-    }
-
-    public function scopePhysicalWarehouses($query)
-    {
-        return $query->where('is_supplier', false);
     }
     /**
      * Scope для активных складов
@@ -138,6 +172,18 @@ class Warehouse extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeOnlineFulfillment($query)
+    {
+        return $query
+            ->where('is_active', true)
+            ->where('is_online_fulfillment_enabled', true);
+    }
+
+    public function scopeOfType($query, string $type)
+    {
+        return $query->where('type', $type);
     }
     
 

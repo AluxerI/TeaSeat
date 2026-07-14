@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
+use App\Models\Inventory;
 use App\Models\Warehouse;
-use Illuminate\Support\Facades\DB;
 
 class InventoryService
 {
@@ -12,12 +12,13 @@ class InventoryService
      */
     public function getAvailableQuantity(int $productId, int $warehouseId): int
     {
-        $inventory = DB::table('inventories')
+        $inventory = Inventory::query()
             ->where('product_id', $productId)
             ->where('warehouse_id', $warehouseId)
+            ->onlineFulfillment()
             ->first();
 
-        return $inventory ? $inventory->quantity : 0;
+        return $inventory?->availableQuantity() ?? 0;
     }
 
     /**
@@ -26,10 +27,10 @@ class InventoryService
     public function determineWarehouse(int $productId): int
     {
         // 1. Ищем склад с наибольшим количеством
-        $inventory = DB::table('inventories')
+        $inventory = Inventory::query()
             ->where('product_id', $productId)
-            ->where('quantity', '>', 0)
-            ->orderByDesc('quantity')
+            ->availableForOnline()
+            ->orderByRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' DESC')
             ->first();
 
         if ($inventory) {
@@ -37,8 +38,9 @@ class InventoryService
         }
 
         // 2. Ищем любой склад с этим товаром
-        $anyInventory = DB::table('inventories')
+        $anyInventory = Inventory::query()
             ->where('product_id', $productId)
+            ->onlineFulfillment()
             ->first();
 
         if ($anyInventory) {
@@ -46,7 +48,10 @@ class InventoryService
         }
 
         // 3. Возвращаем склад по умолчанию
-        $defaultWarehouse = Warehouse::first();
+        $defaultWarehouse = Warehouse::query()
+            ->onlineFulfillment()
+            ->orderByRaw("CASE WHEN type = 'warehouse' THEN 0 ELSE 1 END")
+            ->first();
         
         if ($defaultWarehouse) {
             return $defaultWarehouse->id;

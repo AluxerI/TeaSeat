@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Inventory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 
@@ -32,13 +33,15 @@ class AdminDashboardService
                 'products.id',
                 'products.name',
                 'products.price',
-                'inventories.quantity',
                 'warehouses.name as warehouse_name',
                 'warehouses.id as warehouse_id'
             )
-            ->where('inventories.quantity', '>', 0)
-            ->where('inventories.quantity', '<', 10)
-            ->orderBy('inventories.quantity', 'asc');
+            ->selectRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' as quantity')
+            ->where('warehouses.is_active', true)
+            ->where('warehouses.is_online_fulfillment_enabled', true)
+            ->whereRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' > 0')
+            ->whereRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' < 10')
+            ->orderByRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' asc');
 
         if ($warehouseId) {
             $query->where('inventories.warehouse_id', $warehouseId);
@@ -61,7 +64,7 @@ class AdminDashboardService
     // Добавляем недостающий параметр в getInventoryStats
     private function getInventoryStats(?int $warehouseId = null): array
     {
-        $inventoryQuery = DB::table('inventories');
+        $inventoryQuery = Inventory::query()->onlineFulfillment();
         
         if ($warehouseId) {
             $inventoryQuery->where('warehouse_id', $warehouseId);
@@ -72,7 +75,7 @@ class AdminDashboardService
             'out_of_stock' => DB::table('products')
                 ->where('is_available', false)
                 ->count(),
-            'total_items' => $inventoryQuery->sum('quantity'),
+            'total_items' => Inventory::sumOnlineAvailable($inventoryQuery),
         ];
     }
 

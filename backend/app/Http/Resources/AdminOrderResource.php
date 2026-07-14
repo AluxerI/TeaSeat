@@ -14,6 +14,7 @@ class AdminOrderResource extends JsonResource
             'order_number' => $this->order_number,
             'status' => $this->status,
             'status_name' => $this->status_name,
+            'sales_channel' => $this->sales_channel,
             'order_type' => $this->is_supplier_order ? 'supplier' : 'regular',
             'order_type_name' => $this->is_supplier_order ? 'Заказ у поставщика' : 'Обычный заказ',
             
@@ -28,6 +29,11 @@ class AdminOrderResource extends JsonResource
                 'final_total' => (float) $this->final_total,
             ],
             'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
+            'stock' => [
+                'reserved_at' => $this->stock_reserved_at?->toIso8601String(),
+                'committed_at' => $this->stock_committed_at?->toIso8601String(),
+                'released_at' => $this->stock_released_at?->toIso8601String(),
+            ],
             
             // Информация о клиенте
             'customer' => $this->whenLoaded('user', function() {

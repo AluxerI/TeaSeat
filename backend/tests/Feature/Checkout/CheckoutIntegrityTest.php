@@ -7,15 +7,16 @@ use App\Models\Brand;
 use App\Models\DeliveryMethod;
 use App\Models\Discount;
 use App\Models\Inventory;
+use App\Models\InventoryMovement;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CheckoutService;
+use App\Services\OrderManagementService;
 use App\Services\WarehouseService;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class CheckoutIntegrityTest extends TestCase
@@ -106,7 +107,12 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertSame(320.0, (float) $order->final_total);
         $this->assertSame(3, (int) $promotion->fresh()->used_count);
         $this->assertSame(2, $order->partialOrders()->count());
-        $this->assertSame(0, Inventory::sum('quantity'));
+        $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(3, Inventory::sum('reserved_online_quantity'));
+        $this->assertSame(
+            2,
+            InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_RESERVE)->count()
+        );
 
         $repeatedOrder = $service->checkout(
             $user->id,
@@ -120,14 +126,20 @@ class CheckoutIntegrityTest extends TestCase
 
         $this->assertSame($order->id, $repeatedOrder->id);
         $this->assertSame(1, Order::whereNull('parent_order_id')->realOrders()->count());
-        $this->assertSame(0, Inventory::sum('quantity'));
+        $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(3, Inventory::sum('reserved_online_quantity'));
         $this->assertSame(3, (int) $promotion->fresh()->used_count);
 
         $cancelledOrder = $service->cancelOrder($user->id, $order->id);
 
         $this->assertSame(Order::STATUS_CANCELLED, $cancelledOrder->status);
         $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
         $this->assertSame(0, (int) $promotion->fresh()->used_count);
+        $this->assertSame(
+            2,
+            InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_RELEASE)->count()
+        );
         $this->assertSame(
             2,
             Order::where('parent_order_id', $order->id)
@@ -138,10 +150,15 @@ class CheckoutIntegrityTest extends TestCase
         $service->cancelOrder($user->id, $order->id);
 
         $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
         $this->assertSame(0, (int) $promotion->fresh()->used_count);
+        $this->assertSame(
+            2,
+            InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_RELEASE)->count()
+        );
     }
 
-    public function test_failed_multi_item_reservation_rolls_back_all_decrements(): void
+    public function test_failed_multi_item_reservation_rolls_back_all_reserves(): void
     {
         $brand = Brand::create(['name' => 'Rollback brand']);
         $firstProduct = $this->createProduct($brand, 'Чай', 100);
@@ -163,21 +180,38 @@ class CheckoutIntegrityTest extends TestCase
             'quantity' => 1,
         ]);
 
-        $allocation = [[
+        $user = User::factory()->create();
+        $warehouseOrder = Order::create([
+            'user_id' => $user->id,
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
+            'status' => Order::STATUS_PENDING,
             'warehouse_id' => $warehouse->id,
-            'items' => [
-                ['product_id' => $firstProduct->id, 'quantity' => 2],
-                ['product_id' => $secondProduct->id, 'quantity' => 2],
+        ]);
+        $warehouseOrder->items()->createMany([
+            [
+                'product_id' => $firstProduct->id,
+                'quantity' => 2,
+                'unit_price' => 100,
+                'final_unit_price' => 100,
+                'total_price' => 200,
             ],
-        ]];
+            [
+                'product_id' => $secondProduct->id,
+                'quantity' => 2,
+                'unit_price' => 200,
+                'final_unit_price' => 200,
+                'total_price' => 400,
+            ],
+        ]);
 
         try {
-            DB::transaction(
-                fn () => app(WarehouseService::class)->reserveStockByAllocation($allocation)
+            app(WarehouseService::class)->reserveOnlineStockForOrders(
+                [$warehouseOrder],
+                $user->id
             );
             $this->fail('Ожидалась ошибка недостаточного остатка');
         } catch (DomainException) {
-            // Транзакция должна отменить уже выполненное уменьшение первого товара.
+            // Транзакция должна отменить уже созданный резерв первого товара.
         }
 
         $this->assertSame(
@@ -187,6 +221,97 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertSame(
             1,
             Inventory::where('product_id', $secondProduct->id)->value('quantity')
+        );
+        $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
+        $this->assertSame(0, InventoryMovement::count());
+        $this->assertNull($warehouseOrder->fresh()->stock_reserved_at);
+    }
+
+    public function test_shipping_commits_reserved_stock_once(): void
+    {
+        $user = User::factory()->create();
+        $brand = Brand::create(['name' => 'Shipping brand']);
+        $product = $this->createProduct($brand, 'Дарджилинг', 100);
+        $address = AddressClient::create([
+            'user_id' => $user->id,
+            'street' => 'Тестовая, 2',
+            'city' => 'Москва',
+            'postal_code' => '101000',
+        ]);
+        $deliveryMethod = DeliveryMethod::create([
+            'name' => 'Курьер',
+            'cost' => 0,
+            'is_active' => true,
+            'available_cities' => ['Москва'],
+        ]);
+        $warehouse = Warehouse::create([
+            'name' => 'Основной склад',
+            'city' => 'Москва',
+            'type' => Warehouse::TYPE_WAREHOUSE,
+            'is_active' => true,
+            'is_online_fulfillment_enabled' => true,
+        ]);
+        Inventory::create([
+            'product_id' => $product->id,
+            'warehouse_id' => $warehouse->id,
+            'quantity' => 3,
+        ]);
+
+        $cart = Order::create([
+            'user_id' => $user->id,
+            'status' => Order::STATUS_CART,
+            'products_total' => 200,
+            'final_total' => 200,
+        ]);
+        $cart->items()->create([
+            'product_id' => $product->id,
+            'quantity' => 2,
+            'unit_price' => 100,
+            'final_unit_price' => 100,
+            'total_price' => 200,
+        ]);
+
+        $order = app(CheckoutService::class)->checkout(
+            $user->id,
+            $address->id,
+            $deliveryMethod->id,
+            Order::PAYMENT_CARD,
+            null,
+            false,
+            'shipping-integrity-test-0001',
+        );
+
+        $this->assertSame(3, Inventory::sum('quantity'));
+        $this->assertSame(2, Inventory::sum('reserved_online_quantity'));
+
+        $shipped = app(OrderManagementService::class)->markAsShipped(
+            $order,
+            $user->id
+        );
+
+        $this->assertSame(Order::STATUS_SHIPPED, $shipped->status);
+        $this->assertSame(1, Inventory::sum('quantity'));
+        $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
+        $this->assertNotNull($shipped->stock_committed_at);
+        $this->assertSame(
+            1,
+            InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_SALE)->count()
+        );
+        $this->assertSame(
+            1,
+            $order->partialOrders()->where('status', Order::STATUS_SHIPPED)->count()
+        );
+
+        app(OrderManagementService::class)->markAsShipped(
+            $shipped,
+            $user->id
+        );
+
+        $this->assertSame(1, Inventory::sum('quantity'));
+        $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
+        $this->assertSame(
+            1,
+            InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_SALE)->count()
         );
     }
 

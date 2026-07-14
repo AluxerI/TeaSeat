@@ -44,7 +44,8 @@ class OrderResource extends Resource
     {
         return parent::getEloquentQuery()
             ->with(['user', 'items.product', 'shippingAddress', 'deliveryMethod'])
-            ->where('status', '!=', Order::STATUS_CART);
+            ->where('status', '!=', Order::STATUS_CART)
+            ->whereNull('parent_order_id');
     }
 
     public static function form(Form $form): Form
@@ -72,6 +73,17 @@ class OrderResource extends Resource
                                     ->default(Order::STATUS_PENDING)
                                     ->required()
                                     ->reactive(),
+
+                                Select::make('sales_channel')
+                                    ->label('Канал продажи')
+                                    ->options([
+                                        Order::SALES_CHANNEL_ONLINE => 'Интернет-магазин',
+                                        Order::SALES_CHANNEL_SELLER => 'Продажа в магазине',
+                                        Order::SALES_CHANNEL_INTERNAL => 'Внутренний заказ',
+                                    ])
+                                    ->default(Order::SALES_CHANNEL_ONLINE)
+                                    ->disabled(fn ($record) => $record?->stock_reserved_at !== null)
+                                    ->required(),
                                 
                                 Placeholder::make('created_at')
                                     ->label('Дата создания')
@@ -146,6 +158,7 @@ class OrderResource extends Resource
                                             });
                                     })
                                     ->searchable()
+                                    ->disabled(fn ($record) => $record?->stock_reserved_at !== null)
                                     ->required()
                                     ->createOptionForm([
                                         Grid::make(2)
@@ -270,7 +283,11 @@ class OrderResource extends Resource
                                                     $set('_personal_discount', 0);
                                                     
                                                     // Получаем общий остаток на складах
-                                                    $totalStock = Inventory::where('product_id', $state)->sum('quantity');
+                                                    $totalStock = Inventory::sumOnlineAvailable(
+                                                        Inventory::query()
+                                                            ->where('product_id', $state)
+                                                            ->onlineFulfillment()
+                                                    );
                                                     $set('_stock_info', $totalStock);
                                                 }
                                                 self::calculateTotals($get, $set);
@@ -412,7 +429,8 @@ class OrderResource extends Resource
                             })
                             ->afterStateUpdated(function (callable $get, callable $set) {
                                 self::calculateTotals($get, $set);
-                            }),
+                            })
+                            ->disabled(fn ($record) => $record?->stock_reserved_at !== null),
                     ]),
 
                 Section::make('Итоги')
@@ -571,6 +589,15 @@ class OrderResource extends Resource
                         Order::STATUS_CANCELLED => 'danger',
                         default => 'gray',
                     }),
+
+                TextColumn::make('sales_channel')
+                    ->label('Канал')
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        Order::SALES_CHANNEL_SELLER => 'Магазин',
+                        Order::SALES_CHANNEL_INTERNAL => 'Внутренний',
+                        default => 'Онлайн',
+                    })
+                    ->badge(),
                 
                 TextColumn::make('created_at')
                     ->label('Дата')
@@ -597,6 +624,14 @@ class OrderResource extends Resource
                         Order::STATUS_SHIPPED => 'Отправлен',
                         Order::STATUS_DELIVERED => 'Доставлен',
                         Order::STATUS_CANCELLED => 'Отменен',
+                    ]),
+
+                SelectFilter::make('sales_channel')
+                    ->label('Канал продажи')
+                    ->options([
+                        Order::SALES_CHANNEL_ONLINE => 'Интернет-магазин',
+                        Order::SALES_CHANNEL_SELLER => 'Продажа в магазине',
+                        Order::SALES_CHANNEL_INTERNAL => 'Внутренний заказ',
                     ]),
             ])
             ->actions([

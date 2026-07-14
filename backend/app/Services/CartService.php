@@ -180,7 +180,7 @@ class CartService
 
         // Получаем города для всех товаров в корзине
         $incompatibleItems = $cart->items->load(['product.inventories' => function($query) {
-                $query->where('quantity', '>', 0)->with('warehouse');
+                $query->availableForOnline()->with('warehouse');
             }])
             ->filter(function ($item) use ($city) {
                 $itemCities = $item->product->inventories->pluck('warehouse.city')->unique();
@@ -241,12 +241,16 @@ class CartService
         $cacheKey = "product_{$productId}_city_{$city}_quantity";
         
         return Cache::remember($cacheKey, 60, function () use ($productId, $city) {
-            $warehouseIds = Warehouse::where('city', $city)->active()->pluck('id');
+            $warehouseIds = Warehouse::where('city', $city)
+                ->onlineFulfillment()
+                ->pluck('id');
             
-            return Inventory::where('product_id', $productId)
-                ->whereIn('warehouse_id', $warehouseIds)
-                ->where('quantity', '>', 0)
-                ->sum('quantity');
+            return Inventory::sumOnlineAvailable(
+                Inventory::query()
+                    ->where('product_id', $productId)
+                    ->whereIn('warehouse_id', $warehouseIds)
+                    ->onlineFulfillment()
+            );
         });
     }
 
@@ -258,9 +262,11 @@ class CartService
         $cacheKey = "product_{$productId}_total_quantity";
         
         return Cache::remember($cacheKey, 60, function () use ($productId) {
-            return Inventory::where('product_id', $productId)
-                ->where('quantity', '>', 0)
-                ->sum('quantity');
+            return Inventory::sumOnlineAvailable(
+                Inventory::query()
+                    ->where('product_id', $productId)
+                    ->onlineFulfillment()
+            );
         });
     }
 
@@ -273,7 +279,7 @@ class CartService
         
         return Cache::remember($cacheKey, 3600, function () use ($productId) {
             return Inventory::where('product_id', $productId)
-                ->where('quantity', '>', 0)
+                ->availableForOnline()
                 ->with('warehouse')
                 ->get()
                 ->pluck('warehouse.city')
