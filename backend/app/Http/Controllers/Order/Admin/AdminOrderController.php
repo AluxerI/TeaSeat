@@ -61,6 +61,12 @@ class AdminOrderController extends Controller
      */
     public function updateStatus(Order $order, Request $request): JsonResponse
     {
+        if ($order->sales_channel === Order::SALES_CHANNEL_SELLER) {
+            return response()->json([
+                'message' => 'Статусы продажи продавца меняются только через PWA и будущий workflow проблем комплектации.',
+            ], 422);
+        }
+
         $request->validate([
             'status' => 'required|in:pending,confirmed,processing,shipped,delivered,cancelled',
             'internal_notes' => 'nullable|string|max:1000'

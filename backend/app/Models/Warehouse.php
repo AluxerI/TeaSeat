@@ -44,6 +44,16 @@ class Warehouse extends Model
         return $this->users()->wherePivot('is_active', true);
     }
 
+    public function staffDevices()
+    {
+        return $this->hasMany(StaffDevice::class, 'last_warehouse_id');
+    }
+
+    public function fulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class);
+    }
+
     public function products()
     {
         return $this->belongsToMany(Product::class, 'inventories')

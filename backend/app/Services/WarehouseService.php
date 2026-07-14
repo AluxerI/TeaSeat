@@ -491,6 +491,247 @@ class WarehouseService
         $order->update(['stock_committed_at' => now()]);
     }
 
+    /**
+     * Синхронизирует резерв продавца с полной новой версией его заказа.
+     * Увеличение резерва допускает дефицит: физическая продажа могла уже
+     * состояться офлайн, а окончательное решение принимается при завершении.
+     *
+     * @param array<int, int> $oldQuantities
+     * @param array<int, int> $newQuantities
+     */
+    public function syncSellerReservation(
+        Order $order,
+        array $oldQuantities,
+        array $newQuantities,
+        int $actorId,
+        int $revision
+    ): void {
+        DB::transaction(function () use (
+            $order,
+            $oldQuantities,
+            $newQuantities,
+            $actorId,
+            $revision
+        ): void {
+            $productIds = collect(array_keys($oldQuantities))
+                ->merge(array_keys($newQuantities))
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->sort()
+                ->values();
+
+            foreach ($productIds as $productId) {
+                $oldQuantity = (int) ($oldQuantities[$productId] ?? 0);
+                $newQuantity = (int) ($newQuantities[$productId] ?? 0);
+                $delta = $newQuantity - $oldQuantity;
+                if ($delta === 0) {
+                    continue;
+                }
+
+                $inventory = Inventory::query()
+                    ->where('warehouse_id', $order->warehouse_id)
+                    ->where('product_id', $productId)
+                    ->lockForUpdate()
+                    ->first();
+                if (!$inventory) {
+                    throw new DomainException(
+                        "Товар {$productId} не числится в выбранной рабочей точке"
+                    );
+                }
+                if ((int) $inventory->reserved_seller_quantity + $delta < 0) {
+                    throw new DomainException('Складской резерв продавца повреждён');
+                }
+
+                $before = $this->balances($inventory);
+                $inventory->reserved_seller_quantity += $delta;
+                $inventory->save();
+
+                $this->recordMovement(
+                    $inventory,
+                    $delta > 0
+                        ? InventoryMovement::TYPE_SELLER_RESERVE
+                        : InventoryMovement::TYPE_SELLER_RELEASE,
+                    $before,
+                    0,
+                    0,
+                    $delta,
+                    $order,
+                    $actorId,
+                    $delta > 0
+                        ? 'Резерв офлайн-продажи'
+                        : 'Уменьшение резерва после исправления офлайн-продажи',
+                    "seller_sync:order:{$order->id}:revision:{$revision}:inventory:{$inventory->id}",
+                    ['seller_revision' => $revision]
+                );
+            }
+
+            if ($order->stock_reserved_at === null) {
+                $order->update(['stock_reserved_at' => now()]);
+            }
+        });
+    }
+
+    public function releaseSellerStockForOrder(Order $order, int $actorId): void
+    {
+        DB::transaction(function () use ($order, $actorId): void {
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->with('items')
+                ->findOrFail($order->id);
+
+            if ($lockedOrder->stock_released_at !== null) {
+                return;
+            }
+            if ($lockedOrder->stock_committed_at !== null) {
+                throw new DomainException('Нельзя отменить уже проведённую продажу');
+            }
+
+            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+                $inventory = $this->lockInventory(
+                    (int) $lockedOrder->warehouse_id,
+                    (int) $item->product_id
+                );
+                if ((int) $inventory->reserved_seller_quantity < (int) $item->quantity) {
+                    throw new DomainException('Складской резерв продавца повреждён');
+                }
+
+                $before = $this->balances($inventory);
+                $inventory->reserved_seller_quantity -= (int) $item->quantity;
+                $inventory->save();
+
+                $this->recordMovement(
+                    $inventory,
+                    InventoryMovement::TYPE_SELLER_RELEASE,
+                    $before,
+                    0,
+                    0,
+                    -(int) $item->quantity,
+                    $lockedOrder,
+                    $actorId,
+                    'Отмена офлайн-продажи продавцом',
+                    "seller_cancel:order:{$lockedOrder->id}:inventory:{$inventory->id}"
+                );
+            }
+
+            $lockedOrder->update(['stock_released_at' => now()]);
+        });
+    }
+
+    /**
+     * @return array{committed:bool, conflicts:array<int, array<string, int|string>>}
+     */
+    public function completeSellerStockForOrder(
+        Order $order,
+        int $actorId,
+        bool $allowConflicts
+    ): array {
+        return DB::transaction(function () use ($order, $actorId, $allowConflicts): array {
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->with('items')
+                ->findOrFail($order->id);
+
+            if ($lockedOrder->stock_committed_at !== null) {
+                return ['committed' => true, 'conflicts' => []];
+            }
+            if ($lockedOrder->stock_released_at !== null) {
+                throw new DomainException('Нельзя провести освобождённый резерв продавца');
+            }
+            if ($lockedOrder->stock_reserved_at === null || !$lockedOrder->warehouse_id) {
+                throw new DomainException('У заказа продавца отсутствует складской резерв');
+            }
+
+            $inventories = [];
+            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+                $inventory = $this->lockInventory(
+                    (int) $lockedOrder->warehouse_id,
+                    (int) $item->product_id
+                );
+                if ((int) $inventory->reserved_seller_quantity < (int) $item->quantity) {
+                    throw new DomainException('Складской резерв продавца повреждён');
+                }
+                $inventories[(int) $item->product_id] = $inventory;
+            }
+
+            $conflicts = [];
+            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+                /** @var Inventory $inventory */
+                $inventory = $inventories[(int) $item->product_id];
+                $quantity = (int) $item->quantity;
+                $physicalBefore = (int) $inventory->quantity;
+                $onlineBefore = (int) $inventory->reserved_online_quantity;
+                $sellerBefore = (int) $inventory->reserved_seller_quantity;
+                $physicalDiscrepancy = max(0, $quantity - $physicalBefore);
+                $physicalAfter = max(0, $physicalBefore - $quantity);
+                $onlineShortageBefore = max(0, $onlineBefore - $physicalBefore);
+                $onlineShortageAfter = max(0, $onlineBefore - $physicalAfter);
+                $newOnlineShortage = max(0, $onlineShortageAfter - $onlineShortageBefore);
+
+                if ($newOnlineShortage > 0) {
+                    $conflicts[] = [
+                        'product_id' => (int) $item->product_id,
+                        'warehouse_id' => (int) $lockedOrder->warehouse_id,
+                        'reason' => 'online_reservation_conflict',
+                        'shortage_quantity' => $newOnlineShortage,
+                        'reserved_online_before' => $onlineBefore,
+                        'reserved_seller_before' => $sellerBefore,
+                        'requested_quantity' => $quantity,
+                        'physical_quantity_before' => $physicalBefore,
+                    ];
+                }
+                if ($physicalDiscrepancy > 0) {
+                    $conflicts[] = [
+                        'product_id' => (int) $item->product_id,
+                        'warehouse_id' => (int) $lockedOrder->warehouse_id,
+                        'reason' => 'physical_stock_discrepancy',
+                        'shortage_quantity' => $physicalDiscrepancy,
+                        'reserved_online_before' => $onlineBefore,
+                        'reserved_seller_before' => $sellerBefore,
+                        'requested_quantity' => $quantity,
+                        'physical_quantity_before' => $physicalBefore,
+                    ];
+                }
+            }
+
+            if ($conflicts !== [] && !$allowConflicts) {
+                return ['committed' => false, 'conflicts' => $conflicts];
+            }
+
+            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+                /** @var Inventory $inventory */
+                $inventory = $inventories[(int) $item->product_id];
+                $requestedQuantity = (int) $item->quantity;
+                $physicalDeduction = min((int) $inventory->quantity, $requestedQuantity);
+                $before = $this->balances($inventory);
+                $inventory->quantity -= $physicalDeduction;
+                $inventory->reserved_seller_quantity -= $requestedQuantity;
+                $inventory->save();
+
+                $this->recordMovement(
+                    $inventory,
+                    InventoryMovement::TYPE_SELLER_SALE,
+                    $before,
+                    -$physicalDeduction,
+                    0,
+                    -$requestedQuantity,
+                    $lockedOrder,
+                    $actorId,
+                    'Проведение физической продажи',
+                    "seller_sale:order:{$lockedOrder->id}:inventory:{$inventory->id}",
+                    [
+                        'requested_quantity' => $requestedQuantity,
+                        'unaccounted_quantity' => $requestedQuantity - $physicalDeduction,
+                        'accepted_with_conflicts' => $conflicts !== [],
+                    ]
+                );
+            }
+
+            $lockedOrder->update(['stock_committed_at' => now()]);
+
+            return ['committed' => true, 'conflicts' => $conflicts];
+        });
+    }
+
     public function adjustQuantity(
         Inventory $inventory,
         int $newQuantity,

@@ -17,6 +17,10 @@ use App\Http\Controllers\cart\CheckoutController;
 use App\Http\Controllers\Cart\QuoteController;
 use App\Http\Controllers\Order\Admin\AdminOrderActionController;
 use App\Http\Controllers\Order\Admin\AdminOrderController;
+use App\Http\Controllers\Seller\BootstrapController as SellerBootstrapController;
+use App\Http\Controllers\Seller\DeviceController as SellerDeviceController;
+use App\Http\Controllers\Seller\OrderController as SellerOrderController;
+use App\Http\Controllers\Seller\SyncController as SellerSyncController;
 
 
 Route::prefix('auth')->group(function () {
@@ -82,6 +86,42 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::get('/{order}', 'ShowController') -> name('orders.show');
         Route::put('/{order}/cancel',  'CancelController')->name('cancel');
     });
+});
+
+// PWA продавца. Пользователь определяется только по Sanctum-токену, а
+// устройство — по заголовку X-Device-UUID после регистрации.
+Route::prefix('seller')->middleware('auth:sanctum')->group(function () {
+    Route::post('/devices/register', [SellerDeviceController::class, 'store'])
+        ->middleware('permission:create seller orders');
+
+    Route::get('/bootstrap', SellerBootstrapController::class)
+        ->middleware(['permission:create seller orders', 'throttle:30,1']);
+
+    Route::get('/orders', [SellerOrderController::class, 'index'])
+        ->middleware('permission:view own seller orders');
+    Route::get('/orders/{order}', [SellerOrderController::class, 'show'])
+        ->whereNumber('order')
+        ->middleware('permission:view own seller orders');
+    Route::post('/orders', [SellerOrderController::class, 'store'])
+        ->middleware('permission:create seller orders');
+    Route::put('/orders/{order}', [SellerOrderController::class, 'update'])
+        ->whereNumber('order')
+        ->middleware('permission:create seller orders');
+    Route::post('/orders/{order}/cancel', [SellerOrderController::class, 'cancel'])
+        ->whereNumber('order')
+        ->middleware('permission:create seller orders');
+    Route::post('/orders/complete', [SellerOrderController::class, 'complete'])
+        ->middleware('permission:complete own seller orders');
+    Route::post('/orders/{order}/escalate', [SellerOrderController::class, 'escalate'])
+        ->whereNumber('order')
+        ->middleware('permission:complete own seller orders');
+
+    Route::post('/sync', SellerSyncController::class)
+        ->middleware([
+            'permission:create seller orders',
+            'permission:complete own seller orders',
+            'throttle:30,1',
+        ]);
 });
 
 // Управление пользователями (только для админов)

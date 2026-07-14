@@ -17,6 +17,9 @@ class PricingService
     /** @var array<int, Collection> */
     private array $personalDiscountsByUser = [];
 
+    /** @var array<int, array<int, int>> */
+    private array $promotionUsageByUser = [];
+
     private const PERSONAL_TYPES = [
         Discount::TYPE_PERSONAL,
         Discount::TYPE_FIRST_ORDER,
@@ -412,6 +415,131 @@ class PricingService
             ),
             'final_total' => $finalTotal,
         ];
+    }
+
+    /**
+     * Правила автоматических акций, которые можно включить в подписанный
+     * офлайн-снимок продавца. Привязка акции к товару уже проверена сервером.
+     */
+    public function automaticPromotionRules(Product $product, User $user): array
+    {
+        $product->loadMissing('sub_subcategories.subcategory.category');
+        $userUsage = $this->promotionUsageForUser($user);
+
+        return $this->activePromotions()
+            ->filter(fn (Discount $discount) => $this->appliesToProduct($discount, $product))
+            ->map(function (Discount $discount) use ($userUsage): array {
+                $userUsed = (int) ($userUsage[$discount->id] ?? 0);
+
+                return [
+                    'id' => $discount->id,
+                    'name' => $discount->name,
+                    'value_type' => $discount->value_type,
+                    'value' => (float) $discount->value,
+                    'min_order_amount' => $discount->min_order_amount !== null
+                        ? (float) $discount->min_order_amount
+                        : null,
+                    'remaining_global_uses' => $discount->usage_limit
+                        ? max(0, (int) $discount->usage_limit - (int) $discount->used_count)
+                        : null,
+                    'remaining_user_uses' => $discount->usage_per_user
+                        ? max(0, (int) $discount->usage_per_user - $userUsed)
+                        : null,
+                    'start_date' => $discount->start_date?->toIso8601String(),
+                    'end_date' => $discount->end_date?->toIso8601String(),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /** @return array<int, int> */
+    private function promotionUsageForUser(User $user): array
+    {
+        return $this->promotionUsageByUser[$user->id] ??= DB::table('discount_user')
+            ->where('user_id', $user->id)
+            ->whereIn('discount_id', $this->activePromotions()->pluck('id'))
+            ->pluck('used_count', 'discount_id')
+            ->map(fn ($uses): int => (int) $uses)
+            ->all();
+    }
+
+    /**
+     * Физическая офлайн-продажа уже состоялась, поэтому лимит акции не может
+     * отклонить её при поздней синхронизации. Счётчики всё равно отражают
+     * фактическое использование и могут временно превысить настроенный лимит.
+     */
+    public function lockSellerOfflineUsage(User $user, array $quote): void
+    {
+        foreach (collect($quote['usages'] ?? [])->sortBy('discount_id') as $usage) {
+            $discount = Discount::withTrashed()
+                ->lockForUpdate()
+                ->find($usage['discount_id'] ?? 0);
+
+            if (!$discount || $discount->type !== Discount::TYPE_PROMOTION) {
+                continue;
+            }
+
+            DB::table('discount_user')
+                ->where('discount_id', $discount->id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+        }
+    }
+
+    public function consumeSellerOfflineUsage(User $user, Order $order, array $quote): void
+    {
+        if ($order->seller_discount_usage_consumed_at !== null) {
+            return;
+        }
+
+        foreach (collect($quote['usages'] ?? [])->sortBy('discount_id') as $usage) {
+            $uses = (int) ($usage['uses'] ?? 0);
+            if ($uses <= 0) {
+                continue;
+            }
+
+            $discount = Discount::withTrashed()
+                ->lockForUpdate()
+                ->find($usage['discount_id'] ?? 0);
+
+            if (!$discount || $discount->type !== Discount::TYPE_PROMOTION) {
+                continue;
+            }
+
+            $discount->increment('used_count', $uses);
+
+            $pivot = DB::table('discount_user')
+                ->where('discount_id', $discount->id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+            $newUserUsed = (int) ($pivot->used_count ?? 0) + $uses;
+            $pivotValues = [
+                'used_count' => $newUserUsed,
+                'is_used' => $discount->usage_per_user
+                    ? $newUserUsed >= $discount->usage_per_user
+                    : false,
+                'updated_at' => now(),
+            ];
+
+            if ($pivot) {
+                DB::table('discount_user')
+                    ->where('discount_id', $discount->id)
+                    ->where('user_id', $user->id)
+                    ->update($pivotValues);
+            } else {
+                DB::table('discount_user')->insert($pivotValues + [
+                    'discount_id' => $discount->id,
+                    'user_id' => $user->id,
+                    'activated_at' => now(),
+                    'created_at' => now(),
+                ]);
+            }
+        }
+
+        $order->updateQuietly(['seller_discount_usage_consumed_at' => now()]);
     }
 
     public function availablePersonalDiscounts(User $user, Product $product): Collection

@@ -115,6 +115,11 @@ class AdminOrderResource extends JsonResource
                 'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
                 'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
                 'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
+                'seller_occurred_at' => $this->seller_occurred_at?->format('d.m.Y H:i'),
+                'seller_synced_at' => $this->seller_synced_at?->format('d.m.Y H:i'),
+                'seller_reviewed_at' => $this->seller_reviewed_at?->format('d.m.Y H:i'),
+                'seller_escalated_at' => $this->seller_escalated_at?->format('d.m.Y H:i'),
+                'seller_completed_at' => $this->seller_completed_at?->format('d.m.Y H:i'),
             ],
             
             // История статусов

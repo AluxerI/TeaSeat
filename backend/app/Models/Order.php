@@ -52,6 +52,17 @@ class Order extends Model
         'supplier_order_id', // связь с консолидированным заказом
         'is_supplier_order',
         'checkout_idempotency_key',
+        'client_order_id',
+        'seller_revision',
+        'last_payload_hash',
+        'seller_device_id',
+        'was_edited',
+        'seller_occurred_at',
+        'seller_synced_at',
+        'seller_reviewed_at',
+        'seller_escalated_at',
+        'seller_completed_at',
+        'seller_discount_usage_consumed_at',
     ];
 
     protected $casts = [
@@ -72,6 +83,14 @@ class Order extends Model
         'stock_committed_at' => 'datetime',
         'stock_released_at' => 'datetime',
         'discount_usage_released_at' => 'datetime',
+        'seller_revision' => 'integer',
+        'was_edited' => 'boolean',
+        'seller_occurred_at' => 'datetime',
+        'seller_synced_at' => 'datetime',
+        'seller_reviewed_at' => 'datetime',
+        'seller_escalated_at' => 'datetime',
+        'seller_completed_at' => 'datetime',
+        'seller_discount_usage_consumed_at' => 'datetime',
         'is_supplier_order' => 'boolean'
     ];
 
@@ -83,6 +102,9 @@ class Order extends Model
     const STATUS_SHIPPED = 'shipped';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
+    const STATUS_SELLER_REVIEW = 'seller_review';
+    const STATUS_MANAGER_REVIEW = 'manager_review';
+    const STATUS_COMPLETED = 'completed';
 
     const SALES_CHANNEL_ONLINE = 'online';
     const SALES_CHANNEL_SELLER = 'seller';
@@ -106,6 +128,16 @@ class Order extends Model
     public function inventoryMovements()
     {
         return $this->hasMany(InventoryMovement::class);
+    }
+
+    public function sellerDevice()
+    {
+        return $this->belongsTo(StaffDevice::class, 'seller_device_id');
+    }
+
+    public function fulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class, 'source_order_id');
     }
 
     public function shippingAddress()
@@ -157,6 +189,14 @@ class Order extends Model
      */
     protected static function booted()
     {
+        static::deleting(function (Order $order) {
+            if ($order->sales_channel === self::SALES_CHANNEL_SELLER) {
+                throw new \DomainException(
+                    'Продажу продавца нельзя удалить: она является складским документом'
+                );
+            }
+        });
+
         static::saved(function ($order) {
             Cache::forget("order.{$order->id}.all");
             Cache::forget("user.{$order->user_id}.orders");
@@ -205,7 +245,11 @@ class Order extends Model
 
     public function isCompleted(): bool
     {
-        return in_array($this->status, [self::STATUS_DELIVERED, self::STATUS_CANCELLED]);
+        return in_array($this->status, [
+            self::STATUS_DELIVERED,
+            self::STATUS_CANCELLED,
+            self::STATUS_COMPLETED,
+        ], true);
     }
 
     public function partialOrders()
@@ -239,6 +283,9 @@ class Order extends Model
             self::STATUS_SHIPPED => 'Отправлен',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
+            self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
+            self::STATUS_MANAGER_REVIEW => 'Передан менеджеру',
+            self::STATUS_COMPLETED => 'Завершен',
         ];
 
         return $statuses[$this->status] ?? 'Неизвестно';
@@ -247,7 +294,12 @@ class Order extends Model
 
     public function canBeCancelled(): bool
     {
-        return in_array($this->status, [self::STATUS_PENDING, self::STATUS_CONFIRMED, self::STATUS_PROCESSING]);
+        return in_array($this->status, [
+            self::STATUS_PENDING,
+            self::STATUS_CONFIRMED,
+            self::STATUS_PROCESSING,
+            self::STATUS_SELLER_REVIEW,
+        ], true);
     }
     public function determineWarehouse($shippingAddress = null)
     {
@@ -299,6 +351,9 @@ class Order extends Model
             self::STATUS_SHIPPED => 'Отправлен',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
+            self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
+            self::STATUS_MANAGER_REVIEW => 'Передан менеджеру',
+            self::STATUS_COMPLETED => 'Завершен',
         ];
     
         if ($status === null) {

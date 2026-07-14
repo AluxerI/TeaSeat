@@ -67,6 +67,12 @@ class OrderManagementService
      */
     public function updateOrderStatus(Order $order, string $status, ?string $notes = null, ?int $managerId = null): Order
     {
+        if ($order->sales_channel === Order::SALES_CHANNEL_SELLER) {
+            throw new \DomainException(
+                'Продажа продавца меняется только через PWA и workflow fulfillment issues'
+            );
+        }
+
         if ($status === Order::STATUS_CANCELLED) {
             return $this->cancelOrderByManager(
                 $order,

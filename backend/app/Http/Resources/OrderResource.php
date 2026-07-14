@@ -79,6 +79,11 @@ class OrderResource extends JsonResource
                 'stock_reserved_at' => $this->stock_reserved_at?->format('d.m.Y H:i'),
                 'stock_committed_at' => $this->stock_committed_at?->format('d.m.Y H:i'),
                 'stock_released_at' => $this->stock_released_at?->format('d.m.Y H:i'),
+                'seller_occurred_at' => $this->seller_occurred_at?->format('d.m.Y H:i'),
+                'seller_synced_at' => $this->seller_synced_at?->format('d.m.Y H:i'),
+                'seller_reviewed_at' => $this->seller_reviewed_at?->format('d.m.Y H:i'),
+                'seller_escalated_at' => $this->seller_escalated_at?->format('d.m.Y H:i'),
+                'seller_completed_at' => $this->seller_completed_at?->format('d.m.Y H:i'),
             ],
             
             // Статус заказа
@@ -99,6 +104,9 @@ class OrderResource extends JsonResource
             'shipped' => ['name' => 'Отправлен', 'color' => 'purple'],
             'delivered' => ['name' => 'Доставлен', 'color' => 'green'],
             'cancelled' => ['name' => 'Отменен', 'color' => 'red'],
+            'seller_review' => ['name' => 'Требует проверки продавца', 'color' => 'orange'],
+            'manager_review' => ['name' => 'Передан менеджеру', 'color' => 'red'],
+            'completed' => ['name' => 'Завершен', 'color' => 'green'],
         ];
 
         return $statuses[$this->status] ?? ['name' => 'Неизвестно', 'color' => 'gray'];

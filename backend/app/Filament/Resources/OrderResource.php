@@ -62,27 +62,44 @@ class OrderResource extends Resource
                                 
                                 Select::make('status')
                                     ->label('Статус')
-                                    ->options([
-                                        Order::STATUS_PENDING => 'Ожидает подтверждения',
-                                        Order::STATUS_CONFIRMED => 'Подтвержден',
-                                        Order::STATUS_PROCESSING => 'В обработке',
-                                        Order::STATUS_SHIPPED => 'Отправлен',
-                                        Order::STATUS_DELIVERED => 'Доставлен',
-                                        Order::STATUS_CANCELLED => 'Отменен',
-                                    ])
+                                    ->options(fn ($record): array =>
+                                        $record?->sales_channel === Order::SALES_CHANNEL_SELLER
+                                            ? [
+                                                Order::STATUS_PENDING => 'Ожидает подтверждения',
+                                                Order::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
+                                                Order::STATUS_MANAGER_REVIEW => 'Передан менеджеру',
+                                                Order::STATUS_COMPLETED => 'Завершен',
+                                                Order::STATUS_CANCELLED => 'Отменен',
+                                            ]
+                                            : [
+                                                Order::STATUS_PENDING => 'Ожидает подтверждения',
+                                                Order::STATUS_CONFIRMED => 'Подтвержден',
+                                                Order::STATUS_PROCESSING => 'В обработке',
+                                                Order::STATUS_SHIPPED => 'Отправлен',
+                                                Order::STATUS_DELIVERED => 'Доставлен',
+                                                Order::STATUS_CANCELLED => 'Отменен',
+                                            ])
                                     ->default(Order::STATUS_PENDING)
+                                    ->disabled(fn ($record) =>
+                                        $record?->sales_channel === Order::SALES_CHANNEL_SELLER)
                                     ->required()
                                     ->reactive(),
 
                                 Select::make('sales_channel')
                                     ->label('Канал продажи')
-                                    ->options([
-                                        Order::SALES_CHANNEL_ONLINE => 'Интернет-магазин',
-                                        Order::SALES_CHANNEL_SELLER => 'Продажа в магазине',
-                                        Order::SALES_CHANNEL_INTERNAL => 'Внутренний заказ',
-                                    ])
+                                    ->options(fn ($record): array =>
+                                        $record?->sales_channel === Order::SALES_CHANNEL_SELLER
+                                            ? [
+                                                Order::SALES_CHANNEL_SELLER => 'Продажа в магазине',
+                                            ]
+                                            : [
+                                                Order::SALES_CHANNEL_ONLINE => 'Интернет-магазин',
+                                                Order::SALES_CHANNEL_INTERNAL => 'Внутренний заказ',
+                                            ])
                                     ->default(Order::SALES_CHANNEL_ONLINE)
-                                    ->disabled(fn ($record) => $record?->stock_reserved_at !== null)
+                                    ->disabled(fn ($record) =>
+                                        $record?->stock_reserved_at !== null
+                                        || $record?->sales_channel === Order::SALES_CHANNEL_SELLER)
                                     ->required(),
                                 
                                 Placeholder::make('created_at')
@@ -587,6 +604,9 @@ class OrderResource extends Resource
                         Order::STATUS_SHIPPED => 'purple',
                         Order::STATUS_DELIVERED => 'success',
                         Order::STATUS_CANCELLED => 'danger',
+                        Order::STATUS_SELLER_REVIEW => 'warning',
+                        Order::STATUS_MANAGER_REVIEW => 'danger',
+                        Order::STATUS_COMPLETED => 'success',
                         default => 'gray',
                     }),
 
@@ -624,6 +644,9 @@ class OrderResource extends Resource
                         Order::STATUS_SHIPPED => 'Отправлен',
                         Order::STATUS_DELIVERED => 'Доставлен',
                         Order::STATUS_CANCELLED => 'Отменен',
+                        Order::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
+                        Order::STATUS_MANAGER_REVIEW => 'Передан менеджеру',
+                        Order::STATUS_COMPLETED => 'Завершен',
                     ]),
 
                 SelectFilter::make('sales_channel')
@@ -636,7 +659,10 @@ class OrderResource extends Resource
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\DeleteAction::make()
+                    ->disabled(fn (Order $record): bool =>
+                        $record->stock_reserved_at !== null
+                        || $record->sales_channel === Order::SALES_CHANNEL_SELLER),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

@@ -183,6 +183,11 @@ class Product extends Model
             ->withPivot(['quantity', 'unit_price', 'final_unit_price', 'total_price'])
             ->withTimestamps();
     }
+
+    public function fulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class);
+    }
     /**
      * Получить URL главного изображения
      */

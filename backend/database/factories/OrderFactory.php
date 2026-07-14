@@ -47,4 +47,13 @@ class OrderFactory extends Factory
             'status' => Order::STATUS_DELIVERED,
         ]);
     }
+
+    public function seller()
+    {
+        return $this->state([
+            'sales_channel' => Order::SALES_CHANNEL_SELLER,
+            'status' => Order::STATUS_PENDING,
+            'seller_revision' => 1,
+        ]);
+    }
 }

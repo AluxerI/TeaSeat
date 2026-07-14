@@ -22,7 +22,8 @@ class CancelController extends Controller
     public function __invoke(Order $order)
     {
         try {
-            if ($order->user_id !== Auth::id()) {
+            if ($order->user_id !== Auth::id()
+                || $order->sales_channel !== Order::SALES_CHANNEL_ONLINE) {
                 return response()->json(['message' => 'Заказ не найден'], 404);
             }
 

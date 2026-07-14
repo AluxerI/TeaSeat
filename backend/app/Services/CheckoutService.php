@@ -301,6 +301,7 @@ class CheckoutService
     {
         return DB::transaction(function () use ($userId, $orderId) {
             $order = Order::where('user_id', $userId)
+                ->where('sales_channel', Order::SALES_CHANNEL_ONLINE)
                 ->whereNull('parent_order_id')
                 ->lockForUpdate()
                 ->findOrFail($orderId);
@@ -320,6 +321,11 @@ class CheckoutService
     ): Order {
         return DB::transaction(function () use ($orderId, $managerId, $reason) {
             $requestedOrder = Order::query()->findOrFail($orderId);
+            if ($requestedOrder->sales_channel === Order::SALES_CHANNEL_SELLER) {
+                throw new DomainException(
+                    'Продажа продавца обрабатывается через workflow fulfillment issues'
+                );
+            }
             $mainOrderId = $requestedOrder->parent_order_id ?? $requestedOrder->id;
 
             $order = Order::whereNull('parent_order_id')
