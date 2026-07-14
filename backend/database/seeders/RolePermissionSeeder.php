@@ -36,6 +36,9 @@ class RolePermissionSeeder extends Seeder
             'create seller orders',
             'view own seller orders',
             'complete own seller orders',
+            'view picking orders',
+            'manage own picking orders',
+            'report picking shortage',
             'view assigned deliveries',
             'update assigned deliveries',
             'assign couriers',
@@ -66,6 +69,10 @@ class RolePermissionSeeder extends Seeder
             'name' => User::ROLE_COURIER,
             'guard_name' => 'web',
         ]);
+        $pickerRole = Role::firstOrCreate([
+            'name' => User::ROLE_PICKER,
+            'guard_name' => 'web',
+        ]);
         $userRole = Role::firstOrCreate([
             'name' => User::ROLE_USER,
             'guard_name' => 'web',
@@ -92,6 +99,13 @@ class RolePermissionSeeder extends Seeder
             'create seller orders',
             'view own seller orders',
             'complete own seller orders',
+        ]);
+
+        $pickerRole->syncPermissions([
+            'view products',
+            'view picking orders',
+            'manage own picking orders',
+            'report picking shortage',
         ]);
 
         $courierRole->syncPermissions([

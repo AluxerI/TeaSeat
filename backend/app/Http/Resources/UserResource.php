@@ -35,12 +35,14 @@ class UserResource extends JsonResource
                     'city' => $warehouse->city,
                     'type' => $warehouse->type,
                     'is_online_fulfillment_enabled' => $warehouse->is_online_fulfillment_enabled,
+                    'is_delivery_hub' => $warehouse->is_delivery_hub,
                 ])->values();
             }),
             'capabilities' => [
                 'admin' => $this->hasRole(User::ROLE_ADMIN),
                 'manager' => $this->hasRole(User::ROLE_MANAGER),
                 'seller' => $this->hasRole(User::ROLE_SELLER),
+                'picker' => $this->hasRole(User::ROLE_PICKER),
                 'courier' => $this->hasRole(User::ROLE_COURIER),
                 'can_access_filament' => $this->is_active
                     && $this->hasAnyRole([User::ROLE_ADMIN, User::ROLE_MANAGER]),

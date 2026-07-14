@@ -55,7 +55,7 @@ class WarehouseSeeder extends Seeder
         ];
 
         foreach ($cities as $city => $warehouses) {
-            foreach ($warehouses as $warehouse) {
+            foreach ($warehouses as $index => $warehouse) {
                 Warehouse::create([
                     'name' => $warehouse['name'],
                     'city' => $city,
@@ -63,6 +63,7 @@ class WarehouseSeeder extends Seeder
                     'type' => $warehouse['type'],
                     'is_active' => $warehouse['is_active'],
                     'is_online_fulfillment_enabled' => true,
+                    'is_delivery_hub' => $index === 0,
                 ]);
             }
         }

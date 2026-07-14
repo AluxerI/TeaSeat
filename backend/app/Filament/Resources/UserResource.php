@@ -155,7 +155,7 @@ class UserResource extends Resource
                                             ->options(function () {
                                                 return Role::pluck('name', 'id');
                                             })
-                                            ->helperText('Один аккаунт может совмещать роли admin, manager, seller, courier и user.'),
+                                            ->helperText('Один аккаунт может совмещать роли admin, manager, seller, picker, courier и user.'),
                                     ]),
 
                                 Section::make('Рабочие точки')
@@ -411,6 +411,7 @@ class UserResource extends Resource
                         'admin' => 'danger',
                         'manager' => 'warning',
                         'seller' => 'info',
+                        'picker' => 'success',
                         'courier' => 'primary',
                         'user' => 'success',
                         default => 'gray',

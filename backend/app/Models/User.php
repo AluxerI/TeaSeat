@@ -21,6 +21,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public const ROLE_ADMIN = 'admin';
     public const ROLE_MANAGER = 'manager';
     public const ROLE_SELLER = 'seller';
+    public const ROLE_PICKER = 'picker';
     public const ROLE_COURIER = 'courier';
     public const ROLE_USER = 'user';
 
@@ -28,6 +29,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         self::ROLE_ADMIN,
         self::ROLE_MANAGER,
         self::ROLE_SELLER,
+        self::ROLE_PICKER,
         self::ROLE_COURIER,
     ];
 
@@ -134,6 +136,16 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     public function managedFulfillmentIssues()
     {
         return $this->hasMany(FulfillmentIssue::class, 'manager_id');
+    }
+
+    public function pickedOrders()
+    {
+        return $this->hasMany(Order::class, 'picker_id');
+    }
+
+    public function courierOrders()
+    {
+        return $this->hasMany(Order::class, 'courier_id');
     }
 
     public function isStaff(): bool

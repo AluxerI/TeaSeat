@@ -88,6 +88,11 @@ class WarehouseResource extends Resource
                                     ->label('Можно собирать интернет-заказы')
                                     ->helperText('Остатки точки участвуют в доступности интернет-магазина')
                                     ->default(true),
+
+                                Forms\Components\Toggle::make('is_delivery_hub')
+                                    ->label('Точка консолидации доставок')
+                                    ->helperText('Сюда свозятся части заказов из других точек города')
+                                    ->default(false),
                             ]),
                     ]),
             ]);
@@ -130,6 +135,12 @@ class WarehouseResource extends Resource
 
                 IconColumn::make('is_online_fulfillment_enabled')
                     ->label('Онлайн-заказы')
+                    ->boolean()
+                    ->trueColor('success')
+                    ->falseColor('gray'),
+
+                IconColumn::make('is_delivery_hub')
+                    ->label('Консолидация')
                     ->boolean()
                     ->trueColor('success')
                     ->falseColor('gray'),

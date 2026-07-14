@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DeliveryMethod;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use Illuminate\Http\Request;
@@ -11,8 +12,7 @@ use Illuminate\Support\Facades\DB;
 class OrderManagementService
 {
     public function __construct(
-        protected CheckoutService $checkoutService,
-        protected WarehouseService $warehouseService
+        protected CheckoutService $checkoutService
     ) {}
 
     /**
@@ -92,15 +92,73 @@ class OrderManagementService
                 return $lockedOrder->fresh();
             }
 
+            $isOnlineFulfillment = $lockedOrder->sales_channel
+                    === Order::SALES_CHANNEL_ONLINE
+                && !$lockedOrder->is_supplier_order;
+
+            if ($isOnlineFulfillment
+                && $status === Order::STATUS_PROCESSING) {
+                throw new \DomainException(
+                    'Сборку может начать только сборщик через workflow сборки'
+                );
+            }
+            if ($isOnlineFulfillment && in_array($oldStatus, [
+                Order::STATUS_PROCESSING,
+                Order::STATUS_AWAITING_RECEIPT,
+                Order::STATUS_DELIVERED,
+            ], true)) {
+                throw new \DomainException(
+                    'Текущий этап меняется только через workflow ответственного сотрудника'
+                );
+            }
+
+            if ($status === Order::STATUS_READY_FOR_DELIVERY) {
+                throw new \DomainException(
+                    'Готовность подтверждается только сборщиком через workflow сборки'
+                );
+            }
+            if ($oldStatus === Order::STATUS_READY_FOR_DELIVERY) {
+                $lockedOrder->loadMissing('deliveryMethod');
+                if ($lockedOrder->isWarehouseTransfer()
+                    || $lockedOrder->deliveryMethod?->isHandledByCourier()) {
+                    throw new \DomainException(
+                        'Готовая доставка меняется только через workflow курьера или возврата на склад'
+                    );
+                }
+
+                $allowedStatuses = $lockedOrder->deliveryMethod?->type
+                    === DeliveryMethod::TYPE_PICKUP
+                        ? [Order::STATUS_DELIVERED]
+                        : [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED];
+                if (!in_array($status, $allowedStatuses, true)) {
+                    throw new \DomainException(
+                        'Упакованный заказ можно только передать внешней службе или выдать покупателю'
+                    );
+                }
+            }
+
+            if ($isOnlineFulfillment
+                && in_array($status, [
+                    Order::STATUS_SHIPPED,
+                    Order::STATUS_DELIVERED,
+                ], true)
+                && $oldStatus !== Order::STATUS_READY_FOR_DELIVERY
+                && !($oldStatus === Order::STATUS_SHIPPED
+                    && $status === Order::STATUS_DELIVERED)) {
+                throw new \DomainException(
+                    'Сначала заказ должен пройти сборку и получить статус готовности'
+                );
+            }
+
             if (
                 in_array($status, [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED], true)
-                && $lockedOrder->sales_channel === Order::SALES_CHANNEL_ONLINE
-                && !$lockedOrder->is_supplier_order
+                && $isOnlineFulfillment
             ) {
-                $this->warehouseService->commitOnlineStockForOrder(
-                    $lockedOrder,
-                    $actorId
-                );
+                if ($lockedOrder->stock_committed_at === null) {
+                    throw new \DomainException(
+                        'Сначала сборщик должен завершить упаковку и складское списание'
+                    );
+                }
             }
 
             $lockedOrder->update(['status' => $status]);
@@ -134,6 +192,19 @@ class OrderManagementService
                 foreach ($partialOrders as $partialOrder) {
                     $partialOldStatus = $partialOrder->status;
                     if ($partialOldStatus === $status) {
+                        continue;
+                    }
+                    if (in_array($partialOldStatus, [
+                        Order::STATUS_CANCELLED,
+                        Order::STATUS_DELIVERED,
+                    ], true)) {
+                        continue;
+                    }
+                    if ($status === Order::STATUS_CONFIRMED
+                        && !in_array($partialOldStatus, [
+                            Order::STATUS_PENDING,
+                            Order::STATUS_MANAGER_REVIEW,
+                        ], true)) {
                         continue;
                     }
 
@@ -278,6 +349,9 @@ class OrderManagementService
                 break;
             case Order::STATUS_SHIPPED:
                 $updates['shipped_at'] = now();
+                break;
+            case Order::STATUS_READY_FOR_DELIVERY:
+                $updates['ready_for_delivery_at'] = now();
                 break;
             case Order::STATUS_DELIVERED:
                 $updates['delivered_at'] = now();

@@ -14,7 +14,10 @@ use App\Models\User;
 use App\Models\Warehouse;
 use App\Services\CheckoutService;
 use App\Services\OrderManagementService;
+use App\Services\OrderFulfillmentService;
+use App\Services\StaffAccessService;
 use App\Services\WarehouseService;
+use Database\Seeders\RolePermissionSeeder;
 use DomainException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -22,6 +25,12 @@ use Tests\TestCase;
 class CheckoutIntegrityTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        $this->seed(RolePermissionSeeder::class);
+    }
 
     public function test_checkout_and_cancellation_are_idempotent_and_restore_each_reserve_once(): void
     {
@@ -103,7 +112,7 @@ class CheckoutIntegrityTest extends TestCase
         );
 
         $this->assertSame(Order::STATUS_PENDING, $order->status);
-        $this->assertNull($order->warehouse_id);
+        $this->assertSame($firstWarehouse->id, $order->warehouse_id);
         $this->assertSame(320.0, (float) $order->final_total);
         $this->assertSame(3, (int) $promotion->fresh()->used_count);
         $this->assertSame(2, $order->partialOrders()->count());
@@ -227,7 +236,7 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertNull($warehouseOrder->fresh()->stock_reserved_at);
     }
 
-    public function test_shipping_commits_reserved_stock_once(): void
+    public function test_packing_commits_reserved_stock_once(): void
     {
         $user = User::factory()->create();
         $brand = Brand::create(['name' => 'Shipping brand']);
@@ -250,6 +259,7 @@ class CheckoutIntegrityTest extends TestCase
             'type' => Warehouse::TYPE_WAREHOUSE,
             'is_active' => true,
             'is_online_fulfillment_enabled' => true,
+            'is_delivery_hub' => true,
         ]);
         Inventory::create([
             'product_id' => $product->id,
@@ -284,28 +294,40 @@ class CheckoutIntegrityTest extends TestCase
         $this->assertSame(3, Inventory::sum('quantity'));
         $this->assertSame(2, Inventory::sum('reserved_online_quantity'));
 
-        $shipped = app(OrderManagementService::class)->markAsShipped(
+        $order = app(OrderManagementService::class)->confirmOrder(
             $order,
             $user->id
         );
+        $part = $order->partialOrders()->firstOrFail();
+        $picker = User::factory()->create();
+        $picker->assignRole(User::ROLE_PICKER);
+        app(StaffAccessService::class)->syncActiveLocations(
+            $picker,
+            [$warehouse->id]
+        );
 
-        $this->assertSame(Order::STATUS_SHIPPED, $shipped->status);
+        $fulfillment = app(OrderFulfillmentService::class);
+        $fulfillment->take($picker, $part->id);
+        $packed = $fulfillment->complete($picker, $part->id);
+
+        $this->assertSame(Order::STATUS_DELIVERED, $packed->status);
+        $this->assertSame(
+            Order::STATUS_READY_FOR_DELIVERY,
+            $order->fresh()->status
+        );
         $this->assertSame(1, Inventory::sum('quantity'));
         $this->assertSame(0, Inventory::sum('reserved_online_quantity'));
-        $this->assertNotNull($shipped->stock_committed_at);
+        $this->assertNotNull($packed->stock_committed_at);
         $this->assertSame(
             1,
             InventoryMovement::where('type', InventoryMovement::TYPE_ONLINE_SALE)->count()
         );
         $this->assertSame(
             1,
-            $order->partialOrders()->where('status', Order::STATUS_SHIPPED)->count()
+            $order->partialOrders()->where('status', Order::STATUS_DELIVERED)->count()
         );
 
-        app(OrderManagementService::class)->markAsShipped(
-            $shipped,
-            $user->id
-        );
+        $fulfillment->complete($picker, $part->id);
 
         $this->assertSame(1, Inventory::sum('quantity'));
         $this->assertSame(0, Inventory::sum('reserved_online_quantity'));

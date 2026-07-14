@@ -17,7 +17,8 @@ class DeliveryMethodSeeder extends Seeder
                 'estimated_days_min' => 1,
                 'estimated_days_max' => 3,
                 'is_active' => true,
-                'available_cities' => ['Москва', 'Санкт-Петербург', 'Тула']
+                'available_cities' => ['Москва', 'Санкт-Петербург', 'Тула'],
+                'type' => DeliveryMethod::TYPE_COURIER,
             ],
             [
                 'name' => 'Самовывоз',
@@ -26,7 +27,8 @@ class DeliveryMethodSeeder extends Seeder
                 'estimated_days_min' => 0,
                 'estimated_days_max' => 1,
                 'is_active' => true,
-                'available_cities' => ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Тула']
+                'available_cities' => ['Москва', 'Санкт-Петербург', 'Новосибирск', 'Екатеринбург', 'Тула'],
+                'type' => DeliveryMethod::TYPE_PICKUP,
             ],
             [
                 'name' => 'Почта России',
@@ -35,7 +37,9 @@ class DeliveryMethodSeeder extends Seeder
                 'estimated_days_min' => 5,
                 'estimated_days_max' => 14,
                 'is_active' => true,
-                'available_cities' => null 
+                'available_cities' => null,
+                'type' => DeliveryMethod::TYPE_EXTERNAL,
+                'provider_code' => 'russian_post',
             ],
             [
                 'name' => 'Экспресс-доставка',
@@ -44,14 +48,18 @@ class DeliveryMethodSeeder extends Seeder
                 'estimated_days_min' => 1,
                 'estimated_days_max' => 1,
                 'is_active' => true,
-                'available_cities' => ['Москва', 'Санкт-Петербург']
+                'available_cities' => ['Москва', 'Санкт-Петербург'],
+                'type' => DeliveryMethod::TYPE_EXPRESS,
             ]
         ];
 
         foreach ($methods as $method) {
-            DeliveryMethod::create($method);
+            DeliveryMethod::updateOrCreate(
+                ['name' => $method['name']],
+                $method
+            );
         }
 
-        $this->command->info('Создано ' . count($methods) . ' методов доставки');
+        $this->command->info('Настроено ' . count($methods) . ' методов доставки');
     }
 }

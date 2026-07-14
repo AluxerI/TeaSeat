@@ -20,11 +20,13 @@ class Warehouse extends Model
         'type',
         'is_active',
         'is_online_fulfillment_enabled',
+        'is_delivery_hub',
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'is_online_fulfillment_enabled' => 'boolean',
+        'is_delivery_hub' => 'boolean',
     ];
 
     public function inventories()
@@ -80,6 +82,7 @@ class Warehouse extends Model
                 'type' => $this->type,
                 'is_active' => $this->is_active,
                 'is_online_fulfillment_enabled' => $this->is_online_fulfillment_enabled,
+                'is_delivery_hub' => $this->is_delivery_hub,
                 'inventories_count' => $this->inventories()->count(),
                 'total_quantity' => $this->inventories()->sum('quantity'),
                 'available_quantity' => Inventory::sumOnlineAvailable(
@@ -138,6 +141,7 @@ class Warehouse extends Model
                 'city',
                 'is_active',
                 'is_online_fulfillment_enabled',
+                'is_delivery_hub',
             ])) {
                 $warehouse->refreshInventoryProductCaches(
                     $warehouse->getOriginal('city')

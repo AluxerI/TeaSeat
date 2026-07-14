@@ -2,22 +2,21 @@
 
 namespace App\Services;
 
-use App\Models\FulfillmentIssue;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
-class ManagerAccessService
+class CourierAccessService
 {
-    public function assertManager(User $user): void
+    public function assertCourier(User $user): void
     {
         if (!$user->is_active || !$user->hasAnyRole([
             User::ROLE_ADMIN,
-            User::ROLE_MANAGER,
+            User::ROLE_COURIER,
         ])) {
             throw new AuthorizationException(
-                'Аккаунт не имеет активной роли менеджера'
+                'Аккаунт не имеет активной роли курьера'
             );
         }
     }
@@ -30,7 +29,7 @@ class ManagerAccessService
     /** @return Collection<int, int> */
     public function activeWarehouseIds(User $user): Collection
     {
-        $this->assertManager($user);
+        $this->assertCourier($user);
 
         return $user->activeWarehouses()
             ->pluck('warehouses.id')
@@ -38,45 +37,29 @@ class ManagerAccessService
             ->values();
     }
 
-    public function scopeIssues(Builder $query, User $user): Builder
+    public function scopeDeliveries(Builder $query, User $user): Builder
     {
-        $this->assertManager($user);
-
+        $this->assertCourier($user);
         if ($this->isAdmin($user)) {
             return $query;
         }
 
         return $query->whereIn(
-            'warehouse_id',
+            'orders.warehouse_id',
             $this->activeWarehouseIds($user)
         );
     }
 
-    public function assertIssueAccess(User $user, FulfillmentIssue $issue): void
+    public function assertWarehouse(User $user, int $warehouseId): void
     {
-        $this->assertManager($user);
-
-        if ($this->isAdmin($user)) {
-            return;
-        }
-
-        if (!$this->activeWarehouseIds($user)->contains((int) $issue->warehouse_id)) {
-            throw new AuthorizationException(
-                'Проблема относится к неназначенной или отключённой рабочей точке'
-            );
-        }
-    }
-
-    public function assertWarehouseAccess(User $user, int $warehouseId): void
-    {
-        $this->assertManager($user);
+        $this->assertCourier($user);
         if ($this->isAdmin($user)) {
             return;
         }
 
         if (!$this->activeWarehouseIds($user)->contains($warehouseId)) {
             throw new AuthorizationException(
-                'Рабочая точка не назначена менеджеру или отключена'
+                'Доставка относится к неназначенной или отключённой точке'
             );
         }
     }

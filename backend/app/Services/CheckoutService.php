@@ -132,7 +132,8 @@ class CheckoutService
                 $shippingAddress
             );
 
-            // Физический остаток не меняется до отгрузки: checkout создаёт резерв.
+            // Физический остаток не меняется до завершения сборки:
+            // checkout создаёт только складской резерв.
             $this->warehouseService->reserveOnlineStockForOrders(
                 $partialOrders,
                 $userId
@@ -287,6 +288,8 @@ class CheckoutService
                         'name' => $method->name,
                         'description' => $method->description,
                         'cost' => (float) $method->cost,
+                        'type' => $method->type,
+                        'provider_code' => $method->provider_code,
                         'estimated_days' => $method->getEstimatedDaysFormatted(),
                     ];
                 })

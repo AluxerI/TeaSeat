@@ -43,20 +43,38 @@ class ManagerFulfillmentIssueResource extends FulfillmentIssueResource
                 'is_active' => (bool) $this->warehouse->is_active,
             ]),
             'source_order' => $this->whenLoaded('sourceOrder', function (): array {
+                $latestHistory = $this->sourceOrder->relationLoaded('statusHistory')
+                    ? $this->sourceOrder->statusHistory->sortByDesc('id')->first()
+                    : null;
+
                 return [
                     'id' => $this->sourceOrder->id,
                     'order_number' => $this->sourceOrder->order_number,
                     'status' => $this->sourceOrder->status,
                     'sales_channel' => $this->sourceOrder->sales_channel,
+                    'internal_notes' => $this->sourceOrder->internal_notes,
                     'revision' => (int) $this->sourceOrder->seller_revision,
                     'was_edited' => (bool) $this->sourceOrder->was_edited,
                     'final_total' => (float) $this->sourceOrder->final_total,
-                    'seller' => $this->sourceOrder->relationLoaded('user') ? [
+                    'seller' => $this->sourceOrder->sales_channel === \App\Models\Order::SALES_CHANNEL_SELLER
+                        && $this->sourceOrder->relationLoaded('user') ? [
                         'id' => $this->sourceOrder->user?->id,
                         'name' => $this->sourceOrder->user?->name,
                         'email' => $this->sourceOrder->user?->email,
                         'phone' => $this->sourceOrder->user?->phone,
                     ] : null,
+                    'customer' => $this->sourceOrder->sales_channel === \App\Models\Order::SALES_CHANNEL_ONLINE
+                        && $this->sourceOrder->relationLoaded('user') ? [
+                        'id' => $this->sourceOrder->user?->id,
+                        'name' => $this->sourceOrder->user?->name,
+                        'email' => $this->sourceOrder->user?->email,
+                        'phone' => $this->sourceOrder->user?->phone,
+                    ] : null,
+                    'picker' => $this->sourceOrder->relationLoaded('picker')
+                        && $this->sourceOrder->picker ? [
+                            'id' => $this->sourceOrder->picker->id,
+                            'name' => $this->sourceOrder->picker->name,
+                        ] : null,
                     'device' => $this->sourceOrder->relationLoaded('sellerDevice')
                         && $this->sourceOrder->sellerDevice ? [
                             'id' => $this->sourceOrder->sellerDevice->id,
@@ -72,6 +90,11 @@ class ManagerFulfillmentIssueResource extends FulfillmentIssueResource
                             'total_price' => (float) $item->total_price,
                         ])->values()->all()
                         : [],
+                    'latest_status_comment' => $latestHistory?->notes,
+                    'reported_by' => $latestHistory?->changedBy ? [
+                        'id' => $latestHistory->changedBy->id,
+                        'name' => $latestHistory->changedBy->name,
+                    ] : null,
                     'occurred_at' => $this->sourceOrder->seller_occurred_at?->toIso8601String(),
                     'synced_at' => $this->sourceOrder->seller_synced_at?->toIso8601String(),
                     'escalated_at' => $this->sourceOrder->seller_escalated_at?->toIso8601String(),

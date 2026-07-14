@@ -219,7 +219,9 @@ class FulfillmentIssueService
             'manager',
             'sourceOrder.user',
             'sourceOrder.sellerDevice',
+            'sourceOrder.picker',
             'sourceOrder.items.product',
+            'sourceOrder.statusHistory.changedBy',
         ];
     }
 }

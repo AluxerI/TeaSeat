@@ -16,6 +16,7 @@ class WarehouseFactory extends Factory
             'type' => Warehouse::TYPE_WAREHOUSE,
             'is_active' => true,
             'is_online_fulfillment_enabled' => true,
+            'is_delivery_hub' => false,
         ];
     }
     
@@ -30,6 +31,13 @@ class WarehouseFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'type' => Warehouse::TYPE_STORE,
+        ]);
+    }
+
+    public function deliveryHub(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'is_delivery_hub' => true,
         ]);
     }
 }

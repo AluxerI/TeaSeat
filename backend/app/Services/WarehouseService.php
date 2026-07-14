@@ -156,20 +156,26 @@ class WarehouseService
         AddressClient $shippingAddress
     ): array {
         $orders = [];
+        $deliveryHub = $this->determineDeliveryHub(
+            $shippingAddress->city,
+            $warehouseAllocation
+        );
 
         foreach ($warehouseAllocation as $index => $allocation) {
             $orders[] = $this->createPartialOrder(
                 $mainOrder,
                 $allocation,
-                $index + 1
+                $index + 1,
+                $deliveryHub
             );
         }
 
         $mainOrder->update([
-            'warehouse_id' => null,
+            'warehouse_id' => $deliveryHub->id,
             'internal_notes' => trim(
                 ($mainOrder->internal_notes ?? '')
                 . "\nСоздано складских исполнений: " . count($orders)
+                . ". Точка консолидации: {$deliveryHub->name}"
             ),
         ]);
 
@@ -179,7 +185,8 @@ class WarehouseService
     private function createPartialOrder(
         Order $mainOrder,
         array $allocation,
-        int $index
+        int $index,
+        Warehouse $deliveryHub
     ): Order {
         $partialOrder = Order::create([
             'user_id' => $mainOrder->user_id,
@@ -188,6 +195,7 @@ class WarehouseService
             'shipping_address_id' => $mainOrder->shipping_address_id,
             'delivery_method_id' => $mainOrder->delivery_method_id,
             'warehouse_id' => $allocation['warehouse_id'],
+            'destination_warehouse_id' => $deliveryHub->id,
             'payment_method' => $mainOrder->payment_method,
             'customer_notes' => $mainOrder->customer_notes,
             'internal_notes' => "Частичный заказ #{$index} от основного заказа #{$mainOrder->id}",
@@ -244,6 +252,37 @@ class WarehouseService
         $this->recalculateOrderTotals($partialOrder);
 
         return $partialOrder->fresh('items');
+    }
+
+    private function determineDeliveryHub(
+        string $city,
+        array $warehouseAllocation
+    ): Warehouse {
+        $hub = Warehouse::query()
+            ->where('city', $city)
+            ->active()
+            ->where('is_delivery_hub', true)
+            ->orderByRaw(
+                'CASE WHEN type = ? THEN 0 ELSE 1 END',
+                [Warehouse::TYPE_WAREHOUSE]
+            )
+            ->orderBy('id')
+            ->first();
+
+        if ($hub) {
+            return $hub;
+        }
+
+        // Совместимость с тестовыми и старыми данными до настройки хаба.
+        $fallbackId = (int) ($warehouseAllocation[0]['warehouse_id'] ?? 0);
+        $fallback = Warehouse::query()->active()->find($fallbackId);
+        if (!$fallback) {
+            throw new DomainException(
+                "В городе {$city} не настроена точка консолидации доставок"
+            );
+        }
+
+        return $fallback;
     }
 
     private function recalculateOrderTotals(Order $order): void
@@ -404,12 +443,15 @@ class WarehouseService
         ?int $actorId = null
     ): void {
         DB::transaction(function () use ($order, $actorId) {
-            $targetOrderIds = $order->warehouse_id
-                ? collect([$order->id])
-                : Order::query()
+            $partialOrderIds = !$order->parent_order_id
+                ? Order::query()
                     ->where('parent_order_id', $order->id)
                     ->orderBy('id')
-                    ->pluck('id');
+                    ->pluck('id')
+                : collect();
+            $targetOrderIds = $partialOrderIds->isNotEmpty()
+                ? $partialOrderIds
+                : collect([$order->id]);
 
             $targetOrders = Order::query()
                 ->whereIn('id', $targetOrderIds)
@@ -428,7 +470,7 @@ class WarehouseService
                 $this->commitLockedOnlineOrder($targetOrder, $actorId);
             }
 
-            if (!$order->warehouse_id) {
+            if ($partialOrderIds->isNotEmpty()) {
                 Order::query()
                     ->whereKey($order->id)
                     ->whereNull('stock_committed_at')
@@ -474,6 +516,15 @@ class WarehouseService
             $inventory->reserved_online_quantity -= $item->quantity;
             $inventory->save();
 
+            $returnCycle = InventoryMovement::query()
+                ->where('order_id', $order->id)
+                ->where('inventory_id', $inventory->id)
+                ->where('type', InventoryMovement::TYPE_ONLINE_RETURN)
+                ->count();
+            $cycleSuffix = $returnCycle > 0
+                ? ":cycle:{$returnCycle}"
+                : '';
+
             $this->recordMovement(
                 $inventory,
                 InventoryMovement::TYPE_ONLINE_SALE,
@@ -484,11 +535,68 @@ class WarehouseService
                 $order,
                 $actorId,
                 'Отгрузка интернет-заказа',
-                "online_sale:order:{$order->id}:inventory:{$inventory->id}"
+                "online_sale:order:{$order->id}:inventory:{$inventory->id}{$cycleSuffix}"
             );
         }
 
         $order->update(['stock_committed_at' => now()]);
+    }
+
+    public function restoreCommittedOnlineStockForOrder(
+        Order $order,
+        int $actorId,
+        string $reason
+    ): void {
+        DB::transaction(function () use ($order, $actorId, $reason): void {
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->with('items')
+                ->findOrFail($order->id);
+
+            if ($lockedOrder->stock_committed_at === null) {
+                return;
+            }
+            if (!$lockedOrder->warehouse_id || !$lockedOrder->parent_order_id) {
+                throw new DomainException(
+                    'Возврат выполняется только для складской части заказа'
+                );
+            }
+            $reason = trim($reason);
+            if ($reason === '') {
+                throw new DomainException('Для возврата на склад нужна причина');
+            }
+
+            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+                $inventory = $this->lockInventory(
+                    (int) $lockedOrder->warehouse_id,
+                    (int) $item->product_id
+                );
+                $returnCycle = InventoryMovement::query()
+                    ->where('order_id', $lockedOrder->id)
+                    ->where('inventory_id', $inventory->id)
+                    ->where('type', InventoryMovement::TYPE_ONLINE_RETURN)
+                    ->count() + 1;
+                $before = $this->balances($inventory);
+                $inventory->quantity += (int) $item->quantity;
+                $inventory->reserved_online_quantity += (int) $item->quantity;
+                $inventory->save();
+
+                $this->recordMovement(
+                    $inventory,
+                    InventoryMovement::TYPE_ONLINE_RETURN,
+                    $before,
+                    (int) $item->quantity,
+                    (int) $item->quantity,
+                    0,
+                    $lockedOrder,
+                    $actorId,
+                    $reason,
+                    "online_return:order:{$lockedOrder->id}:inventory:{$inventory->id}:cycle:{$returnCycle}"
+                );
+            }
+
+            $lockedOrder->update(['stock_committed_at' => null]);
+        });
     }
 
     /**

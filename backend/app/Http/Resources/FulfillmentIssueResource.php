@@ -33,7 +33,7 @@ class FulfillmentIssueResource extends JsonResource
                 (int) $this->shortage_quantity
             ),
             FulfillmentIssue::REASON_PHYSICAL_STOCK_DISCREPANCY => sprintf(
-                'В учётном остатке не хватает %d единиц уже проданного товара.',
+                'Физический остаток отличается от учётного на %d единиц товара.',
                 (int) $this->shortage_quantity
             ),
             default => 'Требуется проверка менеджера.',

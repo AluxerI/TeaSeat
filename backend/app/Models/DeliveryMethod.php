@@ -9,6 +9,11 @@ class DeliveryMethod extends Model
 {
     use HasFactory;
 
+    public const TYPE_COURIER = 'courier';
+    public const TYPE_EXPRESS = 'express';
+    public const TYPE_PICKUP = 'pickup';
+    public const TYPE_EXTERNAL = 'external';
+
     protected $fillable = [
         'name',
         'description',
@@ -16,7 +21,9 @@ class DeliveryMethod extends Model
         'estimated_days_min',
         'estimated_days_max',
         'is_active',
-        'available_cities'
+        'available_cities',
+        'type',
+        'provider_code',
     ];
 
     protected $casts = [
@@ -39,6 +46,14 @@ class DeliveryMethod extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function isHandledByCourier(): bool
+    {
+        return in_array($this->type, [
+            self::TYPE_COURIER,
+            self::TYPE_EXPRESS,
+        ], true);
     }
 
     /**

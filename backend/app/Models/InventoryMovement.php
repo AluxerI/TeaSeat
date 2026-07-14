@@ -13,6 +13,7 @@ class InventoryMovement extends Model
     public const TYPE_ONLINE_RESERVE = 'online_reserve';
     public const TYPE_ONLINE_RELEASE = 'online_release';
     public const TYPE_ONLINE_SALE = 'online_sale';
+    public const TYPE_ONLINE_RETURN = 'online_return';
     public const TYPE_SELLER_RESERVE = 'seller_reserve';
     public const TYPE_SELLER_RELEASE = 'seller_release';
     public const TYPE_SELLER_SALE = 'seller_sale';

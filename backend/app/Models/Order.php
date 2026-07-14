@@ -32,6 +32,9 @@ class Order extends Model
         'pricing_snapshot',
         'shipping_address_id',
         'warehouse_id',
+        'destination_warehouse_id',
+        'picker_id',
+        'courier_id',
         'discount_id',
         'applied_promotion_code',
         'delivery_method_id',
@@ -47,6 +50,11 @@ class Order extends Model
         'stock_reserved_at',
         'stock_committed_at',
         'stock_released_at',
+        'picking_started_at',
+        'ready_for_delivery_at',
+        'courier_assigned_at',
+        'courier_arrived_at',
+        'received_at',
         'discount_usage_released_at',
         'parent_order_id',
         'supplier_order_id', // связь с консолидированным заказом
@@ -82,6 +90,11 @@ class Order extends Model
         'stock_reserved_at' => 'datetime',
         'stock_committed_at' => 'datetime',
         'stock_released_at' => 'datetime',
+        'picking_started_at' => 'datetime',
+        'ready_for_delivery_at' => 'datetime',
+        'courier_assigned_at' => 'datetime',
+        'courier_arrived_at' => 'datetime',
+        'received_at' => 'datetime',
         'discount_usage_released_at' => 'datetime',
         'seller_revision' => 'integer',
         'was_edited' => 'boolean',
@@ -99,7 +112,9 @@ class Order extends Model
     const STATUS_PENDING = 'pending';
     const STATUS_CONFIRMED = 'confirmed';
     const STATUS_PROCESSING = 'processing';
+    const STATUS_READY_FOR_DELIVERY = 'ready_for_delivery';
     const STATUS_SHIPPED = 'shipped';
+    const STATUS_AWAITING_RECEIPT = 'awaiting_receipt';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_SELLER_REVIEW = 'seller_review';
@@ -138,6 +153,21 @@ class Order extends Model
     public function fulfillmentIssues()
     {
         return $this->hasMany(FulfillmentIssue::class, 'source_order_id');
+    }
+
+    public function destinationWarehouse()
+    {
+        return $this->belongsTo(Warehouse::class, 'destination_warehouse_id');
+    }
+
+    public function picker()
+    {
+        return $this->belongsTo(User::class, 'picker_id');
+    }
+
+    public function courier()
+    {
+        return $this->belongsTo(User::class, 'courier_id');
     }
 
     public function shippingAddress()
@@ -280,7 +310,9 @@ class Order extends Model
             self::STATUS_PENDING => 'Ожидает подтверждения',
             self::STATUS_CONFIRMED => 'Подтвержден',
             self::STATUS_PROCESSING => 'Обрабатывается',
+            self::STATUS_READY_FOR_DELIVERY => 'Готов к передаче',
             self::STATUS_SHIPPED => 'Отправлен',
+            self::STATUS_AWAITING_RECEIPT => 'Ожидает приёмки',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
             self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
@@ -294,12 +326,31 @@ class Order extends Model
 
     public function canBeCancelled(): bool
     {
-        return in_array($this->status, [
+        $statusAllowsCancellation = in_array($this->status, [
             self::STATUS_PENDING,
             self::STATUS_CONFIRMED,
             self::STATUS_PROCESSING,
             self::STATUS_SELLER_REVIEW,
         ], true);
+
+        if (!$statusAllowsCancellation || $this->parent_order_id) {
+            return $statusAllowsCancellation;
+        }
+
+        // После начала физической сборки отмена требует отдельного решения
+        // менеджера: часть товара уже может быть упакована или перемещаться.
+        return !$this->partialOrders()
+            ->where(function ($query): void {
+                $query->whereNotNull('stock_committed_at')
+                    ->orWhereIn('status', [
+                        self::STATUS_PROCESSING,
+                        self::STATUS_READY_FOR_DELIVERY,
+                        self::STATUS_SHIPPED,
+                        self::STATUS_AWAITING_RECEIPT,
+                        self::STATUS_DELIVERED,
+                    ]);
+            })
+            ->exists();
     }
     public function determineWarehouse($shippingAddress = null)
     {
@@ -348,7 +399,9 @@ class Order extends Model
             self::STATUS_PENDING => 'Ожидает подтверждения',
             self::STATUS_CONFIRMED => 'Подтвержден',
             self::STATUS_PROCESSING => 'В обработке',
+            self::STATUS_READY_FOR_DELIVERY => 'Готов к передаче',
             self::STATUS_SHIPPED => 'Отправлен',
+            self::STATUS_AWAITING_RECEIPT => 'Ожидает приёмки',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
             self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
@@ -370,6 +423,13 @@ class Order extends Model
     {
         $total = $this->items()->sum('total_price');
         $this->updateQuietly(['products_total' => $total]);
+    }
+
+    public function isWarehouseTransfer(): bool
+    {
+        return $this->parent_order_id !== null
+            && $this->destination_warehouse_id !== null
+            && (int) $this->warehouse_id !== (int) $this->destination_warehouse_id;
     }
     
 }

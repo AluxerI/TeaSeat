@@ -108,7 +108,7 @@ class AdminDashboardService
 
     private function getOrderStats(): array
     {
-        $statuses = ['pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+        $statuses = ['pending', 'confirmed', 'processing', 'ready_for_delivery', 'shipped', 'awaiting_receipt', 'delivered', 'cancelled'];
         $stats = [];
         
         foreach ($statuses as $status) {

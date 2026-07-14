@@ -34,17 +34,20 @@ class StaffAccessTest extends TestCase
         $user->syncRoles([
             User::ROLE_SELLER,
             User::ROLE_COURIER,
+            User::ROLE_PICKER,
             User::ROLE_MANAGER,
         ]);
 
-        $this->assertSame(5, Role::count());
+        $this->assertSame(6, Role::count());
         $this->assertTrue($user->hasAllRoles([
             User::ROLE_SELLER,
             User::ROLE_COURIER,
+            User::ROLE_PICKER,
             User::ROLE_MANAGER,
         ]));
         $this->assertTrue($user->can('create seller orders'));
         $this->assertTrue($user->can('view assigned deliveries'));
+        $this->assertTrue($user->can('manage own picking orders'));
         $this->assertTrue($user->can('manage orders'));
     }
 
@@ -99,18 +102,21 @@ class StaffAccessTest extends TestCase
         $manager = User::factory()->create();
         $seller = User::factory()->create();
         $courier = User::factory()->create();
+        $picker = User::factory()->create();
         $customer = User::factory()->create();
 
         $admin->assignRole(User::ROLE_ADMIN);
         $manager->assignRole(User::ROLE_MANAGER);
         $seller->assignRole(User::ROLE_SELLER);
         $courier->assignRole(User::ROLE_COURIER);
+        $picker->assignRole(User::ROLE_PICKER);
         $customer->assignRole(User::ROLE_USER);
 
         $this->assertTrue($admin->canAccessPanel($panel));
         $this->assertTrue($manager->canAccessPanel($panel));
         $this->assertFalse($seller->canAccessPanel($panel));
         $this->assertFalse($courier->canAccessPanel($panel));
+        $this->assertFalse($picker->canAccessPanel($panel));
         $this->assertFalse($customer->canAccessPanel($panel));
 
         $manager->update(['is_active' => false]);
@@ -143,6 +149,7 @@ class StaffAccessTest extends TestCase
         $user->syncRoles([
             User::ROLE_SELLER,
             User::ROLE_COURIER,
+            User::ROLE_PICKER,
             User::ROLE_MANAGER,
         ]);
         $store = Warehouse::factory()->physicalStore()->create([
@@ -160,6 +167,7 @@ class StaffAccessTest extends TestCase
             ->assertJsonPath('token_type', 'Bearer')
             ->assertJsonPath('user.capabilities.seller', true)
             ->assertJsonPath('user.capabilities.courier', true)
+            ->assertJsonPath('user.capabilities.picker', true)
             ->assertJsonPath('user.capabilities.manager', true)
             ->assertJsonPath('user.capabilities.can_access_filament', true)
             ->assertJsonPath('user.work_locations.0.id', $store->id)
@@ -170,6 +178,7 @@ class StaffAccessTest extends TestCase
         $this->assertEqualsCanonicalizing([
             User::ROLE_SELLER,
             User::ROLE_COURIER,
+            User::ROLE_PICKER,
             User::ROLE_MANAGER,
         ], $response->json('user.roles'));
     }
@@ -187,6 +196,7 @@ class StaffAccessTest extends TestCase
             ->assertJsonPath('data.capabilities.admin', false)
             ->assertJsonPath('data.capabilities.manager', false)
             ->assertJsonPath('data.capabilities.seller', false)
+            ->assertJsonPath('data.capabilities.picker', false)
             ->assertJsonPath('data.capabilities.courier', false)
             ->assertJsonPath('data.capabilities.can_access_filament', false);
     }

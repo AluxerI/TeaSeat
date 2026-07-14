@@ -71,17 +71,48 @@ class OrderResource extends Resource
                                                 Order::STATUS_COMPLETED => 'Завершен',
                                                 Order::STATUS_CANCELLED => 'Отменен',
                                             ]
-                                            : [
-                                                Order::STATUS_PENDING => 'Ожидает подтверждения',
-                                                Order::STATUS_CONFIRMED => 'Подтвержден',
-                                                Order::STATUS_PROCESSING => 'В обработке',
-                                                Order::STATUS_SHIPPED => 'Отправлен',
-                                                Order::STATUS_DELIVERED => 'Доставлен',
-                                                Order::STATUS_CANCELLED => 'Отменен',
-                                            ])
+                                            : array_filter([
+                                                Order::STATUS_PENDING => $record?->status === Order::STATUS_READY_FOR_DELIVERY
+                                                    ? null
+                                                    : 'Ожидает подтверждения',
+                                                Order::STATUS_CONFIRMED => $record?->status === Order::STATUS_READY_FOR_DELIVERY
+                                                    ? null
+                                                    : 'Подтвержден',
+                                                Order::STATUS_PROCESSING => $record?->status === Order::STATUS_PROCESSING
+                                                    ? 'В обработке'
+                                                    : null,
+                                                Order::STATUS_READY_FOR_DELIVERY => $record?->status === Order::STATUS_READY_FOR_DELIVERY
+                                                    ? 'Готов к передаче'
+                                                    : null,
+                                                Order::STATUS_SHIPPED => $record
+                                                    && in_array($record->status, [
+                                                        Order::STATUS_READY_FOR_DELIVERY,
+                                                        Order::STATUS_SHIPPED,
+                                                    ], true)
+                                                    && $record->deliveryMethod?->type !== \App\Models\DeliveryMethod::TYPE_PICKUP
+                                                        ? 'Отправлен'
+                                                        : null,
+                                                Order::STATUS_DELIVERED => $record
+                                                    && in_array($record->status, [
+                                                        Order::STATUS_READY_FOR_DELIVERY,
+                                                        Order::STATUS_SHIPPED,
+                                                        Order::STATUS_DELIVERED,
+                                                    ], true)
+                                                        ? 'Доставлен'
+                                                        : null,
+                                                Order::STATUS_MANAGER_REVIEW => $record?->status === Order::STATUS_MANAGER_REVIEW
+                                                    ? 'Передан менеджеру'
+                                                    : null,
+                                                Order::STATUS_CANCELLED => $record?->status === Order::STATUS_READY_FOR_DELIVERY
+                                                    ? null
+                                                    : 'Отменен',
+                                            ]))
                                     ->default(Order::STATUS_PENDING)
                                     ->disabled(fn ($record) =>
-                                        $record?->sales_channel === Order::SALES_CHANNEL_SELLER)
+                                        $record?->sales_channel === Order::SALES_CHANNEL_SELLER
+                                        || ($record?->status === Order::STATUS_READY_FOR_DELIVERY
+                                            && ($record->isWarehouseTransfer()
+                                                || $record->deliveryMethod?->isHandledByCourier())))
                                     ->required()
                                     ->reactive(),
 
@@ -601,7 +632,9 @@ class OrderResource extends Resource
                         Order::STATUS_PENDING => 'warning',
                         Order::STATUS_CONFIRMED => 'info',
                         Order::STATUS_PROCESSING => 'primary',
+                        Order::STATUS_READY_FOR_DELIVERY => 'cyan',
                         Order::STATUS_SHIPPED => 'purple',
+                        Order::STATUS_AWAITING_RECEIPT => 'warning',
                         Order::STATUS_DELIVERED => 'success',
                         Order::STATUS_CANCELLED => 'danger',
                         Order::STATUS_SELLER_REVIEW => 'warning',
@@ -641,7 +674,9 @@ class OrderResource extends Resource
                         Order::STATUS_PENDING => 'Ожидает подтверждения',
                         Order::STATUS_CONFIRMED => 'Подтвержден',
                         Order::STATUS_PROCESSING => 'В обработке',
+                        Order::STATUS_READY_FOR_DELIVERY => 'Готов к передаче',
                         Order::STATUS_SHIPPED => 'Отправлен',
+                        Order::STATUS_AWAITING_RECEIPT => 'Ожидает приёмки',
                         Order::STATUS_DELIVERED => 'Доставлен',
                         Order::STATUS_CANCELLED => 'Отменен',
                         Order::STATUS_SELLER_REVIEW => 'Требует проверки продавца',

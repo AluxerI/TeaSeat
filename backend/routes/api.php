@@ -22,6 +22,10 @@ use App\Http\Controllers\Seller\DeviceController as SellerDeviceController;
 use App\Http\Controllers\Seller\OrderController as SellerOrderController;
 use App\Http\Controllers\Seller\SyncController as SellerSyncController;
 use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmentIssueController;
+use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDeliveryAssignmentController;
+use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
+use App\Http\Controllers\Picker\OrderController as PickerOrderController;
+use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
 
 
 Route::prefix('auth')->group(function () {
@@ -125,9 +129,66 @@ Route::prefix('seller')->middleware('auth:sanctum')->group(function () {
         ]);
 });
 
+// Сборщик работает только со складскими исполнениями назначенных точек.
+Route::prefix('picker')->middleware('auth:sanctum')->group(function () {
+    Route::get('/incoming-transfers', [PickerOrderController::class, 'incomingTransfers'])
+        ->middleware('permission:view picking orders');
+    Route::post('/incoming-transfers/{order}/receive', [PickerOrderController::class, 'receiveTransfer'])
+        ->whereNumber('order')
+        ->middleware('permission:manage own picking orders');
+    Route::get('/orders', [PickerOrderController::class, 'index'])
+        ->middleware('permission:view picking orders');
+    Route::get('/orders/{order}', [PickerOrderController::class, 'show'])
+        ->whereNumber('order')
+        ->middleware('permission:view picking orders');
+    Route::post('/orders/{order}/take', [PickerOrderController::class, 'take'])
+        ->whereNumber('order')
+        ->middleware('permission:manage own picking orders');
+    Route::post('/orders/{order}/release', [PickerOrderController::class, 'release'])
+        ->whereNumber('order')
+        ->middleware('permission:manage own picking orders');
+    Route::post('/orders/{order}/complete', [PickerOrderController::class, 'complete'])
+        ->whereNumber('order')
+        ->middleware('permission:manage own picking orders');
+    Route::post('/orders/{order}/escalate', [PickerOrderController::class, 'escalate'])
+        ->whereNumber('order')
+        ->middleware('permission:manage own picking orders');
+    Route::post('/orders/{order}/shortage', [PickerOrderController::class, 'reportShortage'])
+        ->whereNumber('order')
+        ->middleware('permission:report picking shortage');
+});
+
+// Курьер видит свободные и собственные доставки только своих активных точек.
+Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
+    Route::get('/deliveries', [CourierDeliveryController::class, 'index'])
+        ->middleware('permission:view assigned deliveries');
+    Route::get('/deliveries/{order}', [CourierDeliveryController::class, 'show'])
+        ->whereNumber('order')
+        ->middleware('permission:view assigned deliveries');
+    Route::post('/deliveries/{order}/claim', [CourierDeliveryController::class, 'claim'])
+        ->whereNumber('order')
+        ->middleware('permission:update assigned deliveries');
+    Route::post('/deliveries/{order}/release', [CourierDeliveryController::class, 'release'])
+        ->whereNumber('order')
+        ->middleware('permission:update assigned deliveries');
+    Route::post('/deliveries/{order}/start', [CourierDeliveryController::class, 'start'])
+        ->whereNumber('order')
+        ->middleware('permission:update assigned deliveries');
+    Route::post('/deliveries/{order}/deliver', [CourierDeliveryController::class, 'deliver'])
+        ->whereNumber('order')
+        ->middleware('permission:update assigned deliveries');
+});
+
 // Отдельный API менеджера. В отличие от Filament, для менеджера здесь
 // обязательно применяется ограничение по назначенным активным складам.
 Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
+    Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
+        ->whereNumber('order')
+        ->middleware('permission:manage orders');
+    Route::post('/deliveries/{order}/assign-courier', [ManagerDeliveryAssignmentController::class, 'assign'])
+        ->whereNumber('order')
+        ->middleware('permission:assign couriers');
+
     Route::prefix('fulfillment-issues')->group(function () {
         Route::get('/', [ManagerFulfillmentIssueController::class, 'index'])
             ->middleware('permission:view fulfillment issues');

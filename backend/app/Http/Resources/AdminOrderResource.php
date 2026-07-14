@@ -52,6 +52,8 @@ class AdminOrderResource extends JsonResource
                         'id' => $this->deliveryMethod->id,
                         'name' => $this->deliveryMethod->name,
                         'cost' => (float) $this->deliveryMethod->cost,
+                        'type' => $this->deliveryMethod->type,
+                        'provider_code' => $this->deliveryMethod->provider_code,
                     ];
                 }),
                 'address' => $this->whenLoaded('shippingAddress', function() {
@@ -84,6 +86,9 @@ class AdminOrderResource extends JsonResource
                         'order_number' => $partialOrder->order_number,
                         'status' => $partialOrder->status,
                         'warehouse_id' => $partialOrder->warehouse_id,
+                        'destination_warehouse_id' => $partialOrder->destination_warehouse_id,
+                        'picker_id' => $partialOrder->picker_id,
+                        'courier_id' => $partialOrder->courier_id,
                         'items_count' => $partialOrder->items->count(),
                         'final_total' => (float) $partialOrder->final_total,
                     ];
@@ -115,6 +120,11 @@ class AdminOrderResource extends JsonResource
                 'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
                 'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
                 'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
+                'picking_started_at' => $this->picking_started_at?->format('d.m.Y H:i'),
+                'ready_for_delivery_at' => $this->ready_for_delivery_at?->format('d.m.Y H:i'),
+                'courier_assigned_at' => $this->courier_assigned_at?->format('d.m.Y H:i'),
+                'courier_arrived_at' => $this->courier_arrived_at?->format('d.m.Y H:i'),
+                'received_at' => $this->received_at?->format('d.m.Y H:i'),
                 'seller_occurred_at' => $this->seller_occurred_at?->format('d.m.Y H:i'),
                 'seller_synced_at' => $this->seller_synced_at?->format('d.m.Y H:i'),
                 'seller_reviewed_at' => $this->seller_reviewed_at?->format('d.m.Y H:i'),
