@@ -6,7 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 use App\Http\Resources\UserResource;
-use Spatie\Permission\Models\Role;
+use App\Services\StaffAccessService;
 
 class UpdateRolesController extends Controller
 {
@@ -23,8 +23,14 @@ class UpdateRolesController extends Controller
         // Синхронизируем роли пользователя
         $user->syncRoles($request->roles);
 
+        if (!$user->isStaff()) {
+            app(StaffAccessService::class)->syncActiveLocations($user, []);
+        } else {
+            $user->clearCache();
+        }
+
         // Обновляем данные пользователя
-        $user->load('roles');
+        $user->load(['roles', 'activeWarehouses']);
 
         return response()->json([
             'message' => 'Роли пользователя успешно обновлены.',

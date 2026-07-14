@@ -32,6 +32,18 @@ class Warehouse extends Model
         return $this->hasMany(Inventory::class);
     }
 
+    public function users()
+    {
+        return $this->belongsToMany(User::class, 'user_warehouse')
+            ->withPivot('is_active')
+            ->withTimestamps();
+    }
+
+    public function activeUsers()
+    {
+        return $this->users()->wherePivot('is_active', true);
+    }
+
     public function products()
     {
         return $this->belongsToMany(Product::class, 'inventories')

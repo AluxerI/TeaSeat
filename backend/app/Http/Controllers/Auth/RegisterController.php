@@ -7,7 +7,6 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Auth;
-use Spatie\Permission\Models\Role;
 
 class RegisterController extends Controller
 {
@@ -38,7 +37,7 @@ class RegisterController extends Controller
             'is_active' => true,
         ]);
 
-        $user->assignRole('user');
+        $user->assignRole(User::ROLE_USER);
         Auth::login($user);
 
         return redirect()->route('dashboard'); // Используем именованный маршрут
