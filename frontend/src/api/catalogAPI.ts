@@ -1,7 +1,7 @@
 import { Catalog, Category, Meta, Product } from "../interfaces/catalog";
 import { api } from "./api";
 
-const catalog_path = `/catalog`;
+const catalog_path = `/api/catalog`;
 
 /** Приватный загрузчик каталога — одна ручка /catalog, все три метода (getProducts/getCategory/getMeta) дёргают её */
 async function getCatalog(): Promise<Catalog | undefined> {

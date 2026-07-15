@@ -1,0 +1,75 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-bg-page: #faf5ee;
+$color-surface: #ffffff;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+$color-menu-active-bg: #f5ead9;
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.sidebar {
+  flex: 0 0 220px;
+  display: flex;
+  flex-direction: column;
+  background: $color-surface;
+  border-right: 1px solid $color-border;
+}
+
+.brand {
+  padding: spacing(md);
+  font-weight: 700;
+  font-size: 18px !important;
+  color: $color-accent;
+  text-align: center;
+  letter-spacing: 1px;
+}
+
+.navItem {
+  border-left: 3px solid transparent;
+  padding-left: spacing(md) !important;
+
+  &.navItemActive {
+    border-left-color: $color-accent;
+    background: $color-menu-active-bg;
+
+    .navIcon {
+      color: $color-accent;
+    }
+  }
+}
+
+.navIcon {
+  color: $color-text-secondary;
+  min-width: 40px !important;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.stats {
+  padding: spacing(md);
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+}
+
+.statLine {
+  font-size: font-size(caption) !important;
+  color: $color-text-secondary;
+}
+
+.outlet {
+  flex: 1;
+  padding: spacing(lg);
+  overflow-y: auto;
+}

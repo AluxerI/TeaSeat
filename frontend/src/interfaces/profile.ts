@@ -7,7 +7,8 @@ export type MenuKey =
   | "addresses"
   | "favorites"
   | "discounts"
-  | "reviews";
+  | "reviews"
+
 
 /** Пункт бокового меню */
 export interface MenuItem {

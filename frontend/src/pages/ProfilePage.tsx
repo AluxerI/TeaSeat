@@ -21,6 +21,10 @@ import PercentOutlinedIcon from "@mui/icons-material/PercentOutlined";
 import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline";
 import LogoutIcon from "@mui/icons-material/Logout";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
+import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
+import SellIcon from '@mui/icons-material/Sell';
+import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
@@ -31,12 +35,14 @@ import type { MenuKey, MenuItem, ProfileFormState, PasswordFormState } from "../
 import styles from "../scss/pages/ProfilePage.module.scss";
 
 const MENU_ITEMS: MenuItem[] = [
-  { key: "profile", label: "Профиль", icon: <PersonOutlineIcon fontSize="small" /> },
-  { key: "orders", label: "Мои заказы", icon: <Inventory2OutlinedIcon fontSize="small" /> },
-  { key: "addresses", label: "Адреса доставки", icon: <PlaceOutlinedIcon fontSize="small" /> },
-  { key: "favorites", label: "Избранное", icon: <FavoriteBorderIcon fontSize="small" /> },
-  { key: "discounts", label: "Скидки и бонусы", icon: <PercentOutlinedIcon fontSize="small" /> },
-  { key: "reviews", label: "Мои отзывы", icon: <ChatBubbleOutlineIcon fontSize="small" /> },
+  { key: "profile", label: "Профиль", icon: <PersonOutlineIcon fontSize="medium" /> },
+  { key: "orders", label: "Мои заказы", icon: <Inventory2OutlinedIcon fontSize="medium" /> },
+  { key: "addresses", label: "Адреса доставки", icon: <PlaceOutlinedIcon fontSize="medium" /> },
+  { key: "favorites", label: "Избранное", icon: <FavoriteBorderIcon fontSize="medium" /> },
+  { key: "discounts", label: "Скидки и бонусы", icon: <PercentOutlinedIcon fontSize="medium" /> },
+  { key: "reviews", label: "Мои отзывы", icon: <ChatBubbleOutlineIcon fontSize="medium" /> },
+
+
 ];
 
 const SECTION_CONFIG: Record<MenuKey, { title: string; subtitle: string }> = {
@@ -63,7 +69,7 @@ const SECTION_CONFIG: Record<MenuKey, { title: string; subtitle: string }> = {
   reviews: {
     title: "Мои отзывы",
     subtitle: "Ваши отзывы о товарах",
-  },
+  }
 };
 
 const EMPTY_PROFILE: ProfileFormState = {
@@ -80,7 +86,7 @@ const EMPTY_PASSWORDS: PasswordFormState = {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { user, loading, logout, refreshUser } = useAuth();
+  const { user, loading, isAdmin, isSeller, isManager, isCourier, logout, refreshUser } = useAuth();
 
   const [activeKey, setActiveKey] = useState<MenuKey>("profile");
   const [profile, setProfile] = useState<ProfileFormState>(EMPTY_PROFILE);
@@ -161,6 +167,14 @@ export default function ProfilePage() {
     await logout();
     navigate("/");
   };
+
+  const handleAdmin = () =>{
+    navigate("/admin");
+  };
+  
+  const handleSeller = ()=>{
+    navigate("/seller");
+  }
 
   // ── Section: Profile ───────────────────────────────────────────────────────
 
@@ -265,6 +279,7 @@ export default function ProfilePage() {
         return <PercentOutlinedIcon className={styles.placeholderIcon} />;
       case "reviews":
         return <ChatBubbleOutlineIcon className={styles.placeholderIcon} />;
+
       default:
         return null;
     }
@@ -376,7 +391,7 @@ export default function ProfilePage() {
             onClick={() => setActiveKey(item.key)}
             className={styles.menuItem}
             classes={{ selected: styles.menuItemActive }}
-            disableRipple
+            disableRipple={true}
           >
             <ListItemIcon className={styles.menuIcon}>{item.icon}</ListItemIcon>
             <ListItemText
@@ -386,11 +401,65 @@ export default function ProfilePage() {
           </ListItemButton>
         ))}
       </List>
-
+      {isAdmin && (
+        <>
+          <Divider className={styles.sidebarDivider} />
+          <ListItemButton className={styles.adminItem} disableRipple onClick={() => navigate("/admin")}>
+            <ListItemIcon className={styles.adminIcon}>
+              <AdminPanelSettingsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Админка"
+              primaryTypographyProps={{ className: styles.adminLabel }}
+            />
+          </ListItemButton>
+        </>
+      )}
+      {isSeller && (
+        <>
+          <Divider className={styles.sidebarDivider} />
+          <ListItemButton className={styles.sellItem} disableRipple onClick={() => navigate("/seller")}>
+            <ListItemIcon className={styles.sellIcon}>
+              <SellIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Продажи"
+              primaryTypographyProps={{ className: styles.sellLabel }}
+            />
+          </ListItemButton>
+        </>
+      )}
+      {isManager && (
+        <>
+          <Divider className={styles.sidebarDivider} />
+          <ListItemButton className={styles.managerItem} disableRipple onClick={() => navigate("/manager")}>
+            <ListItemIcon className={styles.managerIcon}>
+              <ManageAccountsIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Менеджер"
+              primaryTypographyProps={{ className: styles.managerLabel }}
+            />
+          </ListItemButton>
+        </>
+      )}
+      {isCourier && (
+        <>
+          <Divider className={styles.sidebarDivider} />
+          <ListItemButton className={styles.courierItem} disableRipple onClick={() => navigate("/courier")}>
+            <ListItemIcon className={styles.courierIcon}>
+              <LocalShippingIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Доставка"
+              primaryTypographyProps={{ className: styles.courierLabel }}
+            />
+          </ListItemButton>
+        </>
+      )}
       {user && (
         <>
           <Divider className={styles.sidebarDivider} />
-
           <ListItemButton className={styles.logoutItem} disableRipple onClick={handleLogout}>
             <ListItemIcon className={styles.logoutIcon}>
               <LogoutIcon fontSize="small" />
