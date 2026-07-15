@@ -1,0 +1,1386 @@
+openapi: 3.1.0
+info:
+  title: TeaSeat Gifts API
+  version: 1.0.0
+  description: >-
+    Контракт простого и сложного конструктора подарков, пользовательских
+    шаблонов, корзины и сборки готовых магазинных наборов.
+servers:
+  - url: /api
+security:
+  - sanctum: []
+tags:
+  - name: Simple constructor
+  - name: Advanced constructor
+  - name: User gifts
+  - name: Gift cart
+  - name: Picker assembled gifts
+
+paths:
+  /gift-constructor/advanced/options:
+    get:
+      tags: [Advanced constructor]
+      summary: Получить коробки и форматы товаров сложного конструктора
+      operationId: giftConstructorAdvancedOptions
+      x-laravel-route-name: gift-constructor.advanced.options
+      responses:
+        '200':
+          description: Опции конструктора
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdvancedOptionsEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gift-constructor/advanced/validate-layout:
+    post:
+      tags: [Advanced constructor]
+      summary: Проверить раскладку без расчёта цены и записи
+      operationId: giftConstructorAdvancedValidate
+      x-laravel-route-name: gift-constructor.advanced.validate
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedLayoutRequest'
+      responses:
+        '200':
+          description: Нормализованная допустимая раскладка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LayoutValidationEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+
+  /gift-constructor/advanced/quote:
+    post:
+      tags: [Advanced constructor]
+      summary: Рассчитать сложный подарок без записи и резерва
+      operationId: giftConstructorAdvancedQuote
+      x-laravel-route-name: gift-constructor.advanced.quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedQuoteRequest'
+      responses:
+        '200':
+          description: Раскладка, складская потребность и актуальная цена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftQuoteEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+
+  /gift-constructor/advanced/gifts:
+    post:
+      tags: [Advanced constructor]
+      summary: Создать приватный подарок из явной раскладки
+      operationId: giftConstructorAdvancedStore
+      x-laravel-route-name: gift-constructor.advanced.store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedGiftCreateRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/GiftCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+
+  /gift-constructor/simple/options:
+    get:
+      tags: [Simple constructor]
+      summary: Получить коробки и товары простого конструктора
+      description: >-
+        Возвращает только коробки с simple_constructor_enabled=true. Точное
+        количество выбираемых позиций берётся из simple_requirements коробки.
+      operationId: giftConstructorSimpleOptions
+      x-laravel-route-name: gift-constructor.simple.options
+      responses:
+        '200':
+          description: Опции простого конструктора
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SimpleOptionsEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gift-constructor/simple/quote:
+    post:
+      tags: [Simple constructor]
+      summary: Автоматически разместить и рассчитать простой подарок
+      operationId: giftConstructorSimpleQuote
+      x-laravel-route-name: gift-constructor.simple.quote
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleGiftQuoteRequest'
+      responses:
+        '200':
+          description: Автоматическая раскладка, потребность и цена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftQuoteEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+
+  /gift-constructor/simple/gifts:
+    post:
+      tags: [Simple constructor]
+      summary: Создать приватный подарок с автоматической раскладкой
+      operationId: giftConstructorSimpleStore
+      x-laravel-route-name: gift-constructor.simple.store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimpleGiftCreateRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/GiftCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+
+  /gifts:
+    get:
+      tags: [User gifts]
+      summary: Получить активные подарки текущего пользователя
+      operationId: giftsIndex
+      x-laravel-route-name: gifts.index
+      responses:
+        '200':
+          description: Приватные подарки пользователя
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GiftListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /gifts/{gift}:
+    parameters:
+      - $ref: '#/components/parameters/GiftId'
+    get:
+      tags: [User gifts]
+      summary: Получить собственный подарок
+      operationId: giftsShow
+      x-laravel-route-name: gifts.show
+      responses:
+        '200':
+          $ref: '#/components/responses/GiftData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [User gifts]
+      summary: Полностью заменить раскладку собственного подарка
+      description: При успехе version увеличивается на единицу.
+      operationId: giftsUpdate
+      x-laravel-route-name: gifts.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdvancedGiftCreateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/GiftData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/GiftConfigurationInvalid'
+    delete:
+      tags: [User gifts]
+      summary: Архивировать собственный подарок
+      operationId: giftsDestroy
+      x-laravel-route-name: gifts.destroy
+      responses:
+        '204':
+          description: Подарок архивирован
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /cart/gifts:
+    post:
+      tags: [Gift cart]
+      summary: Идемпотентно добавить версию подарка в корзину
+      operationId: cartGiftsStore
+      x-laravel-route-name: cart.gifts.store
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GiftCartAddRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/CartData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/GiftCartRejected'
+
+  /cart/gifts/{orderGift}:
+    parameters:
+      - $ref: '#/components/parameters/OrderGiftId'
+    put:
+      tags: [Gift cart]
+      summary: Изменить количество экземпляров подарка в корзине
+      operationId: cartGiftsUpdate
+      x-laravel-route-name: cart.gifts.update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GiftCartUpdateRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/CartData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/GiftCartRejected'
+    delete:
+      tags: [Gift cart]
+      summary: Удалить экземпляр подарка из корзины
+      operationId: cartGiftsDestroy
+      x-laravel-route-name: cart.gifts.destroy
+      responses:
+        '200':
+          $ref: '#/components/responses/CartData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /picker/assembled-gifts:
+    get:
+      tags: [Picker assembled gifts]
+      summary: Получить готовые подарочные SKU и остатки доступных точек
+      description: 'Permission: view picking orders.'
+      operationId: pickerAssembledGiftsIndex
+      x-laravel-route-name: picker.assembled-gifts.index
+      parameters:
+        - $ref: '#/components/parameters/WarehouseIdQuery'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Страница готовых подарков
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssembledGiftListEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /picker/assembled-gifts/{product}/replenish:
+    post:
+      tags: [Picker assembled gifts]
+      summary: Списать компоненты и оприходовать готовый подарочный SKU
+      description: >-
+        Permission: manage own picking orders. Один idempotency_key можно
+        повторить только с тем же составом партии.
+      operationId: pickerAssembledGiftsReplenish
+      x-laravel-route-name: picker.assembled-gifts.replenish
+      parameters:
+        - $ref: '#/components/parameters/ProductId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssembledGiftReplenishRequest'
+      responses:
+        '200':
+          description: Партия применена либо ранее уже была применена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssembledGiftReplenishEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/GiftAssemblyRejected'
+
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum token
+
+  parameters:
+    GiftId:
+      name: gift
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    OrderGiftId:
+      name: orderGift
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    ProductId:
+      name: product
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
+    WarehouseIdQuery:
+      name: warehouse_id
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+    PerPage:
+      name: per_page
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  responses:
+    GiftCreated:
+      description: Подарок создан
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GiftEnvelope'
+    GiftData:
+      description: Подарок пользователя
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GiftEnvelope'
+    CartData:
+      description: Актуальная корзина
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CartEnvelope'
+    Unauthorized:
+      description: Sanctum-токен отсутствует или недействителен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageError'
+    Forbidden:
+      description: Недостаточно прав либо точка не назначена сотруднику
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageError'
+    NotFound:
+      description: Ресурс отсутствует или недоступен текущему пользователю
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MessageError'
+    ValidationError:
+      description: Laravel-валидация запроса не пройдена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    GiftConfigurationInvalid:
+      description: Состав или раскладка подарка недопустимы
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ValidationError'
+              - $ref: '#/components/schemas/GiftConfigurationError'
+    GiftCartRejected:
+      description: Версия, UUID, количество или остатки не позволяют изменить корзину
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ValidationError'
+              - $ref: '#/components/schemas/GiftCartError'
+    GiftAssemblyRejected:
+      description: Партия готовых подарков отклонена
+      content:
+        application/json:
+          schema:
+            oneOf:
+              - $ref: '#/components/schemas/ValidationError'
+              - $ref: '#/components/schemas/GiftAssemblyError'
+
+  schemas:
+    MessageError:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+
+    ValidationError:
+      type: object
+      required: [message, errors]
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+    GiftConfigurationError:
+      type: object
+      required: [message, code]
+      properties:
+        message:
+          type: string
+        code:
+          const: gift_configuration_invalid
+
+    GiftCartError:
+      type: object
+      required: [message, code]
+      properties:
+        message:
+          type: string
+        code:
+          const: gift_cart_rejected
+
+    GiftAssemblyError:
+      type: object
+      required: [message, code]
+      properties:
+        message:
+          type: string
+        code:
+          const: gift_assembly_rejected
+
+    SimpleRequirements:
+      type: object
+      required: [tea_count, sweet_count, total_items, allow_duplicate_products]
+      properties:
+        tea_count:
+          type: integer
+          minimum: 1
+        sweet_count:
+          type: integer
+          minimum: 1
+        total_items:
+          type: integer
+          minimum: 2
+        allow_duplicate_products:
+          type: boolean
+          const: true
+
+    GiftSizeProfile:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - kind
+        - width_cells
+        - height_cells
+        - can_rotate
+        - default_markup_amount
+        - simple_constructor_enabled
+        - simple_requirements
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [item, box]
+        width_cells:
+          type: integer
+          minimum: 1
+        height_cells:
+          type: integer
+          minimum: 1
+        can_rotate:
+          type: boolean
+        max_weight_grams:
+          type: [integer, 'null']
+          minimum: 1
+        default_markup_amount:
+          type: number
+          minimum: 0
+        simple_constructor_enabled:
+          type: boolean
+        simple_requirements:
+          oneOf:
+            - $ref: '#/components/schemas/SimpleRequirements'
+            - type: 'null'
+
+    ConstructorProduct:
+      type: object
+      required: [id, name, price, stock_unit, price_unit_quantity]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: number
+          minimum: 0
+        stock_unit:
+          type: string
+          enum: [piece, gram]
+        price_unit_quantity:
+          type: integer
+          minimum: 1
+        image:
+          type: [string, 'null']
+
+    ProductSize:
+      type: object
+      required:
+        - id
+        - label
+        - constructor_role
+        - product_quantity
+        - product
+        - size
+      properties:
+        id:
+          type: integer
+        label:
+          type: string
+        constructor_role:
+          type: string
+          enum: [tea, sweet, general]
+        product_quantity:
+          type: integer
+          minimum: 1
+        product:
+          $ref: '#/components/schemas/ConstructorProduct'
+        size:
+          $ref: '#/components/schemas/GiftSizeProfile'
+
+    LayoutItemInput:
+      type: object
+      additionalProperties: false
+      required:
+        - client_item_id
+        - product_size_id
+        - position_x
+        - position_y
+        - is_rotated
+      properties:
+        client_item_id:
+          type: string
+          format: uuid
+        product_size_id:
+          type: integer
+          minimum: 1
+        position_x:
+          type: integer
+          minimum: 0
+        position_y:
+          type: integer
+          minimum: 0
+        is_rotated:
+          type: boolean
+
+    LayoutItem:
+      allOf:
+        - $ref: '#/components/schemas/LayoutItemInput'
+        - type: object
+          required:
+            - product_id
+            - product_name
+            - product_quantity
+            - width_cells
+            - height_cells
+            - sort_order
+          properties:
+            product_id:
+              type: integer
+            product_name:
+              type: string
+            product_quantity:
+              type: integer
+              minimum: 1
+            width_cells:
+              type: integer
+              minimum: 1
+            height_cells:
+              type: integer
+              minimum: 1
+            sort_order:
+              type: integer
+              minimum: 0
+
+    DiscountSelection:
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, discount_id]
+          properties:
+            type:
+              const: personal
+            discount_id:
+              type: integer
+              minimum: 1
+        - type: object
+          additionalProperties: false
+          required: [type, code]
+          properties:
+            type:
+              const: coupon
+            code:
+              type: string
+              maxLength: 100
+
+    AdvancedLayoutRequest:
+      type: object
+      additionalProperties: false
+      required: [box_profile_id, items]
+      properties:
+        box_profile_id:
+          type: integer
+          minimum: 1
+        items:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            $ref: '#/components/schemas/LayoutItemInput'
+
+    AdvancedQuoteRequest:
+      type: object
+      additionalProperties: false
+      required: [box_profile_id, items]
+      properties:
+        box_profile_id:
+          type: integer
+          minimum: 1
+        city:
+          type: string
+          maxLength: 255
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 1
+        discount_selection:
+          $ref: '#/components/schemas/DiscountSelection'
+        items:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            $ref: '#/components/schemas/LayoutItemInput'
+
+    AdvancedGiftCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [box_profile_id, name, items]
+      properties:
+        box_profile_id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        items:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            $ref: '#/components/schemas/LayoutItemInput'
+
+    SimpleGiftCreateRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - box_profile_id
+        - name
+        - tea_product_size_ids
+        - sweet_product_size_ids
+      properties:
+        box_profile_id:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          maxLength: 255
+        description:
+          type: [string, 'null']
+          maxLength: 5000
+        tea_product_size_ids:
+          type: array
+          minItems: 1
+          maxItems: 40
+          description: Длина равна simple_requirements.tea_count; повторы разрешены.
+          items:
+            type: integer
+            minimum: 1
+        sweet_product_size_ids:
+          type: array
+          minItems: 1
+          maxItems: 40
+          description: Длина равна simple_requirements.sweet_count; повторы разрешены.
+          items:
+            type: integer
+            minimum: 1
+
+    SimpleGiftQuoteRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - box_profile_id
+        - tea_product_size_ids
+        - sweet_product_size_ids
+      properties:
+        box_profile_id:
+          type: integer
+          minimum: 1
+        city:
+          type: string
+          maxLength: 255
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 1
+        discount_selection:
+          $ref: '#/components/schemas/DiscountSelection'
+        tea_product_size_ids:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            type: integer
+            minimum: 1
+        sweet_product_size_ids:
+          type: array
+          minItems: 1
+          maxItems: 40
+          items:
+            type: integer
+            minimum: 1
+
+    AdvancedOptionsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [cell_size_mm, boxes, product_sizes]
+          properties:
+            cell_size_mm:
+              type: integer
+              minimum: 1
+            boxes:
+              type: array
+              items:
+                $ref: '#/components/schemas/GiftSizeProfile'
+            product_sizes:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSize'
+
+    SimpleOptionsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required:
+            - cell_size_mm
+            - boxes
+            - tea_product_sizes
+            - sweet_product_sizes
+            - selection_rules
+          properties:
+            cell_size_mm:
+              type: integer
+              minimum: 1
+            boxes:
+              type: array
+              items:
+                $ref: '#/components/schemas/GiftSizeProfile'
+            tea_product_sizes:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSize'
+            sweet_product_sizes:
+              type: array
+              items:
+                $ref: '#/components/schemas/ProductSize'
+            selection_rules:
+              type: object
+              required: [counts_source, allow_duplicate_products]
+              properties:
+                counts_source:
+                  const: box_profile.simple_requirements
+                allow_duplicate_products:
+                  type: boolean
+                  const: true
+
+    LayoutValidationEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [valid, box, layout]
+          properties:
+            valid:
+              type: boolean
+              const: true
+            box:
+              $ref: '#/components/schemas/GiftSizeProfile'
+            layout:
+              type: array
+              items:
+                $ref: '#/components/schemas/LayoutItem'
+
+    GiftQuoteEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required:
+            - valid
+            - box
+            - layout
+            - quantity
+            - required_products
+            - totals
+          properties:
+            valid:
+              type: boolean
+              const: true
+            box:
+              $ref: '#/components/schemas/GiftSizeProfile'
+            layout:
+              type: array
+              items:
+                $ref: '#/components/schemas/LayoutItem'
+            quantity:
+              type: integer
+              minimum: 1
+            required_products:
+              type: object
+              description: Объект product_id -> складское количество.
+              additionalProperties:
+                type: integer
+                minimum: 1
+            totals:
+              $ref: '#/components/schemas/PricingQuote'
+
+    PricingQuote:
+      type: object
+      required:
+        - currency
+        - products_total
+        - gift_markup_total
+        - promotion_discount
+        - personal_discount
+        - cart_discount
+        - shipping_cost
+        - shipping_discount
+        - final_total
+        - lines
+        - gifts
+        - calculated_at
+      properties:
+        currency:
+          const: RUB
+        products_total:
+          type: number
+        gift_markup_total:
+          type: number
+        promotion_discount:
+          type: number
+        personal_discount:
+          type: number
+        cart_discount:
+          type: number
+        shipping_cost:
+          type: number
+        shipping_discount:
+          type: number
+        final_total:
+          type: number
+        selected_discount:
+          type: [object, 'null']
+          additionalProperties: true
+        lines:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        gifts:
+          type: array
+          items:
+            $ref: '#/components/schemas/GiftPrice'
+        usages:
+          type: array
+          items:
+            type: object
+            required: [discount_id, uses]
+            properties:
+              discount_id:
+                type: integer
+              uses:
+                type: integer
+        calculated_at:
+          type: string
+          format: date-time
+
+    GiftPrice:
+      type: object
+      required:
+        - order_gift_id
+        - quantity
+        - markup_unit_amount
+        - markup_total_amount
+        - components_base_total
+        - components_discount_amount
+        - total_price
+      properties:
+        order_gift_id:
+          type: integer
+        quantity:
+          type: integer
+        markup_unit_amount:
+          type: number
+        markup_total_amount:
+          type: number
+        components_base_total:
+          type: number
+        components_discount_amount:
+          type: number
+        total_price:
+          type: number
+
+    GiftItem:
+      type: object
+      required:
+        - id
+        - client_item_id
+        - product_size
+        - position_x
+        - position_y
+        - is_rotated
+        - sort_order
+      properties:
+        id:
+          type: integer
+        client_item_id:
+          type: string
+          format: uuid
+        product_size:
+          $ref: '#/components/schemas/ProductSize'
+        position_x:
+          type: integer
+        position_y:
+          type: integer
+        is_rotated:
+          type: boolean
+        sort_order:
+          type: integer
+
+    Gift:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - visibility
+        - version
+        - markup_amount
+        - box
+        - layout
+        - items
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        status:
+          type: string
+          enum: [draft, active, archived]
+        visibility:
+          const: private
+        version:
+          type: integer
+          minimum: 1
+        markup_amount:
+          type: number
+          minimum: 0
+        box:
+          $ref: '#/components/schemas/GiftSizeProfile'
+        layout:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutItem'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/GiftItem'
+        created_at:
+          type: [string, 'null']
+          format: date-time
+        updated_at:
+          type: [string, 'null']
+          format: date-time
+
+    GiftEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          $ref: '#/components/schemas/Gift'
+
+    GiftListEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Gift'
+
+    GiftCartAddRequest:
+      type: object
+      additionalProperties: false
+      required: [gift_id, gift_version, quantity, client_instance_id]
+      properties:
+        gift_id:
+          type: integer
+          minimum: 1
+        gift_version:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        client_instance_id:
+          type: string
+          format: uuid
+        city:
+          type: [string, 'null']
+          maxLength: 255
+
+    GiftCartUpdateRequest:
+      type: object
+      additionalProperties: false
+      required: [quantity]
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 100
+        city:
+          type: [string, 'null']
+          maxLength: 255
+
+    CartEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required:
+            - id
+            - status
+            - items
+            - gifts
+            - products_total
+            - gift_markup_total
+            - final_total
+            - can_checkout
+          additionalProperties: true
+          properties:
+            id:
+              type: integer
+            order_number:
+              type: [string, 'null']
+            status:
+              type: string
+            items:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+            gifts:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderGift'
+            products_total:
+              type: number
+            gift_markup_total:
+              type: number
+            promotion_discount:
+              type: number
+            personal_discount:
+              type: number
+            cart_discount:
+              type: number
+            shipping_cost:
+              type: number
+            shipping_discount:
+              type: number
+            final_total:
+              type: number
+            can_checkout:
+              type: boolean
+
+    OrderGift:
+      type: object
+      required:
+        - id
+        - gift_id
+        - client_instance_id
+        - gift_version
+        - name
+        - quantity
+        - layout
+        - prices
+        - items
+      properties:
+        id:
+          type: integer
+        gift_id:
+          type: [integer, 'null']
+        client_instance_id:
+          type: string
+          format: uuid
+        gift_version:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        quantity:
+          type: integer
+        layout:
+          type: array
+          items:
+            $ref: '#/components/schemas/LayoutItem'
+        prices:
+          type: object
+          required:
+            - markup_unit_amount
+            - markup_total_amount
+            - components_base_total
+            - components_discount_amount
+            - total_price
+          properties:
+            markup_unit_amount:
+              type: number
+            markup_total_amount:
+              type: number
+            components_base_total:
+              type: number
+            components_discount_amount:
+              type: number
+            total_price:
+              type: number
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    InventorySummary:
+      type: object
+      required:
+        - warehouse_id
+        - warehouse_name
+        - quantity
+        - reserved_online_quantity
+        - reserved_seller_quantity
+        - available_quantity
+      properties:
+        warehouse_id:
+          type: integer
+        warehouse_name:
+          type: [string, 'null']
+        quantity:
+          type: integer
+        reserved_online_quantity:
+          type: integer
+        reserved_seller_quantity:
+          type: integer
+        available_quantity:
+          type: integer
+
+    AssembledGift:
+      type: object
+      required:
+        - product_id
+        - name
+        - price
+        - assembly_instructions
+        - inventories
+      properties:
+        product_id:
+          type: integer
+        sku:
+          type: [string, 'null']
+        name:
+          type: string
+        price:
+          type: number
+        assembly_instructions:
+          type: [string, 'null']
+        inventories:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventorySummary'
+
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page:
+          type: integer
+        last_page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+
+    AssembledGiftListEnvelope:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AssembledGift'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+
+    ConsumedItem:
+      type: object
+      additionalProperties: false
+      required: [product_id, quantity]
+      properties:
+        product_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+
+    AssembledGiftReplenishRequest:
+      type: object
+      additionalProperties: false
+      required: [warehouse_id, quantity, idempotency_key, consumed_items]
+      properties:
+        warehouse_id:
+          type: integer
+          minimum: 1
+        quantity:
+          type: integer
+          minimum: 1
+          maximum: 2147483647
+        idempotency_key:
+          type: string
+          format: uuid
+        comment:
+          type: [string, 'null']
+          maxLength: 1000
+        consumed_items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: '#/components/schemas/ConsumedItem'
+
+    AssembledGiftReplenishEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required:
+            - already_applied
+            - batch_id
+            - finished_product_id
+            - warehouse_id
+            - produced_quantity
+          properties:
+            already_applied:
+              type: boolean
+            batch_id:
+              type: string
+              format: uuid
+            finished_product_id:
+              type: integer
+            warehouse_id:
+              type: integer
+            produced_quantity:
+              type: integer
+            new_quantity:
+              type: integer
