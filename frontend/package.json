@@ -5,6 +5,7 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.11",
     "@mui/material": "^7.3.7",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/jest-dom": "^6.6.3",
@@ -16,6 +17,7 @@
     "@types/react-router-dom": "^5.3.3",
     "ajv": "^6.12.6",
     "axios": "^1.13.4",
+    "lucide-react": "^1.18.0",
     "query-string": "^9.3.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
@@ -39,6 +41,7 @@
   "resolutions": {
     "resolve-url-loader": "5.0.0"
   },
+  "proxy": "http://backend:8000",
   "browserslist": {
     "production": [
       ">0.2%",

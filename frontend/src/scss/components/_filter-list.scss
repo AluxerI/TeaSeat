@@ -1,0 +1,269 @@
+// components/_filter-list.scss
+
+$filter-panel-width: 420px;
+$filter-panel-radius: 16px;
+$filter-panel-padding: 24px 20px;
+
+$filter-title-size: 18px;
+$filter-title-weight: 700;
+$filter-title-color: #111827;
+$filter-title-margin: 0 0 20px;
+
+$filter-section-margin: 22px;
+$filter-section-title-size: 14px;
+$filter-section-title-weight: 700;
+$filter-section-title-color: #374151;
+$filter-section-title-margin: 0 0 10px;
+$filter-section-title-letter-spacing: 0.2px;
+
+$filter-list-gap: 8px;
+
+$filter-checkbox-size: 18px;
+$filter-checkbox-radius: 4px;
+$filter-checkbox-border: 1.5px;
+$filter-checkbox-checked-bg: #f97316;
+$filter-checkbox-unchecked-bg: #fff;
+$filter-checkbox-unchecked-border: #d1d5db;
+$filter-checkbox-transition:
+  background 0.15s,
+  border-color 0.15s;
+
+$filter-text-size: 14px;
+$filter-text-color: #374151;
+$filter-text-line-height: 20px;
+$filter-count-color: #9ca3af;
+$filter-count-size: 13px;
+
+$filter-radio-dot-size: 8px;
+
+$filter-price-inputs-gap: 8px;
+$filter-price-inputs-margin: 0 0 10px;
+$filter-input-height: 38px;
+$filter-input-radius: 8px;
+$filter-input-border: 1.5px solid #e5e7eb;
+$filter-input-padding: 0 10px;
+$filter-input-transition: border-color 0.15s;
+
+$filter-btn-radius: 12px;
+$filter-btn-primary-bg: #f97316;
+$filter-btn-primary-color: #fff;
+$filter-btn-primary-size: 15px;
+$filter-btn-primary-height: 46px;
+$filter-btn-primary-margin: 8px 0 0;
+$filter-btn-transition:
+  background 0.15s,
+  transform 0.1s;
+
+$filter-btn-reset-height: 38px;
+$filter-btn-reset-color: #6b7280;
+
+.filter-panel {
+  width: $filter-panel-width;
+  background-color: #fff;
+  border-radius: $filter-panel-radius;
+  padding: $filter-panel-padding;
+  font-family: "Nunito", sans-serif;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 0;
+
+  &__title {
+    font-size: $filter-title-size;
+    font-weight: $filter-title-weight;
+    color: $filter-title-color;
+    margin: $filter-title-margin;
+  }
+
+  &__section {
+    margin-bottom: $filter-section-margin;
+  }
+
+  &__section-title {
+    font-size: $filter-section-title-size;
+    font-weight: $filter-section-title-weight;
+    color: $filter-section-title-color;
+    margin: $filter-section-title-margin;
+    letter-spacing: $filter-section-title-letter-spacing;
+  }
+
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: $filter-list-gap;
+  }
+
+  &__checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  &__checkbox-box {
+    width: $filter-checkbox-size;
+    height: $filter-checkbox-size;
+    border-radius: $filter-checkbox-radius;
+    border: $filter-checkbox-border solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: $filter-checkbox-transition;
+    cursor: pointer;
+    background-color: $filter-checkbox-unchecked-bg;
+    border-color: $filter-checkbox-unchecked-border;
+
+    &--checked {
+      background-color: $filter-checkbox-checked-bg;
+      border-color: $filter-checkbox-checked-bg;
+    }
+  }
+
+  &__checkbox-text {
+    font-size: $filter-text-size;
+    color: $filter-text-color;
+    line-height: $filter-text-line-height;
+  }
+
+  &__count {
+    color: $filter-count-color;
+    font-size: $filter-count-size;
+  }
+
+  &__radio-outer {
+    width: $filter-checkbox-size;
+    height: $filter-checkbox-size;
+    border-radius: 50%;
+    border: $filter-checkbox-border solid;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    border-color: $filter-checkbox-unchecked-border;
+
+    &--checked {
+      border-color: $filter-checkbox-checked-bg;
+    }
+  }
+
+  &__radio-dot {
+    width: $filter-radio-dot-size;
+    height: $filter-radio-dot-size;
+    border-radius: 50%;
+    background-color: $filter-checkbox-checked-bg;
+  }
+
+  &__price-inputs {
+    display: flex;
+    gap: $filter-price-inputs-gap;
+    margin-bottom: 10px;
+  }
+
+  &__price-input {
+    flex: 1;
+    height: $filter-input-height;
+    border-radius: $filter-input-radius;
+    border: $filter-input-border;
+    padding: $filter-input-padding;
+    font-size: $filter-text-size;
+    color: $filter-text-color;
+    outline: none;
+    font-family: inherit;
+    transition: $filter-input-transition;
+
+    &::placeholder {
+      color: $filter-count-color;
+    }
+
+    &:focus {
+      border-color: $filter-checkbox-checked-bg;
+    }
+  }
+
+  &__rating-label {
+    color: $filter-text-color;
+    font-size: $filter-text-size;
+  }
+
+  // ----- Дерево категорий -----
+
+  &__tree {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  &__tree-toggle {
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    color: #9ca3af;
+    flex-shrink: 0;
+    padding: 0;
+    font-family: inherit;
+
+    &:hover {
+      color: #374151;
+    }
+  }
+
+  &__tree-children {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__btn {
+    width: 100%;
+    border-radius: $filter-btn-radius;
+    font-size: $filter-btn-primary-size;
+    font-weight: 700;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    transition: $filter-btn-transition;
+
+    &--primary {
+      height: $filter-btn-primary-height;
+      background-color: $filter-btn-primary-bg;
+      color: $filter-btn-primary-color;
+      margin-top: $filter-btn-primary-margin;
+
+      &:hover {
+        background-color: darken($filter-btn-primary-bg, 8%);
+      }
+
+      &:active {
+        transform: scale(0.98);
+      }
+    }
+
+    &--reset {
+      height: $filter-btn-reset-height;
+      background: none;
+      color: $filter-btn-reset-color;
+      font-weight: 400;
+      margin-top: 4px;
+
+      &:hover {
+        color: darken($filter-btn-reset-color, 20%);
+      }
+    }
+  }
+}

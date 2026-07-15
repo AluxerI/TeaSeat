@@ -1,46 +1,476 @@
-@use "../../abstracts/variable";
-@use "../../abstracts/functions";
-@use "../../abstracts/mixins";
-@use "../../base/typography";
-@use "./search";
+@import "../../abstracts/variable";
+@import "../../abstracts/functions";
+@import "../../abstracts/mixins";
 
-header{
-    @include flex-centre();
-    @include linearGradient(right,$color-primary-tea,$color-secondary-tea);
+// ── Variables ────────────────────────────────────────────────────────────────
+
+$header-bg-from:      #f5e4c3;
+$header-bg-to:        #f0dcb8;
+$header-border:       #e3cda0;
+$header-text:         #5c4a2a;
+$header-text-hover:   #3a2d16;
+$header-hover-bg:     #e9d4a8;
+$header-placeholder:  #b29a6e;
+$header-focus-ring:   #caa75e;
+$header-badge-bg:     #b5532e;
+$header-avatar-from:  #d8b97a;
+$header-avatar-to:    #b5532e;
+
+// ── Root ────────────────────────────────────────────────────────────────────
+
+.header {
+  position: relative;
+  background: linear-gradient(to right, $header-bg-from, $header-bg-to);
+  border-bottom: 1px solid $header-border;
+  z-index: 100;
 }
 
+// ── Leaves ───────────────────────────────────────────────────────────────────
 
-.main_buttons{
+.header__leaf {
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+  opacity: 0.35;
+  user-select: none;
+
+  &--left {
+    left: 0;
+    top: 0;
+    width: 56px;
+    height: auto;
+  }
+
+  &--right {
+    right: 0;
+    top: 0;
+    width: 72px;
+    height: auto;
+    transform: scaleX(-1);
+  }
+}
+
+// ── Inner container ──────────────────────────────────────────────────────────
+
+.header__inner {
+  max-width: 1213px;
+  margin: 0 auto;
+  padding: 0 16px;
+
+  @include respond-to(map-get($breakpoints, sm)) {
+    padding: 0 24px;
+  }
+}
+
+// ── Body (row: main + actions) ───────────────────────────────
+
+.header__body {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  justify-content: space-between;
+  margin: 0 calc((spacing(xxl) + spacing(lg) + spacing(xxs)) * -1);
+}
+
+// ── Main (column: top row + bottom row) ──────────────────────
+
+.header__main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+// ── Actions column (♡ 🛒 👤) ──────────────────────────────────
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: spacing(lg);
+  flex-shrink: 0;
+}
+
+// ── Row ──────────────────────────────────────────────────────────────────────
+
+.header__row--top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  position: relative;
+}
+
+// ── Row — bottom ─────────────────────────────────────────────
+
+.header__row--bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 0 14px;
+  position: relative;
+}
+
+// ── Left part (top row) ──────────────────────────────────────
+
+.header__left {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+}
+
+// ── Right part (top row) ─────────────────────────────────────
+
+.header__right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+// ── Logo ─────────────────────────────────────────────────────────────────────
+
+.header__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+
+  svg {
+    filter: drop-shadow(0 2px 8px rgba(90, 45, 12, 0.25));
+    transition: transform 0.2s ease;
+  }
+
+  &:hover svg {
+    transform: scale(1.06) rotate(-3deg);
+  }
+}
+
+// ── Burger ───────────────────────────────────────────────────────────────────
+
+.header__burger {
+  padding: 8px;
+  @include border-radius(8px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  transition: background 0.18s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+
+  &--mobile {
     display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    ul{
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    gap:spacing($md);
+
+    @include respond-to(map-get($breakpoints, lg)) {
+      display: none;
     }
-    @include removed();
-    font-family: "Chocolate Light";
-    @include typography($body,700,2.2);  
+  }
+
+  &--desktop {
+    display: none;
+
+    @include respond-to(map-get($breakpoints, lg)) {
+      display: flex;
+    }
+  }
 }
-.blocks{
-    @include removed();
+
+// ── Nav ──────────────────────────────────────────────────────────────────────
+
+.header__nav {
+  display: none;
+  align-items: center;
+  gap: space-mult(xxl, 2.5);
+
+  @include respond-to(map-get($breakpoints, md)) {
     display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    gap:spacing($lg);
-    
-    
+  }
 }
-.container{
-    @include typography($body-sm,400,2.2); 
+
+.header__nav-link {
+  font-size: 18px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  transition: color 0.18s ease;
+  white-space: nowrap;
+
+  &:hover {
+    color: $header-text-hover;
+  }
 }
-.media{
-    display: flex;
-    flex-wrap: wrap;
-    flex-direction: row;
-    .number{color:white;}
-    gap:spacing($sm);
-    margin-left: spacing($xl);
+
+// ── Search block (bottom row) ────────────────────────────────
+
+.header__search-block {
+  position: relative;
+  flex: 1;
+  max-width: 591px;
+  height: 53px;
+}
+
+.header__search-frame {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+  pointer-events: none;
+  user-select: none;
+}
+
+.header__search-input {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 100%;
+  max-width: 575px;
+  background: #C5AF7F;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 8px 14px;
+  font-size: font-size(body-sm);
+  font-weight: 400;
+  color: #FFFFFF;
+  outline: none;
+  z-index: 1;
+  transition: background 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+
+  
+
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  &::-webkit-search-decoration,
+  &::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+  }
+}
+
+
+// ── Icon buttons ─────────────────────────────────────────────────────────────
+
+.header__icon-btn {
+  padding: 8px;
+  @include border-radius(9999px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__cart-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  background: $header-badge-bg;
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  @include border-radius(9999px);
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+// ── User ─────────────────────────────────────────────────────────────────────
+
+.header__user-wrap {
+  position: relative;
+}
+
+.header__user {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  @include border-radius(9999px);
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: $header-text;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__avatar {
+  width: 32px;
+  height: 32px;
+  @include border-radius(9999px);
+  background: linear-gradient(135deg, $header-avatar-from, $header-avatar-to);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+// ── User dropdown ────────────────────────────────────────────────────────────
+
+.header__user-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 199;
+}
+
+.header__user-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 200;
+  background: white;
+  border: 1px solid $header-border;
+  border-radius: 12px;
+  box-shadow: 0 8px 30px rgba(90, 45, 12, 0.12);
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.header__user-dropdown-header {
+  padding: 12px 16px 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: $header-text;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.header__user-dropdown-email {
+  font-size: 12px;
+  font-weight: 400;
+  color: $header-placeholder;
+}
+
+.header__user-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: $header-text;
+  text-decoration: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+
+  &--danger {
+    color: $header-badge-bg;
+
+    &:hover {
+      background: #fef0ed;
+    }
+  }
+}
+
+.header__user-dropdown-divider {
+  border: none;
+  border-top: 1px solid $header-border;
+  margin: 4px 0;
+}
+
+// ── Auth buttons (guest) ─────────────────────────────────────────────────────
+
+.header__auth {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header__auth-link {
+  font-size: 13px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  transition: background 0.18s, color 0.18s;
+  white-space: nowrap;
+
+  &:hover {
+    background: $header-hover-bg;
+    color: $header-text-hover;
+  }
+}
+
+.header__auth-btn {
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: $header-badge-bg;
+  transition: background 0.18s;
+  white-space: nowrap;
+
+  &:hover {
+    background: #9a4225;
+  }
+}
+
+// ── Mobile menu ──────────────────────────────────────────────────────────────
+
+.header__mobile-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 12px;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    display: none;
+  }
+}
+
+.header__mobile-link {
+  padding: 10px 8px;
+  @include border-radius(8px);
+  font-size: 14px;
+  font-weight: 600;
+  color: $header-text;
+  text-decoration: none;
+  transition: background 0.18s ease;
+
+  &:hover {
+    background: $header-hover-bg;
+  }
+}
+
+.header__mobile-search {
+  margin-top: 8px;
 }

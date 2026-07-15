@@ -1,55 +1,39 @@
-
 import { Catalog, Category, Meta, Product } from "../interfaces/catalog";
-import { api } from "./api"
+import { api } from "./api";
 
-type Json = {[key:string]: unknown}&Record<string,unknown>;
-const catalog_path = `/catalog`
+const catalog_path = `/catalog`;
 
-async function getCatalog():Promise<Catalog|undefined>{
-    try{
-        const response = await api.get<Catalog>(catalog_path);
-        return response.data as Catalog}
-    catch(e:unknown){
-        if(e instanceof Error){
-            console.error(`Error when loading catalog: ${e}`)
-        }
-        else{
-            console.error(`Unknow error`);
-        }
-        return undefined
+/** Приватный загрузчик каталога — одна ручка /catalog, все три метода (getProducts/getCategory/getMeta) дёргают её */
+async function getCatalog(): Promise<Catalog | undefined> {
+  try {
+    const response = await api.get<{ data: Catalog }>(catalog_path);
+    return response.data.data;
+  } catch (e: unknown) {
+    if (e instanceof Error) {
+      console.error(`Error when loading catalog: ${e}`);
+    } else {
+      console.error(`Unknown error`);
     }
-    }
+    return undefined;
+  }
+}
 
 export const catalogApi = {
-    
-    
-    async getProducts():Promise<Product[]>{
+  /** Получить список товаров */
+  async getProducts(): Promise<Product[]> {
+    const ans = await getCatalog();
+    return ans?.products ?? [];
+  },
 
-        let catalog:Catalog|string = (await getCatalog())!;
-        
-        catalog=JSON.stringify(catalog);
-        const answer:Json = JSON.parse(catalog)
+  /** Получить список категорий */
+  async getCategory(): Promise<Category[]> {
+    const ans = await getCatalog();
+    return ans?.categories ?? [];
+  },
 
-        const ans:Catalog = answer['data'] as Catalog
-        
-        return ans['products'] as Product[]
-    },
-    async getCategory():Promise<Category[]>{
-        let catalog:Catalog|string = (await getCatalog())!;
-        catalog=JSON.stringify(catalog);
-        const answer:Json = JSON.parse(catalog);
-
-        const ans:Catalog = answer['data'] as Catalog;
-
-        return ans['categories'] as Category[] 
-    },
-    async getMeta():Promise<Meta>{
-        let catalog:Catalog|string = (await getCatalog())!;
-        catalog = JSON.stringify(catalog);
-        const answer:Json = JSON.parse(catalog);
-
-        const ans:Catalog = answer['data'] as Catalog;
-        return ans['meta'] as Meta
-
-    }
-}
+  /** Получить мета-информацию каталога (общее кол-во, пагинация) */
+  async getMeta(): Promise<Meta> {
+    const ans = await getCatalog();
+    return ans?.meta ?? { total_products: 0, has_pagination: false };
+  },
+};

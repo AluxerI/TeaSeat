@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
-
-
-import { CatalogItem, Picture } from './components/catalogItem';
 import { PageCategory } from './pages/Category';
+
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { ItemApi } from './api/productAPI';
 
 import { FormItem, Item } from './interfaces/clients.api'; 
 import { useAsync } from './hooks/useAsync';
 import { catalogApi } from './api/catalogAPI';
+import { ProductList } from './components/productList';
+import { PageCatalog } from './pages/Catalog';
+import RegisterPage from './pages/RegisterPage';
+import LoginPage from './pages/LoginPage';
+import ProfilePage from './pages/ProfilePage';
+import OrderPage from './pages/Order';
+import { AuthProvider } from './contexts/AuthContext';
 
 
 interface Data {
@@ -53,10 +58,9 @@ const App: React.FC = () => {
   //const data = useAsync(()=>check.getProduct(1),true);
   //const data = useAsync(()=> check.getAllItem())
   //const data = useAsync(()=>catalog_api.getProducts());
-  const data = catalog_api.getProducts()
-  const dataMeta = catalog_api.getMeta();
-  const dataCategory = useAsync(()=>catalogApi.getCategory());
-  console.log(dataCategory.data)
+  
+
+  
   
   //const chec =recursiveJsonRead(str);
   //console.log(history);
@@ -68,17 +72,26 @@ const App: React.FC = () => {
   return (
     <>
       <BrowserRouter>
-        <Routes>
-          <Route path='category' Component={PageCategory}/>
-          
-          {/**
-          <Grid>
-              <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
-          
-              
-          </Grid>
-           */}
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path='category' Component={PageCategory}/>
+            
+            {/**
+            <Grid>
+                <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
+            
+                
+            </Grid>
+             */}
+
+             <Route path='catalog' Component={PageCatalog}/>
+             <Route path='register' Component={RegisterPage}/>
+             <Route path='login' Component={LoginPage}/>
+             <Route path='profile' Component={ProfilePage}/>
+             <Route path='order/:id' Component={OrderPage}/>
+             
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </>
   );

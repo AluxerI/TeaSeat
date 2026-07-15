@@ -1,16 +1,17 @@
 import { Grid } from "@mui/material";
-import Footer from "../ui/footer/footer"
+import Footer from "../ui/footer/Footer"
 import Header from "../ui/header/header"
 import { useLocation } from 'react-router-dom';
-import { CatalogItem, Picture } from "../components/catalogItem";
+import { CatalogItem } from "../components/catalogItem";
 import Images from "../utils/Images";
 import { catalogApi } from "../api/catalogAPI";
 import { useAsync } from "../hooks/useAsync";
+import { Picture, typePic } from "../types/utils";
 
 
 
 export const PageCategory = ()=>{
-
+    
     const pictureButtonTeaConst: Picture = {name:"pages/catalog/details/tea",alt:"image for details", type:'svg'}
     const pictureButtonCoffeConst: Picture = {name:"pages/catalog/details/coffe",alt:"image for details", type:'svg'}
     const pictureButtonSwettyConst: Picture = {name:"pages/catalog/details/swetty",alt:"image for details", type:'svg'}

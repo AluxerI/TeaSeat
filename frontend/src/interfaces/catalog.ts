@@ -1,58 +1,69 @@
+import { Warehouse } from "./warehouse";
+import Images from "../utils/Images";
 
-export interface Category{
-    id:number;
-    name:string;
-    subcategories:{
-        id:number;
-        name:string;
-        category_id:number;
-        sub_subcategories:{
-            id:number;
-            name:string;
-            subcategory_id:number;
-        }[]
-    }[]
-}
-export interface Product{
-    id:number;
-    name:string;
-    ingredients:string;
-    description:string;
-    image:string;
-    price:string;
-    pricing:{
-        base_price: string;
-        price_with_promotions:number;
-        final_price:number;
-        promotion_discount:number;
-        personal_discount:number;
-        has_discount:boolean;
-    };
-    weight_grams:number;
-    brand:string;
-    category_path:{
-        category:string;
-        subcategory:string;
-        sub_subcategory:string;
-    };
-    inventory:{
-        warehous_id:number;
-        warehous_name:string;
-        quantity:number;
-        last_restock_date:string;
+/** Категория товаров с вложенными подкатегориями */
+export interface Category {
+  id: number;
+  name: string;
+  subcategories: {
+    id: number;
+    name: string;
+    category_id: number;
+    sub_subcategories: {
+      id: number;
+      name: string;
+      subcategory_id: number;
     }[];
-    total_quantity:number;
-    is_available:boolean;
-    sold_count:number;
-    created_at:string;
-    update_at:string
+  }[];
 }
-export interface Meta{
-    total_products:number;
-    has_pagination:boolean;
+
+/** Полная информация о товаре в каталоге */
+export interface Product {
+  id: number;
+  name: string;
+  /** Цена без скидки */
+  original_price: number;
+  /** Цена со скидкой */
+  final_price: number;
+  ingredients: string;
+  description: string;
+  main_image: string;
+  background_image: string;
+  discount: {
+    id: number;
+    name: string;
+    type: string;
+    value: number;
+    code: string;
+  };
+  discount_percent: number;
+  galery: typeof Images[];
+  weight_grams: number;
+  brand: string;
+  brand_id: number;
+  category_path: {
+    category: string;
+    subcategory: string;
+    sub_subcategory: string;
+  };
+  /** Остатки по складам */
+  inventory: Warehouse[];
+  total_quantity: number;
+  is_available: boolean;
+  sold_count: number;
+  created_at: Date;
+  update_at: Date;
 }
-export interface Catalog{
-    categories:Category[];
-    products:Product[];
-    meta:Meta;
+
+/** Мета-информация о каталоге */
+export interface Meta {
+  total_products: number;
+  has_pagination: boolean;
+}
+
+/** Полный ответ каталога (одна ручка /catalog отдаёт всё сразу) */
+export interface Catalog {
+  categories: Category[];
+  products: Product[];
+  meta: Meta;
 }

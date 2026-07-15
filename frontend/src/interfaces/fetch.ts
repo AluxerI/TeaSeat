@@ -1,5 +1,7 @@
-export interface RequestOptions extends RequestInit{
-    timeout?: number;
+/** Опции HTTP-запроса с поддержкой таймаута */
+export interface RequestOptions extends RequestInit {
+  timeout?: number;
 }
 
-export interface ApiResponse<T>{}
+/** Типизированный ответ API (пустая заглушка) */
+export interface ApiResponse<T> {}

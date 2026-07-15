@@ -1,0 +1,340 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+// ── Палитра ─────────────────────────────────────────────────────────────────
+$color-bg-page: #faf5ee;
+$color-surface: #ffffff;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+$color-menu-active-bg: #f5ead9;
+$color-menu-active-text: #4a3428;
+$color-logout: #c9564e;
+$color-input-bg: #ffffff;
+
+// ── Page wrapper (Header + cabinet + Footer) ───────────────────────────────
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  gap: spacing(sm);
+  background: $color-bg-page;
+
+  @media (max-width: 900px) {
+    gap: spacing(xs);
+  }
+}
+
+// ── Контейнер (sidebar + content) ──────────────────────────────────────────
+
+.cabinet {
+  flex: 1;
+  display: flex;
+  gap: spacing(xl);
+  width: 100%;
+  max-width: max-width(full);
+  margin: 0 auto;
+  padding: 0 spacing(xxl);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: $color-text-primary;
+  align-items: stretch;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    padding: 0 spacing(md);
+    gap: spacing(md);
+  }
+}
+
+// ── Sidebar ─────────────────────────────────────────────────────────────────
+
+.sidebar {
+  flex: 0 0 280px;
+  align-self: flex-start;
+  position: sticky;
+  top: spacing(xl);
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: spacing(xl) spacing(sm);
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 900px) {
+    flex: 1 1 auto;
+    width: 100%;
+    align-self: auto;
+    position: static;
+  }
+}
+
+.sidebarTitle {
+  font-size: spacing('sm') + 2px !important;
+  font-weight: 700;
+  color: $color-text-primary;
+  padding: 0 spacing(sm) spacing(lg);
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menuItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+  color: $color-text-secondary !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background-color: #f7f0e6 !important;
+  }
+}
+
+.menuItemActive {
+  background-color: $color-menu-active-bg !important;
+
+  .menuLabel,
+  .menuIcon {
+    color: $color-menu-active-text !important;
+  }
+}
+
+.menuIcon {
+  min-width: 36px !important;
+  color: inherit;
+}
+
+.menuLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: inherit;
+}
+
+.sidebarDivider {
+  margin: spacing(sm) 4px !important;
+  border-color: $color-border !important;
+}
+
+.logoutItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+
+  &:hover {
+    background-color: #fbeceb !important;
+  }
+}
+
+.logoutIcon {
+  min-width: 36px !important;
+  color: $color-logout !important;
+}
+
+.logoutLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: $color-logout !important;
+}
+
+// ── Content ─────────────────────────────────────────────────────────────────
+
+.content {
+  flex: 1 1 auto;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: spacing(xxl);
+
+  @media (max-width: 900px) {
+    padding: spacing(xl);
+  }
+
+  @media (max-width: 600px) {
+    padding: spacing(lg);
+  }
+}
+
+.contentHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: spacing(sm);
+  margin-bottom: spacing(xl);
+  flex-wrap: wrap;
+}
+
+.contentTitle {
+  font-size: spacing('sm') + 2px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: 4px !important;
+}
+
+.contentSubtitle {
+  font-size: font-size(body-sm) !important;
+  font-weight: 600 !important;
+  color: $color-text-secondary;
+}
+
+.primaryButton {
+  background-color: $color-accent !important;
+  color: #ffffff !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+  font-size: font-size(body-sm) !important;
+  padding: 10px 22px !important;
+  border-radius: 10px !important;
+
+  &:hover {
+    background-color: $color-accent-hover !important;
+  }
+}
+
+.secondaryButton {
+  border-color: $color-text-primary !important;
+  color: $color-text-primary !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+  font-size: font-size(body-sm) !important;
+  padding: 10px 22px !important;
+  border-radius: 10px !important;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: $color-accent-hover !important;
+    background-color: #f7f0e6 !important;
+  }
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: spacing(md);
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.passwordGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: spacing(md);
+  align-items: start;
+
+  @media (max-width: 700px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.field {
+  :global(.MuiOutlinedInput-root) {
+    border-radius: 10px;
+    background-color: $color-input-bg;
+
+    fieldset {
+      border-color: $color-border;
+    }
+
+    &:hover fieldset {
+      border-color: $color-accent-hover;
+    }
+
+    &.Mui-focused fieldset {
+      border-color: $color-accent;
+      border-width: 1px;
+    }
+  }
+
+  :global(.MuiInputLabel-root) {
+    color: $color-text-secondary;
+    font-size: font-size(body-sm);
+
+    &.Mui-focused {
+      color: $color-accent;
+    }
+  }
+
+  :global(.MuiOutlinedInput-input) {
+    color: $color-text-primary;
+    padding: 14px 16px;
+    font-size: spacing('sm') + 2px;
+
+    &::placeholder {
+      font-size: font-size(body-sm);
+      opacity: 0.6;
+    }
+  }
+}
+
+.calendarIcon {
+  color: $color-text-secondary;
+}
+
+.sectionDivider {
+  margin: spacing(xl) 0 spacing(md) !important;
+  border-color: $color-border !important;
+}
+
+.sectionTitle {
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(lg) !important;
+}
+
+// ── Состояния ───────────────────────────────────────────────────────────────
+
+.loadingText {
+  font-size: spacing('sm') + 2px !important;
+  color: $color-text-secondary;
+  text-align: center;
+  padding: spacing(xl);
+  width: 100%;
+}
+
+.fieldError {
+  font-size: 13px;
+  color: #b5532e;
+  margin-bottom: spacing(sm);
+}
+
+.fieldOk {
+  font-size: 13px;
+  color: #5a8a2a;
+  margin-bottom: spacing(sm);
+}
+
+// ── Placeholder sections ─────────────────────────────────────────────────────
+
+.placeholderCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(md);
+  padding: spacing(xxl) spacing(xl);
+  margin-top: spacing(lg);
+  background: #fbf8f3 !important;
+  border: 1px dashed $color-border;
+  border-radius: 16px;
+  min-height: 280px;
+  text-align: center;
+}
+
+.placeholderIcon {
+  font-size: 56px !important;
+  color: $color-text-secondary;
+  opacity: 0.5;
+}
+
+.placeholderDesc {
+  font-size: font-size(body-sm) !important;
+  color: $color-text-secondary;
+  max-width: 320px;
+  line-height: 1.5;
+}

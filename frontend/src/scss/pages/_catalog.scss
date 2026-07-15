@@ -1,0 +1,17 @@
+$gap-catalog: 5vw;
+
+.filters-and-grid {
+  display: flex;
+  gap: $gap-catalog;
+  margin-top: 20px;
+  margin-left: 20px;
+}
+
+.product-and-header {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-right: 5cm;
+  flex: 1;
+  min-width: 0;
+}
