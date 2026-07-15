@@ -1,0 +1,54 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+
+.pageTitle {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(lg) !important;
+}
+
+.card {
+  padding: spacing(lg);
+  border: 1px solid #ece2d4;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.cardValue {
+  font-size: 32px !important;
+  font-weight: 700 !important;
+  color: $color-accent;
+  margin-bottom: spacing(xs) !important;
+}
+
+.cardLabel {
+  font-size: font-size(caption) !important;
+  color: $color-text-secondary;
+}
+
+.actions {
+  display: flex;
+  gap: spacing(md);
+  margin-top: spacing(lg);
+  flex-wrap: wrap;
+}
+
+.actionBtn {
+  background-color: $color-accent !important;
+  color: #fff !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  font-size: font-size(body-sm) !important;
+  padding: 10px 22px !important;
+  border-radius: 10px !important;
+
+  &:hover {
+    background-color: $color-accent-hover !important;
+  }
+}

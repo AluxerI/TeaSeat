@@ -1,0 +1,104 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+
+.pageTitle {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(lg) !important;
+}
+
+.searchField {
+  margin-bottom: spacing(lg) !important;
+
+  .MuiOutlinedInput-root {
+    border-radius: 10px;
+    background: #fff;
+  }
+}
+
+.searchIcon {
+  color: $color-text-secondary;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: spacing(md);
+}
+
+.empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  color: $color-text-secondary;
+  padding: spacing(xxl);
+  font-size: font-size(body) !important;
+}
+
+.card {
+  border: 1px solid #ece2d4;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.cardImage {
+  height: 120px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0e8dc;
+}
+
+.cardBody {
+  padding: spacing(md);
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+  flex: 1;
+}
+
+.cardName {
+  font-weight: 600 !important;
+  font-size: font-size(body-sm) !important;
+  color: $color-text-primary;
+}
+
+.cardWeight {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.cardPrice {
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  font-size: font-size(body-sm) !important;
+}
+
+.cardStock {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.addBtn {
+  margin-top: auto !important;
+  background-color: $color-accent !important;
+  color: #fff !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  border-radius: 8px !important;
+
+  &:hover {
+    background-color: $color-accent-hover !important;
+  }
+
+  &:disabled {
+    background-color: #ccc !important;
+    color: #888 !important;
+  }
+}

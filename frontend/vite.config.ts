@@ -23,6 +23,17 @@ export default defineConfig({
               },
             },
           },
+          {
+            urlPattern: /^https?:\/\/.*\/storage\//,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "teaseat-images",
+              expiration: {
+                maxEntries: 200,
+                maxAgeSeconds: 60 * 60 * 24 * 30,
+              },
+            },
+          },
         ],
       },
     }),
@@ -35,6 +46,10 @@ export default defineConfig({
         changeOrigin: true,
       },
       "/sanctum": {
+        target: "http://backend:8000",
+        changeOrigin: true,
+      },
+      "/storage": {
         target: "http://backend:8000",
         changeOrigin: true,
       },

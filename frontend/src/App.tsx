@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { PageCategory } from './pages/Category';
 
-import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ItemApi } from './api/productAPI';
 
 import { FormItem, Item } from './interfaces/clients.api'; 
@@ -15,6 +15,12 @@ import ProfilePage from './pages/ProfilePage';
 import OrderPage from './pages/Order';
 import CartPage from './pages/CartPage';
 import { AuthProvider } from './contexts/AuthContext';
+import { SellerProvider } from './contexts/SellerContext';
+import LayoutSeller from './layouts/LayoutSeller';
+import SellerDashboardPage from './pages/seller/DashboardPage';
+import SellerCatalogPage from './pages/seller/CatalogPage';
+import SellerCartPage from './pages/seller/CartPage';
+import SellerOrdersPage from './pages/seller/OrdersPage';
 
 
 interface Data {
@@ -74,8 +80,10 @@ const App: React.FC = () => {
     <>
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
-            <Route path='category' Component={PageCategory}/>
+           <Routes>
+             <Route path='/' element={<Navigate to='/catalog' replace />} />
+             <Route path='*' element={<Navigate to='/catalog' replace />} />
+             <Route path='category' Component={PageCategory}/>
             
             {/**
             <Grid>
@@ -91,7 +99,13 @@ const App: React.FC = () => {
              <Route path='profile' Component={ProfilePage}/>
              <Route path='order/:id' Component={OrderPage}/>
              <Route path='cart' Component={CartPage}/>
-             
+             <Route path="/seller" element={<SellerProvider><LayoutSeller /></SellerProvider>}>
+               <Route index element={<Navigate to="dashboard" replace />} />
+               <Route path="dashboard" element={<SellerDashboardPage />} />
+               <Route path="catalog" element={<SellerCatalogPage />} />
+               <Route path="cart" element={<SellerCartPage />} />
+               <Route path="orders" element={<SellerOrdersPage />} />
+             </Route>
           </Routes>
         </AuthProvider>
       </BrowserRouter>

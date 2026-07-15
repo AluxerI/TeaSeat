@@ -1,7 +1,7 @@
 import { api } from "./api";
 import type { Address } from "../interfaces/checkout";
 
-const ADDRESSES_PATH = "/addresses";
+const ADDRESSES_PATH = "/api/addresses";
 
 export interface CreateAddressRequest {
   street: string;

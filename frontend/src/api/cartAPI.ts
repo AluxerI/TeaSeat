@@ -3,7 +3,7 @@ import type { Cart, AddToCartRequest } from "../interfaces/cart";
 import type { Order } from "../interfaces/order";
 import type { CheckoutRequest } from "../interfaces/checkout";
 
-const CART_PATH = "/cart";
+const CART_PATH = "/api/cart";
 
 export const cartApi = {
   /** Получить корзину текущего пользователя */
@@ -38,7 +38,7 @@ export const cartApi = {
 
   /** Оформить заказ (самовывоз, без доставки) */
   async checkout(params: CheckoutRequest): Promise<Order> {
-    const { data } = await api.post<Order>("/checkout", params);
+    const { data } = await api.post<Order>("/api/checkout", params);
     return data;
   },
 };
