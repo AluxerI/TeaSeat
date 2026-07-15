@@ -31,21 +31,26 @@ class GiftConstructorService
                 ->where('simple_constructor_enabled', true))
             ->orderBy('name')
             ->get();
-        $sizes = ProductSize::query()
-            ->where('is_active', true)
-            ->when($role, fn ($query) => $query->where('constructor_role', $role))
-            ->whereHas('sizeProfile', fn ($query) => $query
-                ->where('kind', GiftSizeProfile::KIND_ITEM)
-                ->where('is_active', true))
-            ->whereHas('product', fn ($query) => $query->where('is_available', true))
-            ->with(['sizeProfile', 'product.images'])
-            ->orderBy('product_id')
-            ->orderBy('product_quantity')
-            ->get();
+        $sizes = $this->availableProductSizes($role);
 
         return [
             'cell_size_mm' => (int) config('gifts.cell_size_mm', 10),
             'boxes' => $boxes,
+            'product_sizes' => $sizes,
+        ];
+    }
+
+    public function productsForBox(int $boxId): array
+    {
+        $box = $this->box($boxId);
+        $sizes = $this->availableProductSizes()
+            ->filter(fn (ProductSize $size): bool =>
+                $this->layoutService->canPlaceSingleItem($box, $size)
+            )
+            ->values();
+
+        return [
+            'box' => $box,
             'product_sizes' => $sizes,
         ];
     }
@@ -271,6 +276,21 @@ class GiftConstructorService
             throw new DomainException('Один из форматов товара не найден');
         }
         return $sizes;
+    }
+
+    private function availableProductSizes(?string $role = null): Collection
+    {
+        return ProductSize::query()
+            ->where('is_active', true)
+            ->when($role, fn ($query) => $query->where('constructor_role', $role))
+            ->whereHas('sizeProfile', fn ($query) => $query
+                ->where('kind', GiftSizeProfile::KIND_ITEM)
+                ->where('is_active', true))
+            ->whereHas('product', fn ($query) => $query->where('is_available', true))
+            ->with(['sizeProfile', 'product.images'])
+            ->orderBy('product_id')
+            ->orderBy('product_quantity')
+            ->get();
     }
 
     private function sizesInInputOrder(array $ids, Collection $availableSizes): Collection

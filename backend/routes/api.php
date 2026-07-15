@@ -66,6 +66,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
 
     Route::prefix('gift-constructor')->group(function () {
+        Route::get('/boxes/{box}/products', [GiftConstructorController::class, 'boxProducts'])
+            ->whereNumber('box')
+            ->name('gift-constructor.boxes.products');
         Route::get('/advanced/options', [GiftConstructorController::class, 'advancedOptions'])
             ->name('gift-constructor.advanced.options');
         Route::post('/advanced/validate-layout', [GiftConstructorController::class, 'validateLayout'])

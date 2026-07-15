@@ -121,6 +121,7 @@ class GiftApiContractTest extends TestCase
     public function test_customer_gift_routes_reject_requests_without_a_token(): void
     {
         $this->getJson('/api/gift-constructor/simple/options')->assertUnauthorized();
+        $this->getJson('/api/gift-constructor/boxes/1/products')->assertUnauthorized();
         $this->getJson('/api/gifts')->assertUnauthorized();
         $this->postJson('/api/cart/gifts', [])->assertUnauthorized();
     }
@@ -131,6 +132,7 @@ class GiftApiContractTest extends TestCase
     private function contractRoutes(): array
     {
         return [
+            'gift-constructor.boxes.products' => ['GET', 'api/gift-constructor/boxes/{box}/products', null],
             'gift-constructor.advanced.options' => ['GET', 'api/gift-constructor/advanced/options', null],
             'gift-constructor.advanced.validate' => ['POST', 'api/gift-constructor/advanced/validate-layout', null],
             'gift-constructor.advanced.quote' => ['POST', 'api/gift-constructor/advanced/quote', null],

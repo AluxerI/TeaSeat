@@ -152,6 +152,81 @@ class GiftConstructorTest extends TestCase
             ->assertJsonPath('code', 'gift_configuration_invalid');
     }
 
+    public function test_box_catalog_returns_only_product_sizes_that_fit(): void
+    {
+        [, $regularSize] = $this->constructorProduct(
+            'Подходящий чай',
+            ProductSize::ROLE_TEA
+        );
+
+        $rotatableProfile = GiftSizeProfile::query()->create([
+            'code' => 'item-1x2-rotatable',
+            'name' => 'Поворачиваемый товар',
+            'kind' => GiftSizeProfile::KIND_ITEM,
+            'width_cells' => 1,
+            'height_cells' => 2,
+            'can_rotate' => true,
+            'is_active' => true,
+        ]);
+        $rotatableSize = ProductSize::query()->create([
+            'product_id' => $this->product('Поворачиваемый чай', 10)->id,
+            'gift_size_profile_id' => $rotatableProfile->id,
+            'label' => '1 × 2',
+            'product_quantity' => 1,
+            'constructor_role' => ProductSize::ROLE_TEA,
+            'is_active' => true,
+        ]);
+
+        $oversizedProfile = GiftSizeProfile::query()->create([
+            'code' => 'item-4x1-too-large',
+            'name' => 'Слишком большой товар',
+            'kind' => GiftSizeProfile::KIND_ITEM,
+            'width_cells' => 4,
+            'height_cells' => 1,
+            'can_rotate' => false,
+            'is_active' => true,
+        ]);
+        $oversizedSize = ProductSize::query()->create([
+            'product_id' => $this->product('Большой чай', 10)->id,
+            'gift_size_profile_id' => $oversizedProfile->id,
+            'label' => '4 × 1',
+            'product_quantity' => 1,
+            'constructor_role' => ProductSize::ROLE_TEA,
+            'is_active' => true,
+        ]);
+
+        $unavailableSize = ProductSize::query()->create([
+            'product_id' => $this->product('Недоступный чай', 0)->id,
+            'gift_size_profile_id' => $this->itemSize->id,
+            'label' => 'Стандарт',
+            'product_quantity' => 1,
+            'constructor_role' => ProductSize::ROLE_TEA,
+            'is_active' => true,
+        ]);
+
+        $response = $this->getJson(
+            "/api/gift-constructor/boxes/{$this->box->id}/products"
+        )->assertOk()
+            ->assertJsonPath('data.box.id', $this->box->id)
+            ->assertJsonPath(
+                'data.box.simple_requirements.allow_duplicate_products',
+                true
+            );
+
+        $ids = collect($response->json('data.product_sizes'))
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+        $this->assertContains($regularSize->id, $ids);
+        $this->assertContains($rotatableSize->id, $ids);
+        $this->assertNotContains($oversizedSize->id, $ids);
+        $this->assertNotContains($unavailableSize->id, $ids);
+
+        $this->getJson(
+            "/api/gift-constructor/boxes/{$this->itemSize->id}/products"
+        )->assertNotFound();
+    }
+
     public function test_advanced_layout_rejects_overlapping_items(): void
     {
         [, $sizeA] = $this->constructorProduct('Товар A', ProductSize::ROLE_GENERAL);

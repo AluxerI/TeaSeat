@@ -34,13 +34,15 @@ Content-Type: application/json
 
 1. Получить `GET /gift-constructor/simple/options`.
 2. Показать только коробки из `data.boxes`.
-3. Для выбранной коробки прочитать `simple_requirements`.
-4. Собрать массивы `tea_product_size_ids` и `sweet_product_size_ids` точно
+3. После выбора получить
+   `GET /gift-constructor/boxes/{box}/products` и показать возвращённый каталог.
+4. Для выбранной коробки прочитать `simple_requirements`.
+5. Собрать массивы `tea_product_size_ids` и `sweet_product_size_ids` точно
    указанной длины. Повторять один `product_size_id` разрешено.
-5. Получить серверную цену через `POST /gift-constructor/simple/quote`.
-6. Создать приватный шаблон через `POST /gift-constructor/simple/gifts`.
-7. Сохранить возвращённые `id` и `version`.
-8. Добавить экземпляр в корзину через `POST /cart/gifts` с новым
+6. Получить серверную цену через `POST /gift-constructor/simple/quote`.
+7. Создать приватный шаблон через `POST /gift-constructor/simple/gifts`.
+8. Сохранить возвращённые `id` и `version`.
+9. Добавить экземпляр в корзину через `POST /cart/gifts` с новым
    `client_instance_id`.
 
 Пример маленького набора:
@@ -85,6 +87,7 @@ Frontend не должен зашивать правила `2 + 1` или `5 + 2
 
 | Метод и путь | Имя маршрута | Назначение |
 | --- | --- | --- |
+| `GET /gift-constructor/boxes/{box}/products` | `gift-constructor.boxes.products` | Полный каталог форматов, подходящих выбранной коробке |
 | `GET /gift-constructor/simple/options` | `gift-constructor.simple.options` | Коробки и товары простого конструктора |
 | `POST /gift-constructor/simple/quote` | `gift-constructor.simple.quote` | Цена без записи подарка |
 | `POST /gift-constructor/simple/gifts` | `gift-constructor.simple.store` | Создать приватный подарок |
@@ -142,3 +145,10 @@ Frontend не должен зашивать правила `2 + 1` или `5 + 2
 
 Frontend должен использовать поле `code` для выбора сценария, а `message` —
 для отображения или журнала. Текст сообщения не является стабильным API.
+
+## Граница проверки каталога
+
+Каталог коробки не имеет пагинации и не принимает город. Он гарантирует, что
+каждый возвращённый формат активен и отдельно помещается в коробку. Он не
+гарантирует, что весь выбранный набор одновременно поместится или сейчас есть
+на складе: эти динамические проверки выполняются validate/quote и checkout.

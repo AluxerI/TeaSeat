@@ -17,6 +17,30 @@ tags:
   - name: Picker assembled gifts
 
 paths:
+  /gift-constructor/boxes/{box}/products:
+    get:
+      tags: [Advanced constructor, Simple constructor]
+      summary: Получить полный каталог товаров, подходящих выбранной коробке
+      description: >-
+        Пагинации нет. Каждый возвращённый product_size активен и отдельно
+        помещается в коробку. Совместимость полного состава и остаток
+        проверяются validate/quote.
+      operationId: giftConstructorBoxProducts
+      x-laravel-route-name: gift-constructor.boxes.products
+      parameters:
+        - $ref: '#/components/parameters/BoxId'
+      responses:
+        '200':
+          description: Коробка и совместимые форматы товаров
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoxProductsEnvelope'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /gift-constructor/advanced/options:
     get:
       tags: [Advanced constructor]
@@ -352,6 +376,13 @@ components:
       bearerFormat: Sanctum token
 
   parameters:
+    BoxId:
+      name: box
+      in: path
+      required: true
+      schema:
+        type: integer
+        minimum: 1
     GiftId:
       name: gift
       in: path
@@ -876,6 +907,22 @@ components:
                 allow_duplicate_products:
                   type: boolean
                   const: true
+
+    BoxProductsEnvelope:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          required: [box, product_sizes]
+          properties:
+            box:
+              $ref: '#/components/schemas/GiftSizeProfile'
+            product_sizes:
+              type: array
+              description: Полный непагинированный каталог для коробки.
+              items:
+                $ref: '#/components/schemas/ProductSize'
 
     LayoutValidationEnvelope:
       type: object

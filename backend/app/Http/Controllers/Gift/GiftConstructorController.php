@@ -43,6 +43,18 @@ class GiftConstructorController extends Controller
         ]]);
     }
 
+    public function boxProducts(int $box): JsonResponse
+    {
+        $catalog = $this->constructorService->productsForBox($box);
+
+        return response()->json(['data' => [
+            'box' => new GiftSizeProfileResource($catalog['box']),
+            'product_sizes' => ProductSizeResource::collection(
+                $catalog['product_sizes']
+            ),
+        ]]);
+    }
+
     public function validateLayout(Request $request): JsonResponse
     {
         try {

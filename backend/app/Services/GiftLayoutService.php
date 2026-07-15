@@ -119,6 +119,38 @@ class GiftLayoutService
         return $this->validate($box, $sizes, $payload);
     }
 
+    public function canPlaceSingleItem(
+        GiftSizeProfile $box,
+        ProductSize $size
+    ): bool {
+        try {
+            $this->assertBox($box);
+            $size->assertConstructorReady();
+        } catch (DomainException) {
+            return false;
+        }
+
+        if ($box->max_weight_grams !== null
+            && $this->weightFor($size) > $box->max_weight_grams) {
+            return false;
+        }
+
+        $orientations = [false];
+        if ($size->sizeProfile->can_rotate
+            && $size->sizeProfile->width_cells !== $size->sizeProfile->height_cells) {
+            $orientations[] = true;
+        }
+
+        foreach ($orientations as $rotated) {
+            [$width, $height] = $this->dimensions($size, $rotated);
+            if ($width <= $box->width_cells && $height <= $box->height_cells) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     private function placeRecursively(
         GiftSizeProfile $box,
         array $pieces,
