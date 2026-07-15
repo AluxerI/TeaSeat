@@ -124,3 +124,8 @@ services:
 networks:
   app:
     driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+    

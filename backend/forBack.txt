@@ -34,7 +34,8 @@ docker-compose build --no-cache                          === пересобра�
 Если бд делает мозги, удали папку data!!!
  
 
-
+docker compose --profile test up -d pgsql_test
+Для поднятия тестов
 
 
 Скрипт:
