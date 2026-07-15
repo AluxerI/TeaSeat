@@ -1,0 +1,1865 @@
+openapi: 3.1.0
+info:
+  title: TeaSeat Staff API
+  version: 1.0.0
+  description: >-
+    Контракт backend для PWA продавца, сборщика, менеджера и курьера.
+    Подробные бизнес-правила находятся в docs/staff-api-contract.md.
+servers:
+  - url: /api
+tags:
+  - name: Auth
+  - name: Seller
+  - name: Picker
+  - name: Courier
+  - name: Manager
+  - name: Order management
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Войти и получить контекст сотрудника
+      operationId: authLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Токен и профиль
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Удалить текущий токен
+      operationId: authLogout
+      responses:
+        '200':
+          $ref: '#/components/responses/Message'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user:
+    get:
+      tags: [Auth]
+      summary: Получить актуальные роли, права и рабочие точки
+      operationId: currentUser
+      x-laravel-route-name: user.show
+      responses:
+        '200':
+          description: Профиль в стандартной обёртке JsonResource
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/UserContext'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /seller/devices/register:
+    post:
+      tags: [Seller]
+      summary: Зарегистрировать устройство продавца
+      description: 'Permission: create seller orders.'
+      operationId: sellerRegisterDevice
+      x-laravel-route-name: seller.devices.register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDeviceRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/StaffDeviceData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/bootstrap:
+    get:
+      tags: [Seller]
+      summary: Получить каталог, остатки и подписанные цены точки
+      description: 'Permission: create seller orders. Rate limit: 30/min.'
+      operationId: sellerBootstrap
+      x-laravel-route-name: seller.bootstrap
+      parameters:
+        - $ref: '#/components/parameters/DeviceUuid'
+        - $ref: '#/components/parameters/WarehouseIdRequired'
+      responses:
+        '200':
+          $ref: '#/components/responses/GenericData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /seller/orders:
+    get:
+      tags: [Seller]
+      summary: Собственные продажи продавца
+      description: 'Permission: view own seller orders.'
+      operationId: sellerOrdersIndex
+      x-laravel-route-name: seller.orders.index
+      parameters:
+        - $ref: '#/components/parameters/DeviceUuid'
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/SellerOrderStatus'
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: date_from
+          in: query
+          schema: {type: string, format: date}
+        - name: date_to
+          in: query
+          schema: {type: string, format: date}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Seller]
+      summary: Создать или идемпотентно синхронизировать продажу
+      description: 'Permission: create seller orders.'
+      operationId: sellerOrdersStore
+      x-laravel-route-name: seller.orders.store
+      parameters:
+        - $ref: '#/components/parameters/DeviceUuid'
+      requestBody:
+        $ref: '#/components/requestBodies/SellerOrderSnapshot'
+      responses:
+        '201':
+          $ref: '#/components/responses/SellerOrderData'
+        '200':
+          description: Такая версия уже была принята
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SellerOrderCommandResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/orders/{order}:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+      - $ref: '#/components/parameters/DeviceUuid'
+    get:
+      tags: [Seller]
+      summary: Получить свою продажу
+      description: 'Permission: view own seller orders.'
+      operationId: sellerOrdersShow
+      x-laravel-route-name: seller.orders.show
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Seller]
+      summary: Передать следующую полную версию продажи
+      description: 'Permission: create seller orders.'
+      operationId: sellerOrdersUpdate
+      x-laravel-route-name: seller.orders.update
+      requestBody:
+        $ref: '#/components/requestBodies/SellerOrderSnapshot'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/orders/{order}/cancel:
+    post:
+      tags: [Seller]
+      summary: Отменить непроведённую продажу
+      description: 'Permission: create seller orders.'
+      operationId: sellerOrdersCancel
+      x-laravel-route-name: seller.orders.cancel
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/DeviceUuid'
+      requestBody:
+        $ref: '#/components/requestBodies/RevisionCommand'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/orders/complete:
+    post:
+      tags: [Seller]
+      summary: Завершить до 100 продаж независимо друг от друга
+      description: 'Permission: complete own seller orders.'
+      operationId: sellerOrdersComplete
+      x-laravel-route-name: seller.orders.complete
+      parameters:
+        - $ref: '#/components/parameters/DeviceUuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompleteSellerOrdersRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerBatchResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/orders/{order}/escalate:
+    post:
+      tags: [Seller]
+      summary: Подтвердить конфликт и передать его менеджеру
+      description: 'Permission: complete own seller orders.'
+      operationId: sellerOrdersEscalate
+      x-laravel-route-name: seller.orders.escalate
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - $ref: '#/components/parameters/DeviceUuid'
+      requestBody:
+        $ref: '#/components/requestBodies/RevisionCommand'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerCommandResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /seller/sync:
+    post:
+      tags: [Seller]
+      summary: Синхронизировать офлайн-очередь продавца
+      description: >-
+        Permissions: create seller orders + complete own seller orders.
+        Каждое событие обрабатывается независимо. Rate limit: 30/min.
+      operationId: sellerSync
+      x-laravel-route-name: seller.sync
+      parameters:
+        - $ref: '#/components/parameters/DeviceUuid'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SellerSyncRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SellerSyncResult'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /picker/orders:
+    get:
+      tags: [Picker]
+      summary: Очередь сборки в активных точках
+      description: 'Permission: view picking orders.'
+      operationId: pickerOrdersIndex
+      x-laravel-route-name: picker.orders.index
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [confirmed, processing]
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: job_type
+          in: query
+          schema:
+            type: string
+            enum: [source, consolidation]
+        - $ref: '#/components/parameters/Mine'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /picker/orders/{order}:
+    get:
+      tags: [Picker]
+      summary: Заказ для сборки
+      description: 'Permission: view picking orders.'
+      operationId: pickerOrdersShow
+      x-laravel-route-name: picker.orders.show
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /picker/orders/{order}/take:
+    post:
+      tags: [Picker]
+      summary: Взять заказ в сборку
+      description: 'Permission: manage own picking orders.'
+      operationId: pickerOrdersTake
+      x-laravel-route-name: picker.orders.take
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /picker/orders/{order}/release:
+    post:
+      tags: [Picker]
+      summary: Вернуть заказ в очередь сборки
+      description: 'Permission: manage own picking orders.'
+      operationId: pickerOrdersRelease
+      x-laravel-route-name: picker.orders.release
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /picker/orders/{order}/complete:
+    post:
+      tags: [Picker]
+      summary: Завершить упаковку и провести складское списание
+      description: 'Permission: manage own picking orders.'
+      operationId: pickerOrdersComplete
+      x-laravel-route-name: picker.orders.complete
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /picker/orders/{order}/escalate:
+    post:
+      tags: [Picker]
+      summary: Передать заказ менеджеру с комментарием
+      description: 'Permission: manage own picking orders.'
+      operationId: pickerOrdersEscalate
+      x-laravel-route-name: picker.orders.escalate
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        $ref: '#/components/requestBodies/RequiredComment'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /picker/orders/{order}/shortage:
+    post:
+      tags: [Picker]
+      summary: Сообщить менеджеру о физической недостаче
+      description: 'Permission: report picking shortage.'
+      operationId: pickerOrdersShortage
+      x-laravel-route-name: picker.orders.shortage
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PickerShortageRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/GenericData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /picker/incoming-transfers:
+    get:
+      tags: [Picker]
+      summary: Межскладские упаковки, ожидающие приёмки
+      description: 'Permission: view picking orders.'
+      operationId: pickerTransfersIndex
+      x-laravel-route-name: picker.transfers.index
+      parameters:
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /picker/incoming-transfers/{order}/receive:
+    post:
+      tags: [Picker]
+      summary: Подтвердить приём межскладской упаковки
+      description: 'Permission: manage own picking orders.'
+      operationId: pickerTransfersReceive
+      x-laravel-route-name: picker.transfers.receive
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/PickerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courier/deliveries:
+    get:
+      tags: [Courier]
+      summary: Свободные и собственные доставки активных точек
+      description: 'Permission: view assigned deliveries.'
+      operationId: courierDeliveriesIndex
+      x-laravel-route-name: courier.deliveries.index
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ready_for_delivery, shipped, awaiting_receipt, delivered]
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: delivery_kind
+          in: query
+          schema:
+            type: string
+            enum: [transfer, customer]
+        - $ref: '#/components/parameters/Mine'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /courier/deliveries/{order}:
+    get:
+      tags: [Courier]
+      summary: Доставка или межскладское перемещение
+      description: 'Permission: view assigned deliveries.'
+      operationId: courierDeliveriesShow
+      x-laravel-route-name: courier.deliveries.show
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /courier/deliveries/{order}/claim:
+    post:
+      tags: [Courier]
+      summary: Взять свободную доставку
+      description: 'Permission: update assigned deliveries.'
+      operationId: courierDeliveriesClaim
+      x-laravel-route-name: courier.deliveries.claim
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courier/deliveries/{order}/release:
+    post:
+      tags: [Courier]
+      summary: Отказаться до начала доставки
+      description: 'Permission: update assigned deliveries.'
+      operationId: courierDeliveriesRelease
+      x-laravel-route-name: courier.deliveries.release
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courier/deliveries/{order}/start:
+    post:
+      tags: [Courier]
+      summary: Начать доставку
+      description: 'Permission: update assigned deliveries.'
+      operationId: courierDeliveriesStart
+      x-laravel-route-name: courier.deliveries.start
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /courier/deliveries/{order}/deliver:
+    post:
+      tags: [Courier]
+      summary: Завершить доставку или отметить прибытие перемещения
+      description: 'Permission: update assigned deliveries.'
+      operationId: courierDeliveriesDeliver
+      x-laravel-route-name: courier.deliveries.deliver
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/fulfillment-issues:
+    get:
+      tags: [Manager]
+      summary: Проблемы складского исполнения активных точек
+      description: 'Permission: view fulfillment issues.'
+      operationId: managerIssuesIndex
+      x-laravel-route-name: manager.fulfillment-issues.index
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [waiting, in_review, closed, all]
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: product_id
+          in: query
+          schema: {type: integer}
+        - name: reason
+          in: query
+          schema:
+            type: string
+            enum: [online_reservation_conflict, physical_stock_discrepancy]
+        - $ref: '#/components/parameters/Mine'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/FulfillmentIssueList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/fulfillment-issues/{issue}:
+    get:
+      tags: [Manager]
+      summary: Дело менеджера
+      description: 'Permission: view fulfillment issues.'
+      operationId: managerIssuesShow
+      x-laravel-route-name: manager.fulfillment-issues.show
+      parameters:
+        - $ref: '#/components/parameters/IssueId'
+      responses:
+        '200':
+          $ref: '#/components/responses/FulfillmentIssueData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /manager/fulfillment-issues/{issue}/affected-orders:
+    get:
+      tags: [Manager]
+      summary: Актуальные онлайн-заказы-кандидаты по делу
+      description: 'Permission: view fulfillment issues.'
+      operationId: managerIssuesAffectedOrders
+      x-laravel-route-name: manager.fulfillment-issues.affected-orders
+      parameters:
+        - $ref: '#/components/parameters/IssueId'
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/AffectedOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /manager/fulfillment-issues/{issue}/take:
+    post:
+      tags: [Manager]
+      summary: Взять ожидающее дело
+      description: 'Permission: manage fulfillment issues.'
+      operationId: managerIssuesTake
+      x-laravel-route-name: manager.fulfillment-issues.take
+      parameters:
+        - $ref: '#/components/parameters/IssueId'
+      responses:
+        '200':
+          $ref: '#/components/responses/FulfillmentIssueData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/fulfillment-issues/{issue}/release:
+    post:
+      tags: [Manager]
+      summary: Вернуть дело в ожидание
+      description: 'Permission: manage fulfillment issues.'
+      operationId: managerIssuesRelease
+      x-laravel-route-name: manager.fulfillment-issues.release
+      parameters:
+        - $ref: '#/components/parameters/IssueId'
+      responses:
+        '200':
+          $ref: '#/components/responses/FulfillmentIssueData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/fulfillment-issues/{issue}/close:
+    post:
+      tags: [Manager]
+      summary: Закрыть рассмотрение без признака resolved
+      description: 'Permission: manage fulfillment issues.'
+      operationId: managerIssuesClose
+      x-laravel-route-name: manager.fulfillment-issues.close
+      parameters:
+        - $ref: '#/components/parameters/IssueId'
+      responses:
+        '200':
+          $ref: '#/components/responses/FulfillmentIssueData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/deliveries/{order}/assign-courier:
+    post:
+      tags: [Manager]
+      summary: Назначить активного курьера точки
+      description: 'Permission: assign couriers.'
+      operationId: managerAssignCourier
+      x-laravel-route-name: manager.deliveries.assign-courier
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [courier_id]
+              properties:
+                courier_id: {type: integer}
+      responses:
+        '200':
+          $ref: '#/components/responses/CourierDeliveryData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/return-to-stock:
+    post:
+      tags: [Manager]
+      summary: Разобрать упаковку и вернуть товар в складской резерв
+      description: 'Permission: manage orders.'
+      operationId: managerReturnToStock
+      x-laravel-route-name: manager.orders.return-to-stock
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+                  maxLength: 1000
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /admin/orders:
+    get:
+      tags: [Order management]
+      summary: Глобальный список заказов менеджера или администратора
+      description: 'Permission: manage orders. Назначенные точки пока не ограничивают список.'
+      operationId: managementOrdersIndex
+      x-laravel-route-name: management.orders.index
+      parameters:
+        - name: status
+          in: query
+          schema: {type: string}
+        - name: order_type
+          in: query
+          schema:
+            type: string
+            enum: [regular, supplier]
+        - name: date_from
+          in: query
+          schema: {type: string, format: date}
+        - name: date_to
+          in: query
+          schema: {type: string, format: date}
+        - name: search
+          in: query
+          schema: {type: string}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/orders/stats:
+    get:
+      tags: [Order management]
+      summary: Статистика заказов
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersStats
+      x-laravel-route-name: management.orders.stats
+      parameters:
+        - name: date_from
+          in: query
+          schema: {type: string, format: date}
+        - name: date_to
+          in: query
+          schema: {type: string, format: date}
+      responses:
+        '200':
+          $ref: '#/components/responses/GenericData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /admin/orders/{order}:
+    get:
+      tags: [Order management]
+      summary: Детали заказа
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersShow
+      x-laravel-route-name: management.orders.show
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/orders/{order}/status:
+    put:
+      tags: [Order management]
+      summary: Изменить разрешённый статус заказа
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersUpdateStatus
+      x-laravel-route-name: management.orders.update-status
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrderStatusRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OrderTransitionConflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /admin/orders/{order}/tracking:
+    put:
+      tags: [Order management]
+      summary: Обновить трек-номер
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersUpdateTracking
+      x-laravel-route-name: management.orders.update-tracking
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tracking_number]
+              properties:
+                tracking_number: {type: string, maxLength: 100}
+                carrier: {type: [string, 'null'], maxLength: 100}
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /admin/orders/{order}/internal-notes:
+    put:
+      tags: [Order management]
+      summary: Обновить внутренний комментарий
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersUpdateInternalNotes
+      x-laravel-route-name: management.orders.update-internal-notes
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [internal_notes]
+              properties:
+                internal_notes: {type: string, maxLength: 2000}
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /admin/orders/{order}/cancel:
+    put:
+      tags: [Order management]
+      summary: Отменить заказ менеджером
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersCancel
+      x-laravel-route-name: management.orders.cancel
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason: {type: [string, 'null'], maxLength: 500}
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OrderTransitionConflict'
+
+  /admin/orders/{order}/confirm:
+    put:
+      tags: [Order management]
+      summary: Подтвердить заказ
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersConfirm
+      x-laravel-route-name: management.orders.confirm
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OrderTransitionConflict'
+
+  /admin/orders/{order}/ship:
+    put:
+      tags: [Order management]
+      summary: Передать внешний заказ в доставку
+      description: 'Permission: manage orders. Внутреннего курьера запускает courier API.'
+      operationId: managementOrdersShip
+      x-laravel-route-name: management.orders.ship
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OrderTransitionConflict'
+
+  /admin/orders/{order}/deliver:
+    put:
+      tags: [Order management]
+      summary: Завершить выдачу или внешнюю доставку
+      description: 'Permission: manage orders. Внутреннюю доставку завершает courier API.'
+      operationId: managementOrdersDeliver
+      x-laravel-route-name: management.orders.deliver
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/OrderTransitionConflict'
+
+  /admin/orders/{order}/delivery-method:
+    put:
+      tags: [Order management]
+      summary: Изменить способ и стоимость доставки
+      description: 'Permission: manage orders.'
+      operationId: managementOrdersUpdateDeliveryMethod
+      x-laravel-route-name: management.orders.update-delivery-method
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [delivery_method_id]
+              properties:
+                delivery_method_id: {type: integer}
+                shipping_cost: {type: [number, 'null'], minimum: 0}
+      responses:
+        '200':
+          $ref: '#/components/responses/AdminOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+security:
+  - sanctum: []
+
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+
+  parameters:
+    OrderId:
+      name: order
+      in: path
+      required: true
+      schema: {type: integer, minimum: 1}
+    IssueId:
+      name: issue
+      in: path
+      required: true
+      schema: {type: integer, minimum: 1}
+    DeviceUuid:
+      name: X-Device-UUID
+      in: header
+      required: true
+      schema: {type: string, format: uuid}
+    WarehouseId:
+      name: warehouse_id
+      in: query
+      schema: {type: integer, minimum: 1}
+    WarehouseIdRequired:
+      name: warehouse_id
+      in: query
+      required: true
+      schema: {type: integer, minimum: 1}
+    PerPage:
+      name: per_page
+      in: query
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+    Mine:
+      name: mine
+      in: query
+      schema: {type: boolean}
+
+  requestBodies:
+    SellerOrderSnapshot:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerOrderSnapshot'
+    RevisionCommand:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [revision]
+            properties:
+              revision: {type: integer, minimum: 1}
+    RequiredComment:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [comment]
+            properties:
+              comment: {type: string, maxLength: 1000}
+
+  responses:
+    Message:
+      description: Команда выполнена
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Message'
+    GenericData:
+      description: Данные операции
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/GenericDataEnvelope'
+    StaffDeviceData:
+      description: Устройство зарегистрировано
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [message, data]
+            properties:
+              message: {type: string}
+              data:
+                $ref: '#/components/schemas/StaffDevice'
+    SellerOrderData:
+      description: Продажа продавца
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerOrderCommandResponse'
+    SellerOrderList:
+      description: Страница продаж продавца
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerOrderListResponse'
+    SellerBatchResult:
+      description: Независимый результат каждой команды
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [results]
+            properties:
+              results:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SellerCommandResult'
+    SellerCommandResult:
+      description: Результат команды продавца
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SellerCommandResult'
+    SellerSyncResult:
+      description: Результат офлайн-синхронизации
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [server_time, results]
+            properties:
+              server_time: {type: string, format: date-time}
+              results:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SellerSyncEventResult'
+    PickerOrderData:
+      description: Состояние сборки
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PickerOrderCommandResponse'
+    PickerOrderList:
+      description: Страница заданий сборщика
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PickerOrderListResponse'
+    CourierDeliveryData:
+      description: Состояние доставки
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CourierDeliveryCommandResponse'
+    CourierDeliveryList:
+      description: Страница доставок
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/CourierDeliveryListResponse'
+    FulfillmentIssueData:
+      description: Дело менеджера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FulfillmentIssueCommandResponse'
+    FulfillmentIssueList:
+      description: Страница дел менеджера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/FulfillmentIssueListResponse'
+    AffectedOrderList:
+      description: Динамический список кандидатов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AffectedOrderListResponse'
+    AdminOrderData:
+      description: Управленческое представление заказа
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminOrderCommandResponse'
+    AdminOrderList:
+      description: Страница заказов
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AdminOrderListResponse'
+    Unauthorized:
+      description: Токен отсутствует или недействителен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Forbidden:
+      description: Недостаточно прав или нет доступа к рабочей точке
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Объект не найден или недоступен сотруднику
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    Conflict:
+      description: Переход состояния отклонён
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    OrderTransitionConflict:
+      description: Переход заказа отклонён его workflow
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/Error'
+              - type: object
+                properties:
+                  code: {const: order_transition_rejected}
+    ValidationError:
+      description: Ошибка валидации
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+    TooManyRequests:
+      description: Лимит запросов превышен
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: {type: string, format: email}
+        password: {type: string, format: password}
+    LoginResponse:
+      type: object
+      required: [message, user, token, token_type]
+      properties:
+        message: {type: string}
+        user:
+          $ref: '#/components/schemas/UserContext'
+        token: {type: string}
+        token_type: {const: Bearer}
+    UserContext:
+      type: object
+      required: [id, roles, permissions, work_locations, capabilities, is_active]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        email: {type: string, format: email}
+        phone: {type: [string, 'null']}
+        is_active: {type: boolean}
+        roles:
+          type: array
+          items:
+            type: string
+            enum: [admin, manager, seller, picker, courier, user]
+        permissions:
+          type: array
+          items: {type: string}
+        work_locations:
+          type: array
+          items:
+            $ref: '#/components/schemas/WorkLocation'
+        capabilities:
+          $ref: '#/components/schemas/Capabilities'
+      additionalProperties: true
+    WorkLocation:
+      type: object
+      required: [id, name, city, type, is_online_fulfillment_enabled, is_delivery_hub]
+      properties:
+        id: {type: integer}
+        name: {type: string}
+        city: {type: string}
+        type:
+          type: string
+          enum: [warehouse, store]
+        is_online_fulfillment_enabled: {type: boolean}
+        is_delivery_hub: {type: boolean}
+    Capabilities:
+      type: object
+      required: [admin, manager, seller, picker, courier, can_access_filament]
+      properties:
+        admin: {type: boolean}
+        manager: {type: boolean}
+        seller: {type: boolean}
+        picker: {type: boolean}
+        courier: {type: boolean}
+        can_access_filament: {type: boolean}
+    RegisterDeviceRequest:
+      type: object
+      required: [device_uuid, name]
+      properties:
+        device_uuid: {type: string, format: uuid}
+        name: {type: string, maxLength: 120}
+        warehouse_id: {type: [integer, 'null'], minimum: 1}
+    StaffDevice:
+      type: object
+      required: [id, device_uuid, name]
+      properties:
+        id: {type: integer}
+        device_uuid: {type: string, format: uuid}
+        name: {type: string}
+        last_warehouse_id: {type: [integer, 'null']}
+        last_sync_at: {type: [string, 'null'], format: date-time}
+        last_seen_at: {type: [string, 'null'], format: date-time}
+        revoked_at: {type: [string, 'null'], format: date-time}
+    SellerOrderSnapshot:
+      type: object
+      required: [client_order_id, revision, warehouse_id, occurred_at, payment_method, items]
+      properties:
+        client_order_id: {type: string, format: uuid}
+        revision: {type: integer, minimum: 1}
+        warehouse_id: {type: integer, minimum: 1}
+        occurred_at: {type: string, format: date-time}
+        payment_method:
+          type: string
+          enum: [cash, card]
+        items:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [product_id, quantity, pricing_token]
+            properties:
+              product_id: {type: integer, minimum: 1}
+              quantity: {type: integer, minimum: 1}
+              pricing_token: {type: string, maxLength: 30000}
+    CompleteSellerOrdersRequest:
+      type: object
+      required: [orders]
+      properties:
+        orders:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [order_id, revision]
+            properties:
+              order_id: {type: integer, minimum: 1}
+              revision: {type: integer, minimum: 1}
+    SellerSyncRequest:
+      type: object
+      required: [events]
+      properties:
+        events:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            oneOf:
+              - $ref: '#/components/schemas/SellerUpsertEvent'
+              - $ref: '#/components/schemas/SellerCommandEvent'
+    SellerUpsertEvent:
+      allOf:
+        - $ref: '#/components/schemas/SellerOrderSnapshot'
+        - type: object
+          required: [event_id, action]
+          properties:
+            event_id: {type: string, format: uuid}
+            action: {const: upsert}
+    SellerCommandEvent:
+      type: object
+      required: [event_id, action, order_id, revision]
+      properties:
+        event_id: {type: string, format: uuid}
+        action:
+          type: string
+          enum: [cancel, complete, escalate]
+        order_id: {type: integer, minimum: 1}
+        revision: {type: integer, minimum: 1}
+    SellerOrderStatus:
+      type: string
+      enum: [pending, seller_review, manager_review, completed, cancelled]
+    SellerOrder:
+      type: object
+      required: [id, client_order_id, revision, sales_channel, status, actions, totals, timestamps]
+      properties:
+        id: {type: integer}
+        order_number: {type: [string, 'null']}
+        client_order_id: {type: string, format: uuid}
+        revision: {type: integer}
+        sales_channel: {const: seller}
+        status:
+          $ref: '#/components/schemas/SellerOrderStatus'
+        status_name: {type: string}
+        payment_method:
+          type: string
+          enum: [cash, card]
+        was_edited: {type: boolean}
+        actions:
+          $ref: '#/components/schemas/ActionFlags'
+        totals:
+          type: object
+          properties:
+            products_total: {type: number}
+            promotion_discount: {type: number}
+            final_total: {type: number}
+            currency: {type: string}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        fulfillment_issues:
+          type: array
+          items:
+            $ref: '#/components/schemas/FulfillmentIssue'
+        timestamps: {type: object, additionalProperties: true}
+      additionalProperties: true
+    SellerOrderCommandResponse:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        duplicate: {type: boolean}
+        data:
+          $ref: '#/components/schemas/SellerOrder'
+    SellerOrderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SellerOrder'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    SellerCommandResult:
+      type: object
+      required: [order_id, result]
+      properties:
+        order_id: {type: integer}
+        result:
+          type: string
+          enum: [completed, seller_review, manager_review, cancelled, rejected]
+        conflicts:
+          type: array
+          items: {type: object, additionalProperties: true}
+        message: {type: string}
+        order:
+          $ref: '#/components/schemas/SellerOrder'
+    SellerSyncEventResult:
+      type: object
+      required: [event_id, result]
+      properties:
+        event_id: {type: string, format: uuid}
+        result:
+          type: string
+          enum: [accepted, duplicate, completed, seller_review, manager_review, cancelled, rejected]
+        message: {type: string}
+        errors: {type: object, additionalProperties: true}
+        conflicts:
+          type: array
+          items: {type: object, additionalProperties: true}
+        order:
+          $ref: '#/components/schemas/SellerOrder'
+    PickerShortageRequest:
+      type: object
+      required: [product_id, shortage_quantity]
+      properties:
+        product_id: {type: integer, minimum: 1}
+        shortage_quantity: {type: integer, minimum: 1}
+        comment: {type: [string, 'null'], maxLength: 1000}
+    PickerOrder:
+      type: object
+      required: [id, customer_order_id, job_type, status, items, actions, timestamps]
+      properties:
+        id: {type: integer}
+        order_number: {type: [string, 'null']}
+        customer_order_id: {type: integer}
+        customer_order_number: {type: [string, 'null']}
+        job_type:
+          type: string
+          enum: [source, consolidation]
+        status:
+          type: string
+          enum: [confirmed, processing, ready_for_delivery, shipped, awaiting_receipt, delivered, manager_review]
+        status_name: {type: string}
+        warehouse: {type: [object, 'null'], additionalProperties: true}
+        destination_warehouse: {type: [object, 'null'], additionalProperties: true}
+        picker: {type: [object, 'null'], additionalProperties: true}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        customer_notes: {type: [string, 'null']}
+        actions:
+          $ref: '#/components/schemas/ActionFlags'
+        timestamps: {type: object, additionalProperties: true}
+    PickerOrderCommandResponse:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        data:
+          $ref: '#/components/schemas/PickerOrder'
+    PickerOrderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/PickerOrder'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    CourierDelivery:
+      type: object
+      required: [id, delivery_kind, status, items, actions, timestamps]
+      properties:
+        id: {type: integer}
+        order_number: {type: [string, 'null']}
+        delivery_kind:
+          type: string
+          enum: [transfer, customer]
+        status:
+          type: string
+          enum: [ready_for_delivery, shipped, awaiting_receipt, delivered]
+        status_name: {type: string}
+        courier: {type: [object, 'null'], additionalProperties: true}
+        pickup: {type: [object, 'null'], additionalProperties: true}
+        transfer_destination: {type: [object, 'null'], additionalProperties: true}
+        customer: {type: [object, 'null'], additionalProperties: true}
+        delivery_address: {type: [object, 'null'], additionalProperties: true}
+        delivery_method: {type: [object, 'null'], additionalProperties: true}
+        payment:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                method: {type: string}
+                order_total: {type: number}
+                amount_to_collect: {type: number}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        actions:
+          $ref: '#/components/schemas/ActionFlags'
+        timestamps: {type: object, additionalProperties: true}
+    CourierDeliveryCommandResponse:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        data:
+          $ref: '#/components/schemas/CourierDelivery'
+    CourierDeliveryListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/CourierDelivery'
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    FulfillmentIssue:
+      type: object
+      required: [id, source_order_id, product_id, warehouse_id, reason, shortage_quantity, status, actions]
+      properties:
+        id: {type: integer}
+        source_order_id: {type: integer}
+        product_id: {type: integer}
+        warehouse_id: {type: integer}
+        reason:
+          type: string
+          enum: [online_reservation_conflict, physical_stock_discrepancy]
+        reason_message: {type: string}
+        shortage_quantity: {type: integer}
+        reserved_online_before: {type: integer}
+        reserved_seller_before: {type: integer}
+        status:
+          type: string
+          enum: [waiting, in_review, closed]
+        status_name: {type: string}
+        manager_id: {type: [integer, 'null']}
+        actions:
+          $ref: '#/components/schemas/ActionFlags'
+      additionalProperties: true
+    FulfillmentIssueCommandResponse:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        data:
+          $ref: '#/components/schemas/FulfillmentIssue'
+    FulfillmentIssueListResponse:
+      type: object
+      required: [data, summary, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/FulfillmentIssue'
+        summary:
+          type: object
+          required: [waiting, in_review, closed]
+          properties:
+            waiting: {type: integer}
+            in_review: {type: integer}
+            closed: {type: integer}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    AffectedOrderListResponse:
+      type: object
+      required: [issue, data, summary, meta]
+      properties:
+        issue:
+          $ref: '#/components/schemas/FulfillmentIssue'
+        data:
+          type: array
+          items: {type: object, additionalProperties: true}
+        summary:
+          type: object
+          required: [candidate_orders_count, reserved_quantity_total, shortage_quantity]
+          properties:
+            candidate_orders_count: {type: integer}
+            reserved_quantity_total: {type: integer}
+            shortage_quantity: {type: integer}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    AdminOrder:
+      type: object
+      required: [id, status, sales_channel, totals]
+      properties:
+        id: {type: integer}
+        order_number: {type: [string, 'null']}
+        status: {type: string}
+        status_name: {type: string}
+        sales_channel:
+          type: string
+          enum: [online, seller]
+        order_type:
+          type: string
+          enum: [regular, supplier]
+        totals: {type: object, additionalProperties: true}
+        customer: {type: object, additionalProperties: true}
+        delivery: {type: object, additionalProperties: true}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        partial_orders:
+          type: array
+          items: {type: object, additionalProperties: true}
+        internal_info: {type: object, additionalProperties: true}
+        timestamps: {type: object, additionalProperties: true}
+      additionalProperties: true
+    AdminOrderCommandResponse:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        data:
+          $ref: '#/components/schemas/AdminOrder'
+    AdminOrderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminOrder'
+        meta:
+          type: object
+          required: [total, per_page, current_page]
+          properties:
+            total: {type: integer}
+            per_page: {type: integer}
+            current_page: {type: integer}
+    UpdateOrderStatusRequest:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [pending, confirmed, processing, shipped, delivered, cancelled]
+        internal_notes: {type: [string, 'null'], maxLength: 1000}
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page: {type: integer}
+        last_page: {type: integer}
+        per_page: {type: integer}
+        total: {type: integer}
+    ActionFlags:
+      type: object
+      additionalProperties:
+        type: boolean
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: {type: string}
+    GenericDataEnvelope:
+      type: object
+      required: [data]
+      properties:
+        message: {type: string}
+        data: {type: object, additionalProperties: true}
+      additionalProperties: true
+    Error:
+      type: object
+      required: [message]
+      properties:
+        message: {type: string}
+        code: {type: string}
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/Error'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              additionalProperties:
+                type: array
+                items: {type: string}

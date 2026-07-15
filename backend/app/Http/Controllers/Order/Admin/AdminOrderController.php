@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Http\Resources\AdminOrderResource;
 use App\Services\OrderManagementService;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -75,17 +76,29 @@ class AdminOrderController extends Controller
             'internal_notes' => 'nullable|string|max:1000'
         ]);
 
-        $updatedOrder = $this->orderService->updateOrderStatus(
-            $order, 
-            $request->status, 
-            $request->internal_notes,
-            Auth::id() 
-        );
+        try {
+            $updatedOrder = $this->orderService->updateOrderStatus(
+                $order,
+                $request->status,
+                $request->internal_notes,
+                Auth::id()
+            );
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Статус заказа обновлен',
             'data' => new AdminOrderResource($updatedOrder)
         ]);
+    }
+
+    private function transitionRejected(DomainException $exception): JsonResponse
+    {
+        return response()->json([
+            'message' => $exception->getMessage(),
+            'code' => 'order_transition_rejected',
+        ], 409);
     }
 
     /**

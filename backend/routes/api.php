@@ -97,86 +97,111 @@ Route::middleware('auth:sanctum')->group(function () {
 // устройство — по заголовку X-Device-UUID после регистрации.
 Route::prefix('seller')->middleware('auth:sanctum')->group(function () {
     Route::post('/devices/register', [SellerDeviceController::class, 'store'])
-        ->middleware('permission:create seller orders');
+        ->middleware('permission:create seller orders')
+        ->name('seller.devices.register');
 
     Route::get('/bootstrap', SellerBootstrapController::class)
-        ->middleware(['permission:create seller orders', 'throttle:30,1']);
+        ->middleware(['permission:create seller orders', 'throttle:30,1'])
+        ->name('seller.bootstrap');
 
     Route::get('/orders', [SellerOrderController::class, 'index'])
-        ->middleware('permission:view own seller orders');
+        ->middleware('permission:view own seller orders')
+        ->name('seller.orders.index');
     Route::get('/orders/{order}', [SellerOrderController::class, 'show'])
         ->whereNumber('order')
-        ->middleware('permission:view own seller orders');
+        ->middleware('permission:view own seller orders')
+        ->name('seller.orders.show');
     Route::post('/orders', [SellerOrderController::class, 'store'])
-        ->middleware('permission:create seller orders');
+        ->middleware('permission:create seller orders')
+        ->name('seller.orders.store');
     Route::put('/orders/{order}', [SellerOrderController::class, 'update'])
         ->whereNumber('order')
-        ->middleware('permission:create seller orders');
+        ->middleware('permission:create seller orders')
+        ->name('seller.orders.update');
     Route::post('/orders/{order}/cancel', [SellerOrderController::class, 'cancel'])
         ->whereNumber('order')
-        ->middleware('permission:create seller orders');
+        ->middleware('permission:create seller orders')
+        ->name('seller.orders.cancel');
     Route::post('/orders/complete', [SellerOrderController::class, 'complete'])
-        ->middleware('permission:complete own seller orders');
+        ->middleware('permission:complete own seller orders')
+        ->name('seller.orders.complete');
     Route::post('/orders/{order}/escalate', [SellerOrderController::class, 'escalate'])
         ->whereNumber('order')
-        ->middleware('permission:complete own seller orders');
+        ->middleware('permission:complete own seller orders')
+        ->name('seller.orders.escalate');
 
     Route::post('/sync', SellerSyncController::class)
         ->middleware([
             'permission:create seller orders',
             'permission:complete own seller orders',
             'throttle:30,1',
-        ]);
+        ])
+        ->name('seller.sync');
 });
 
 // Сборщик работает только со складскими исполнениями назначенных точек.
 Route::prefix('picker')->middleware('auth:sanctum')->group(function () {
     Route::get('/incoming-transfers', [PickerOrderController::class, 'incomingTransfers'])
-        ->middleware('permission:view picking orders');
+        ->middleware('permission:view picking orders')
+        ->name('picker.transfers.index');
     Route::post('/incoming-transfers/{order}/receive', [PickerOrderController::class, 'receiveTransfer'])
         ->whereNumber('order')
-        ->middleware('permission:manage own picking orders');
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.transfers.receive');
     Route::get('/orders', [PickerOrderController::class, 'index'])
-        ->middleware('permission:view picking orders');
+        ->middleware('permission:view picking orders')
+        ->name('picker.orders.index');
     Route::get('/orders/{order}', [PickerOrderController::class, 'show'])
         ->whereNumber('order')
-        ->middleware('permission:view picking orders');
+        ->middleware('permission:view picking orders')
+        ->name('picker.orders.show');
     Route::post('/orders/{order}/take', [PickerOrderController::class, 'take'])
         ->whereNumber('order')
-        ->middleware('permission:manage own picking orders');
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.orders.take');
     Route::post('/orders/{order}/release', [PickerOrderController::class, 'release'])
         ->whereNumber('order')
-        ->middleware('permission:manage own picking orders');
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.orders.release');
     Route::post('/orders/{order}/complete', [PickerOrderController::class, 'complete'])
         ->whereNumber('order')
-        ->middleware('permission:manage own picking orders');
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.orders.complete');
     Route::post('/orders/{order}/escalate', [PickerOrderController::class, 'escalate'])
         ->whereNumber('order')
-        ->middleware('permission:manage own picking orders');
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.orders.escalate');
     Route::post('/orders/{order}/shortage', [PickerOrderController::class, 'reportShortage'])
         ->whereNumber('order')
-        ->middleware('permission:report picking shortage');
+        ->middleware('permission:report picking shortage')
+        ->name('picker.orders.shortage');
 });
 
 // Курьер видит свободные и собственные доставки только своих активных точек.
 Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
     Route::get('/deliveries', [CourierDeliveryController::class, 'index'])
-        ->middleware('permission:view assigned deliveries');
+        ->middleware('permission:view assigned deliveries')
+        ->name('courier.deliveries.index');
     Route::get('/deliveries/{order}', [CourierDeliveryController::class, 'show'])
         ->whereNumber('order')
-        ->middleware('permission:view assigned deliveries');
+        ->middleware('permission:view assigned deliveries')
+        ->name('courier.deliveries.show');
     Route::post('/deliveries/{order}/claim', [CourierDeliveryController::class, 'claim'])
         ->whereNumber('order')
-        ->middleware('permission:update assigned deliveries');
+        ->middleware('permission:update assigned deliveries')
+        ->name('courier.deliveries.claim');
     Route::post('/deliveries/{order}/release', [CourierDeliveryController::class, 'release'])
         ->whereNumber('order')
-        ->middleware('permission:update assigned deliveries');
+        ->middleware('permission:update assigned deliveries')
+        ->name('courier.deliveries.release');
     Route::post('/deliveries/{order}/start', [CourierDeliveryController::class, 'start'])
         ->whereNumber('order')
-        ->middleware('permission:update assigned deliveries');
+        ->middleware('permission:update assigned deliveries')
+        ->name('courier.deliveries.start');
     Route::post('/deliveries/{order}/deliver', [CourierDeliveryController::class, 'deliver'])
         ->whereNumber('order')
-        ->middleware('permission:update assigned deliveries');
+        ->middleware('permission:update assigned deliveries')
+        ->name('courier.deliveries.deliver');
 });
 
 // Отдельный API менеджера. В отличие от Filament, для менеджера здесь
@@ -184,30 +209,38 @@ Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
 Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
-        ->middleware('permission:manage orders');
+        ->middleware('permission:manage orders')
+        ->name('manager.orders.return-to-stock');
     Route::post('/deliveries/{order}/assign-courier', [ManagerDeliveryAssignmentController::class, 'assign'])
         ->whereNumber('order')
-        ->middleware('permission:assign couriers');
+        ->middleware('permission:assign couriers')
+        ->name('manager.deliveries.assign-courier');
 
     Route::prefix('fulfillment-issues')->group(function () {
         Route::get('/', [ManagerFulfillmentIssueController::class, 'index'])
-            ->middleware('permission:view fulfillment issues');
+            ->middleware('permission:view fulfillment issues')
+            ->name('manager.fulfillment-issues.index');
         Route::get('/{issue}', [ManagerFulfillmentIssueController::class, 'show'])
             ->whereNumber('issue')
-            ->middleware('permission:view fulfillment issues');
+            ->middleware('permission:view fulfillment issues')
+            ->name('manager.fulfillment-issues.show');
         Route::get('/{issue}/affected-orders', [ManagerFulfillmentIssueController::class, 'affectedOrders'])
             ->whereNumber('issue')
-            ->middleware('permission:view fulfillment issues');
+            ->middleware('permission:view fulfillment issues')
+            ->name('manager.fulfillment-issues.affected-orders');
 
         Route::post('/{issue}/take', [ManagerFulfillmentIssueController::class, 'take'])
             ->whereNumber('issue')
-            ->middleware('permission:manage fulfillment issues');
+            ->middleware('permission:manage fulfillment issues')
+            ->name('manager.fulfillment-issues.take');
         Route::post('/{issue}/release', [ManagerFulfillmentIssueController::class, 'release'])
             ->whereNumber('issue')
-            ->middleware('permission:manage fulfillment issues');
+            ->middleware('permission:manage fulfillment issues')
+            ->name('manager.fulfillment-issues.release');
         Route::post('/{issue}/close', [ManagerFulfillmentIssueController::class, 'close'])
             ->whereNumber('issue')
-            ->middleware('permission:manage fulfillment issues');
+            ->middleware('permission:manage fulfillment issues')
+            ->name('manager.fulfillment-issues.close');
     });
 });
 
@@ -235,20 +268,31 @@ Route::prefix('admin')->middleware(['auth:sanctum', 'permission:manage orders'])
     // Управление заказами
     Route::prefix('orders')->group(function () {
         // Основные эндпоинты
-        Route::get('/', [AdminOrderController::class, 'index']);
-        Route::get('/stats', [AdminOrderController::class, 'stats']);
-        Route::get('/{order}', [AdminOrderController::class, 'show']);
-        Route::put('/{order}/status', [AdminOrderController::class, 'updateStatus']);
-        Route::put('/{order}/tracking', [AdminOrderController::class, 'updateTracking']);
-        Route::put('/{order}/internal-notes', [AdminOrderController::class, 'updateInternalNotes']);
+        Route::get('/', [AdminOrderController::class, 'index'])
+            ->name('management.orders.index');
+        Route::get('/stats', [AdminOrderController::class, 'stats'])
+            ->name('management.orders.stats');
+        Route::get('/{order}', [AdminOrderController::class, 'show'])
+            ->name('management.orders.show');
+        Route::put('/{order}/status', [AdminOrderController::class, 'updateStatus'])
+            ->name('management.orders.update-status');
+        Route::put('/{order}/tracking', [AdminOrderController::class, 'updateTracking'])
+            ->name('management.orders.update-tracking');
+        Route::put('/{order}/internal-notes', [AdminOrderController::class, 'updateInternalNotes'])
+            ->name('management.orders.update-internal-notes');
         
         // Действия с заказами
         Route::prefix('{order}')->group(function () {
-            Route::put('/cancel', [AdminOrderActionController::class, 'cancel']);
-            Route::put('/confirm', [AdminOrderActionController::class, 'confirm']);
-            Route::put('/ship', [AdminOrderActionController::class, 'markAsShipped']);
-            Route::put('/deliver', [AdminOrderActionController::class, 'markAsDelivered']);
-            Route::put('/delivery-method', [AdminOrderActionController::class, 'updateDeliveryMethod']);
+            Route::put('/cancel', [AdminOrderActionController::class, 'cancel'])
+                ->name('management.orders.cancel');
+            Route::put('/confirm', [AdminOrderActionController::class, 'confirm'])
+                ->name('management.orders.confirm');
+            Route::put('/ship', [AdminOrderActionController::class, 'markAsShipped'])
+                ->name('management.orders.ship');
+            Route::put('/deliver', [AdminOrderActionController::class, 'markAsDelivered'])
+                ->name('management.orders.deliver');
+            Route::put('/delivery-method', [AdminOrderActionController::class, 'updateDeliveryMethod'])
+                ->name('management.orders.update-delivery-method');
         });
     });
 });
