@@ -1,7 +1,7 @@
 import { api } from "./api";
 import type { Order } from "../interfaces/order";
 
-const ORDERS_PATH = "/orders";
+const ORDERS_PATH = "/api/orders";
 
 export interface CancelResponse {
   message: string;

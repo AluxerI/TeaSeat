@@ -6,7 +6,7 @@ import { typePic } from "./catalog";
 import { Discount } from "../types/catalog";
 import { useMemo } from "react";
 
-// Убирает origin бэкенда из URL картинок, чтобы запрос шёл через CRA-прокси
+// Убирает origin бэкенда из URL картинок, чтобы запрос шёл через Vite-прокси
 function stripOrigin(url: string): string {
   return url.replace(/^https?:\/\/[^\/]+/, "");
 }
