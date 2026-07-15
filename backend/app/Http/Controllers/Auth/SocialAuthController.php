@@ -48,12 +48,21 @@ class SocialAuthController extends Controller
                 ]
             );
 
+            if (!$user->is_active) {
+                throw new \RuntimeException('Аккаунт заблокирован.');
+            }
+
+            if (!$user->roles()->exists()) {
+                $user->assignRole(User::ROLE_USER);
+            }
+
             // Создаем Sanctum токен
             $token = $user->createToken('social-auth-' . $provider)->plainTextToken;
 
             return response()->json([
                 'token' => $token,
-                'user' => new UserResource($user)
+                'token_type' => 'Bearer',
+                'user' => new UserResource($user->load(['roles', 'activeWarehouses'])),
             ]);
 
         } catch (\Exception $e) {

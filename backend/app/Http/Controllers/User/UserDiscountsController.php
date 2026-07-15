@@ -28,10 +28,7 @@ class UserDiscountsController extends Controller
         try {
             $user = Auth::user();
             
-            // Используем новый метод activeDiscounts
-            $discounts = $user->activeDiscounts()
-                ->with('products') // Загружаем товары, на которые распространяются скидки
-                ->get();
+            $discounts = $this->priceCalculator->getUserDiscounts($user);
 
             return DiscountResource::collection($discounts);
 

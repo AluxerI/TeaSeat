@@ -3,13 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Relation;
 use Illuminate\Support\Facades\Cache;
 use App\Traits\ClearsModelCache;
 
 class Inventory extends Model
 {
     use HasFactory, ClearsModelCache; 
+
+    public const ONLINE_AVAILABLE_EXPRESSION =
+        'GREATEST(quantity - reserved_online_quantity - reserved_seller_quantity, 0)';
     
     protected $table = 'inventories';
     protected $primaryKey = 'id';
@@ -21,13 +26,15 @@ class Inventory extends Model
         'product_id',
         'warehouse_id',
         'quantity',
-        'weight_quantity',
+        'reserved_online_quantity',
+        'reserved_seller_quantity',
         'last_restock_date',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
-        'weight_quantity' => 'decimal:2',
+        'reserved_online_quantity' => 'integer',
+        'reserved_seller_quantity' => 'integer',
         'last_restock_date' => 'date',
     ];
 
@@ -36,17 +43,68 @@ class Inventory extends Model
         return $this->belongsTo(Product::class);
     }
 
-    public function getTotalQuantity(): float
+    public function getTotalQuantity(): int
     {
-        if ($this->unit === 'gram') {
-            return (float) $this->weight_quantity;
-        }
         return (int) $this->quantity;
+    }
+
+    public function availableQuantity(): int
+    {
+        return max(
+            0,
+            (int) $this->quantity
+                - (int) $this->reserved_online_quantity
+                - (int) $this->reserved_seller_quantity
+        );
+    }
+
+    public function shortageQuantity(): int
+    {
+        return max(
+            0,
+            (int) $this->reserved_online_quantity
+                + (int) $this->reserved_seller_quantity
+                - (int) $this->quantity
+        );
+    }
+
+    public function scopeOnlineFulfillment(Builder $query): Builder
+    {
+        return $query->whereHas('warehouse', fn (Builder $warehouseQuery) =>
+            $warehouseQuery
+                ->where('is_active', true)
+                ->where('is_online_fulfillment_enabled', true)
+        );
+    }
+
+    public function scopeAvailableForOnline(Builder $query): Builder
+    {
+        return $query
+            ->onlineFulfillment()
+            ->whereRaw(self::ONLINE_AVAILABLE_EXPRESSION . ' > 0');
+    }
+
+    public static function sumOnlineAvailable(Builder|Relation $query): int
+    {
+        $aggregateQuery = clone ($query instanceof Relation
+            ? $query->getQuery()
+            : $query);
+
+        return (int) $aggregateQuery
+            ->reorder()
+            ->select([])
+            ->selectRaw('COALESCE(SUM(' . self::ONLINE_AVAILABLE_EXPRESSION . '), 0) AS aggregate')
+            ->value('aggregate');
     }
 
     public function warehouse()
     {
         return $this->belongsTo(Warehouse::class);
+    }
+
+    public function movements()
+    {
+        return $this->hasMany(InventoryMovement::class);
     }
 
     /**
@@ -65,10 +123,17 @@ class Inventory extends Model
                 'warehouse_id' => $this->warehouse_id,
                 'warehouse_name' => $this->warehouse?->name,
                 'warehouse_city' => $this->warehouse?->city,
+                'warehouse_type' => $this->warehouse?->type,
+                'is_online_fulfillment_enabled' =>
+                    $this->warehouse?->is_online_fulfillment_enabled ?? false,
                 'quantity' => $this->quantity,
+                'reserved_online_quantity' => $this->reserved_online_quantity,
+                'reserved_seller_quantity' => $this->reserved_seller_quantity,
+                'available_quantity' => $this->availableQuantity(),
+                'shortage_quantity' => $this->shortageQuantity(),
                 'last_restock_date' => $this->last_restock_date,
-                'is_low_stock' => $this->quantity < 10,
-                'is_out_of_stock' => $this->quantity <= 0,
+                'is_low_stock' => $this->availableQuantity() < 10,
+                'is_out_of_stock' => $this->availableQuantity() <= 0,
             ];
         });
     }
@@ -102,8 +167,12 @@ class Inventory extends Model
     protected function getCacheKeys(): array
     {
         return [
-            "inventory.{$this->id}.all",  // 👈 ИСПРАВЛЕНО
+            "inventory.{$this->id}.all",
             "product.{$this->product_id}.total_quantity",
+            "product.{$this->product_id}.all",
+            "product_{$this->product_id}_total_quantity",
+            "product_{$this->product_id}_available_cities",
+            "product_{$this->product_id}_city_{$this->warehouse?->city}_quantity",
         ];
     }
 
@@ -116,6 +185,7 @@ class Inventory extends Model
             $inventory->clearCache();
             if ($inventory->product) {
                 $inventory->product->clearCache();
+                $inventory->product->updateCacheFields();
             }
         });
 
@@ -123,6 +193,7 @@ class Inventory extends Model
             $inventory->clearCache();
             if ($inventory->product) {
                 $inventory->product->clearCache();
+                $inventory->product->updateCacheFields();
             }
         });
     }

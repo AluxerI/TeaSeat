@@ -7,8 +7,10 @@ use Illuminate\Auth\Events\Verified;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('legacy')]
 class EmailVerificationTest extends TestCase
 {
     use RefreshDatabase;

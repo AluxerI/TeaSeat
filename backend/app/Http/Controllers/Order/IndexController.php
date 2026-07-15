@@ -16,8 +16,9 @@ class IndexController extends Controller
         try {
             $userId = Auth::id();
             
-            $orders = Order::with(['items.product', 'deliveryMethod', 'shippingAddress'])
+            $orders = Order::with(['items.product', 'gifts.items.product', 'deliveryMethod', 'shippingAddress'])
                 ->where('user_id', $userId)
+                ->where('sales_channel', Order::SALES_CHANNEL_ONLINE)
                 ->realOrders()
                 // Показываем только основные заказы (не частичные)
                 ->whereNull('parent_order_id')

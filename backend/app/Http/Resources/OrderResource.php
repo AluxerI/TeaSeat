@@ -12,6 +12,7 @@ class OrderResource extends JsonResource
         return [
             'id' => $this->id,
             'status' => $this->status,
+            'sales_channel' => $this->sales_channel,
             'payment_method' => $this->payment_method,
             'order_number' => $this->order_number,
             
@@ -38,13 +39,15 @@ class OrderResource extends JsonResource
                 'personal_discount' => (float) ($this->personal_discount ?? 0),
                 'cart_discount' => (float) ($this->cart_discount ?? 0),
                 'shipping_cost' => (float) $this->shipping_cost,
+                'shipping_discount' => (float) ($this->shipping_discount ?? 0),
                 'final_total' => (float) $this->final_total,
             ],
+            'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
 
             'delivery_info' => [
                 'estimated_days' => $this->deliveryMethod?->getEstimatedDaysFormatted() ?? 'уточняется',
-                'has_multiple_warehouses' => $this->partialOrders->isNotEmpty(),
-                'warehouse_count' => $this->partialOrders->count() + 1,
+                'has_multiple_warehouses' => $this->partialOrders->count() > 1,
+                'warehouse_count' => $this->partialOrders->count(),
             ],
             
             // Информация о доставке
@@ -63,6 +66,7 @@ class OrderResource extends JsonResource
             
             // Товары в заказе (используем кешированные данные)
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            'gifts' => OrderGiftResource::collection($this->whenLoaded('gifts')),
             
             // Дополнительная информация
             'customer_notes' => $this->customer_notes,
@@ -73,6 +77,17 @@ class OrderResource extends JsonResource
                 'shipped_at' => $this->shipped_at?->format('d.m.Y H:i'),
                 'delivered_at' => $this->delivered_at?->format('d.m.Y H:i'),
                 'cancelled_at' => $this->cancelled_at?->format('d.m.Y H:i'),
+                'stock_reserved_at' => $this->stock_reserved_at?->format('d.m.Y H:i'),
+                'stock_committed_at' => $this->stock_committed_at?->format('d.m.Y H:i'),
+                'stock_released_at' => $this->stock_released_at?->format('d.m.Y H:i'),
+                'picking_started_at' => $this->picking_started_at?->format('d.m.Y H:i'),
+                'ready_for_delivery_at' => $this->ready_for_delivery_at?->format('d.m.Y H:i'),
+                'courier_assigned_at' => $this->courier_assigned_at?->format('d.m.Y H:i'),
+                'seller_occurred_at' => $this->seller_occurred_at?->format('d.m.Y H:i'),
+                'seller_synced_at' => $this->seller_synced_at?->format('d.m.Y H:i'),
+                'seller_reviewed_at' => $this->seller_reviewed_at?->format('d.m.Y H:i'),
+                'seller_escalated_at' => $this->seller_escalated_at?->format('d.m.Y H:i'),
+                'seller_completed_at' => $this->seller_completed_at?->format('d.m.Y H:i'),
             ],
             
             // Статус заказа
@@ -90,9 +105,14 @@ class OrderResource extends JsonResource
             'pending' => ['name' => 'Ожидает подтверждения', 'color' => 'yellow'],
             'confirmed' => ['name' => 'Подтвержден', 'color' => 'blue'],
             'processing' => ['name' => 'Обрабатывается', 'color' => 'indigo'],
+            'ready_for_delivery' => ['name' => 'Готов к передаче', 'color' => 'cyan'],
             'shipped' => ['name' => 'Отправлен', 'color' => 'purple'],
+            'awaiting_receipt' => ['name' => 'Ожидает приёмки', 'color' => 'orange'],
             'delivered' => ['name' => 'Доставлен', 'color' => 'green'],
             'cancelled' => ['name' => 'Отменен', 'color' => 'red'],
+            'seller_review' => ['name' => 'Требует проверки продавца', 'color' => 'orange'],
+            'manager_review' => ['name' => 'Передан менеджеру', 'color' => 'red'],
+            'completed' => ['name' => 'Завершен', 'color' => 'green'],
         ];
 
         return $statuses[$this->status] ?? ['name' => 'Неизвестно', 'color' => 'gray'];

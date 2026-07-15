@@ -28,13 +28,13 @@ class ProductImageSeeder extends Seeder
         // ОЧИЩАЕМ старые изображения и папки
         $this->cleanOldImages();
         
-        // Путь к исходным изображениям в storage
-        $sourcePath = storage_path('app/public/temp_sources');
+        // Исходники сидера хранятся в репозитории отдельно от runtime storage.
+        $sourcePath = database_path('seeders/assets/product-images');
         
         // Проверяем, есть ли папка с наборами
         if (!File::exists($sourcePath)) {
             $this->command->error("Папка с изображениями не найдена: {$sourcePath}");
-            $this->command->warn('Создайте папку storage/app/public/temp_sources/ и положите туда 10 папок с изображениями');
+            $this->command->warn('Добавьте наборы изображений в database/seeders/assets/product-images/');
             return;
         }
         
@@ -42,7 +42,7 @@ class ProductImageSeeder extends Seeder
         $setFolders = File::directories($sourcePath);
         
         if (empty($setFolders)) {
-            $this->command->error('В папке temp_sources нет подпапок с наборами изображений');
+            $this->command->error('В папке product-images нет подпапок с наборами изображений');
             return;
         }
         

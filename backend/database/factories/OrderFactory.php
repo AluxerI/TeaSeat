@@ -14,13 +14,16 @@ class OrderFactory extends Factory
     {
         return [
             'user_id' => User::factory(),
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
             'status' => Order::STATUS_CART,
             'products_total' => 0,
             'promotion_discount' => 0,
             'personal_discount' => 0,
             'cart_discount' => 0,
             'shipping_cost' => 0,
+            'shipping_discount' => 0,
             'final_total' => 0,
+            'pricing_snapshot' => null,
         ];
     }
 
@@ -42,6 +45,15 @@ class OrderFactory extends Factory
     {
         return $this->state([
             'status' => Order::STATUS_DELIVERED,
+        ]);
+    }
+
+    public function seller()
+    {
+        return $this->state([
+            'sales_channel' => Order::SALES_CHANNEL_SELLER,
+            'status' => Order::STATUS_PENDING,
+            'seller_revision' => 1,
         ]);
     }
 }

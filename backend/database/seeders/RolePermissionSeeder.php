@@ -2,16 +2,19 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RolePermissionSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        app()->make(\Spatie\Permission\PermissionRegistrar::class)->forgetCachedPermissions(); // очистка кэша
-        // Создание прав
+        $registrar = app(PermissionRegistrar::class);
+        $registrar->forgetCachedPermissions();
+
         $permissions = [
             'view products',
             'create products',
@@ -27,36 +30,95 @@ class RolePermissionSeeder extends Seeder
             'delete users',
             'manage users',
             'manage settings',
-            'manage orders'
+            'manage orders',
+            'view inventory',
+            'adjust inventory',
+            'create seller orders',
+            'view own seller orders',
+            'complete own seller orders',
+            'view picking orders',
+            'manage own picking orders',
+            'report picking shortage',
+            'view assigned deliveries',
+            'update assigned deliveries',
+            'assign couriers',
+            'view fulfillment issues',
+            'manage fulfillment issues',
         ];
 
         foreach ($permissions as $permission) {
-            Permission::create(['name' => $permission]);
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
-        // Создание ролей
-        $adminRole = Role::create(['name' => 'admin']);
-        $managerRole = Role::create(['name' => 'manager']);
-        $userRole = Role::create(['name' => 'user']);
+        $adminRole = Role::firstOrCreate([
+            'name' => User::ROLE_ADMIN,
+            'guard_name' => 'web',
+        ]);
+        $managerRole = Role::firstOrCreate([
+            'name' => User::ROLE_MANAGER,
+            'guard_name' => 'web',
+        ]);
+        $sellerRole = Role::firstOrCreate([
+            'name' => User::ROLE_SELLER,
+            'guard_name' => 'web',
+        ]);
+        $courierRole = Role::firstOrCreate([
+            'name' => User::ROLE_COURIER,
+            'guard_name' => 'web',
+        ]);
+        $pickerRole = Role::firstOrCreate([
+            'name' => User::ROLE_PICKER,
+            'guard_name' => 'web',
+        ]);
+        $userRole = Role::firstOrCreate([
+            'name' => User::ROLE_USER,
+            'guard_name' => 'web',
+        ]);
 
-        // Назначение прав админу
-        $adminRole->givePermissionTo(Permission::all());
+        $adminRole->syncPermissions(Permission::all());
 
-        // Назначение прав менеджеру
-        $managerRole->givePermissionTo([
+        $managerRole->syncPermissions([
             'view products',
             'create products',
             'edit products',
             'view orders',
             'edit orders',
-            'manage orders'
+            'manage orders',
+            'view inventory',
+            'adjust inventory',
+            'assign couriers',
+            'view fulfillment issues',
+            'manage fulfillment issues',
         ]);
 
-        // Назначение прав покупателю
-        $userRole->givePermissionTo([
-        'view products',
-        'create orders',
-        'view orders'
-    ]);
+        $sellerRole->syncPermissions([
+            'view products',
+            'create seller orders',
+            'view own seller orders',
+            'complete own seller orders',
+        ]);
+
+        $pickerRole->syncPermissions([
+            'view products',
+            'view picking orders',
+            'manage own picking orders',
+            'report picking shortage',
+        ]);
+
+        $courierRole->syncPermissions([
+            'view assigned deliveries',
+            'update assigned deliveries',
+        ]);
+
+        $userRole->syncPermissions([
+            'view products',
+            'create orders',
+            'view orders',
+        ]);
+
+        $registrar->forgetCachedPermissions();
     }
 }

@@ -13,9 +13,9 @@ use Illuminate\Support\Facades\Storage;
 class IconSeeder extends Seeder
 {
     /**
-     * Путь к временным иконкам
+     * Путь к исходным иконкам сидера относительно database/.
      */
-    protected string $tempIconsPath = 'public/temp_category_icons';
+    protected string $sourceIconsPath = 'seeders/assets/category-icons';
     
     /**
      * Массив доступных иконок
@@ -31,7 +31,7 @@ class IconSeeder extends Seeder
         $this->loadAvailableIcons();
         
         if (empty($this->availableIcons)) {
-            $this->command->warn('Нет иконок в папке storage/app/public/temp_category_icons/');
+            $this->command->warn('Нет иконок в папке database/seeders/assets/category-icons/');
             return;
         }
 
@@ -61,10 +61,9 @@ class IconSeeder extends Seeder
      */
     protected function loadAvailableIcons(): void
     {
-        $iconsPath = Storage::disk('public')->path('temp_category_icons');
+        $iconsPath = database_path($this->sourceIconsPath);
         
-        if (!File::exists($iconsPath)) {
-            File::makeDirectory($iconsPath, 0755, true);
+        if (!File::isDirectory($iconsPath)) {
             return;
         }
 
@@ -73,7 +72,7 @@ class IconSeeder extends Seeder
         foreach ($files as $file) {
             $extension = strtolower($file->getExtension());
             if (in_array($extension, ['png', 'svg', 'jpg', 'jpeg'])) {
-                $this->availableIcons[] = 'temp_category_icons/' . $file->getFilename();
+                $this->availableIcons[] = $file->getPathname();
             }
         }
     }
@@ -81,13 +80,13 @@ class IconSeeder extends Seeder
     /**
      * Копирует иконку из временной папки в постоянную
      */
-    protected function copyIcon(string $tempPath, string $type, int $id): ?string
+    protected function copyIcon(string $sourcePath, string $type, int $id): ?string
     {
-        if (!Storage::disk('public')->exists($tempPath)) {
+        if (!File::exists($sourcePath)) {
             return null;
         }
 
-        $filename = basename($tempPath);
+        $filename = basename($sourcePath);
         $extension = pathinfo($filename, PATHINFO_EXTENSION);
         
         // Генерируем уникальное имя
@@ -98,7 +97,7 @@ class IconSeeder extends Seeder
         Storage::disk('public')->makeDirectory(dirname($newPath));
         
         // Копируем файл
-        Storage::disk('public')->copy($tempPath, $newPath);
+        Storage::disk('public')->put($newPath, File::get($sourcePath));
         
         return $newPath;
     }

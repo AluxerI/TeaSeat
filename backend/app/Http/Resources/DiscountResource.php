@@ -12,23 +12,28 @@ class DiscountResource extends JsonResource
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'value' => $this->value,
+            'value' => (float) $this->value,
+            'value_type' => $this->value_type,
             'type' => $this->type,
             'is_global' => $this->is_global,
-            'min_order_amount' => $this->min_order_amount,
+            'min_order_amount' => $this->min_order_amount !== null
+                ? (float) $this->min_order_amount
+                : null,
             'usage_limit' => $this->usage_limit,
-            'start_at' => $this->start_at,
-            'end_at' => $this->end_at,
+            'start_date' => $this->start_date,
+            'end_date' => $this->end_date,
             'pivot' => [
-                'is_used' => $this->pivot->is_used,
-                'used_count' => $this->pivot->used_count,
-                'activated_at' => $this->pivot->activated_at,
+                'is_used' => (bool) ($this->pivot?->is_used ?? false),
+                'used_count' => (int) ($this->pivot?->used_count ?? 0),
+                'activated_at' => $this->pivot?->activated_at,
             ],
             'products' => $this->is_global ? [] : ItemResource::collection($this->whenLoaded('products')),
-            'is_valid' => $this->isValid(),
-            'days_remaining' => $this->end_at ? now()->diffInDays($this->end_at, false) : null,
-            'remaining_uses' => $this->remaining_uses,
-            'can_be_applied' => $this->can_be_applied,
+            'is_valid' => $this->isValid($request->user()),
+            'days_remaining' => $this->end_date ? now()->diffInDays($this->end_date, false) : null,
+            'remaining_uses' => $this->usage_limit
+                ? max(0, $this->usage_limit - $this->used_count)
+                : null,
+            'can_be_applied' => $this->isValid($request->user()),
         ];
     }
 }

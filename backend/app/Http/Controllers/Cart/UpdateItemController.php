@@ -7,7 +7,9 @@ use App\Services\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\CartResource;
+use DomainException;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class UpdateItemController extends Controller
 {
@@ -24,7 +26,7 @@ class UpdateItemController extends Controller
     public function __invoke(Request $request, $itemId)
     {
         $request->validate([
-            'quantity' => 'required|integer|min:0|max:100'
+            'quantity' => 'required|integer|min:0|max:2147483647'
         ]);
 
         try {
@@ -36,7 +38,11 @@ class UpdateItemController extends Controller
             );
 
             return new CartResource($cart);
-        } catch (\Exception $e) {
+        } catch (DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
+        } catch (Throwable $e) {
             Log::error('Ошибка при обновлении товара в корзине', [
                 'user_id' => Auth::id(),
                 'item_id' => $itemId,

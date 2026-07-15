@@ -76,18 +76,48 @@ class ProductResource extends Resource
                                                     ]),
                                                 
                                                 Forms\Components\TextInput::make('price')
-                                                    ->label('Цена')
+                                                    ->label('Цена за базовое количество')
                                                     ->required()
                                                     ->numeric()
                                                     ->prefix('₽')
                                                     ->minValue(0)
-                                                    ->step(0.01),
+                                                    ->step(0.01)
+                                                    ->helperText('Для развесного товара это, например, цена за 100 г'),
+
+                                                Forms\Components\Select::make('stock_unit')
+                                                    ->label('Единица учёта')
+                                                    ->options([
+                                                        Product::STOCK_UNIT_PIECE => 'Штуки',
+                                                        Product::STOCK_UNIT_GRAM => 'Граммы',
+                                                    ])
+                                                    ->default(Product::STOCK_UNIT_PIECE)
+                                                    ->required()
+                                                    ->live(),
+
+                                                Forms\Components\TextInput::make('sale_step')
+                                                    ->label('Шаг продажи')
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->default(1)
+                                                    ->required()
+                                                    ->suffix(fn ($get) => $get('stock_unit') === Product::STOCK_UNIT_GRAM ? 'г' : 'шт.')
+                                                    ->helperText('Количество в корзине должно быть кратно этому шагу'),
+
+                                                Forms\Components\TextInput::make('price_unit_quantity')
+                                                    ->label('Базовое количество для цены')
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->default(1)
+                                                    ->required()
+                                                    ->suffix(fn ($get) => $get('stock_unit') === Product::STOCK_UNIT_GRAM ? 'г' : 'шт.')
+                                                    ->helperText('Укажите 100, если price — цена за 100 г'),
                                                 
                                                 Forms\Components\TextInput::make('weight_grams')
-                                                    ->label('Вес (грамм)')
+                                                    ->label('Физический вес одной штуки')
                                                     ->numeric()
                                                     ->minValue(0)
-                                                    ->suffix('г'),
+                                                    ->suffix('г')
+                                                    ->visible(fn ($get) => $get('stock_unit') !== Product::STOCK_UNIT_GRAM),
                                                 
                                                 Forms\Components\Toggle::make('is_available')
                                                     ->label('Доступен для заказа')
@@ -150,6 +180,73 @@ class ProductResource extends Resource
                                                     'discounts' => $promotions
                                                 ]);
                                             }),
+                                    ]),
+                            ]),
+
+                        Forms\Components\Tabs\Tab::make('Подарки')
+                            ->schema([
+                                Forms\Components\Section::make('Продажа готового подарка')
+                                    ->schema([
+                                        Forms\Components\Select::make('product_type')
+                                            ->label('Тип товара')
+                                            ->options([
+                                                Product::TYPE_REGULAR => 'Обычный товар',
+                                                Product::TYPE_PREASSEMBLED_GIFT => 'Собранный подарочный набор',
+                                            ])
+                                            ->default(Product::TYPE_REGULAR)
+                                            ->required()
+                                            ->live(),
+                                        Forms\Components\Toggle::make('is_individual_sale_enabled')
+                                            ->label('Можно заказывать отдельно')
+                                            ->default(true)
+                                            ->helperText('Отключите для товара, доступного только внутри конструктора'),
+                                        Forms\Components\Textarea::make('assembly_instructions')
+                                            ->label('Внутренняя инструкция по сборке')
+                                            ->rows(5)
+                                            ->columnSpanFull()
+                                            ->visible(fn ($get) => $get('product_type') === Product::TYPE_PREASSEMBLED_GIFT)
+                                            ->helperText('Покупателю не показывается; доступна администратору и сборщику.'),
+                                    ])->columns(2),
+                                Forms\Components\Section::make('Форматы для конструктора')
+                                    ->description('Наличие активной записи разрешает товар в конструкторе.')
+                                    ->schema([
+                                        Forms\Components\Repeater::make('constructorSizes')
+                                            ->relationship()
+                                            ->schema([
+                                                Forms\Components\TextInput::make('label')
+                                                    ->label('Название формата')
+                                                    ->required()
+                                                    ->maxLength(255),
+                                                Forms\Components\TextInput::make('product_quantity')
+                                                    ->label('Количество товара')
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->required(),
+                                                Forms\Components\Select::make('gift_size_profile_id')
+                                                    ->label('Профиль размера')
+                                                    ->relationship(
+                                                        'sizeProfile',
+                                                        'name',
+                                                        fn ($query) => $query->where('kind', 'item')
+                                                    )
+                                                    ->required()
+                                                    ->searchable()
+                                                    ->preload(),
+                                                Forms\Components\Select::make('constructor_role')
+                                                    ->label('Роль в простом конструкторе')
+                                                    ->options([
+                                                        'tea' => 'Чай',
+                                                        'sweet' => 'Сладость',
+                                                        'general' => 'Обычный компонент',
+                                                    ])
+                                                    ->default('general')
+                                                    ->required(),
+                                                Forms\Components\Toggle::make('is_active')
+                                                    ->label('Активен')
+                                                    ->default(true),
+                                            ])
+                                            ->columns(2)
+                                            ->columnSpanFull(),
                                     ]),
                             ]),
                         
@@ -281,11 +378,15 @@ class ProductResource extends Resource
                 TextColumn::make('price')
                     ->label('Цена')
                     ->money('RUB')
+                    ->description(fn ($record) => 'за ' . $record->priceUnitQuantity()
+                        . ($record->isWeighted() ? ' г' : ' шт.'))
                     ->sortable(),
                 
                 TextColumn::make('total_quantity')
                     ->label('Остаток')
                     ->getStateUsing(fn ($record) => $record->total_quantity)
+                    ->formatStateUsing(fn ($state, $record) => $state
+                        . ($record->isWeighted() ? ' г' : ' шт.'))
                     ->sortable()
                     ->color(fn ($state) => $state > 0 ? 'success' : 'danger')
                     ->badge()

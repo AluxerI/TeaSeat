@@ -7,6 +7,7 @@ use App\Models\Order;
 use App\Http\Resources\AdminOrderResource;
 use Illuminate\Support\Facades\Auth;
 use App\Services\OrderManagementService;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 
@@ -27,11 +28,15 @@ class AdminOrderActionController extends Controller
             'reason' => 'nullable|string|max:500'
         ]);
 
-        $cancelledOrder = $this->orderService->cancelOrderByManager(
-            $order, 
-            $request->reason,
-            $managerId
-        );
+        try {
+            $cancelledOrder = $this->orderService->cancelOrderByManager(
+                $order,
+                $request->reason,
+                $managerId
+            );
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Заказ отменен',
@@ -45,7 +50,11 @@ class AdminOrderActionController extends Controller
     public function confirm(Order $order): JsonResponse
     {
         $managerId = Auth::id();
-        $confirmedOrder = $this->orderService->confirmOrder($order, $managerId);
+        try {
+            $confirmedOrder = $this->orderService->confirmOrder($order, $managerId);
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Заказ подтвержден',
@@ -59,7 +68,11 @@ class AdminOrderActionController extends Controller
     public function markAsShipped(Order $order): JsonResponse
     {
         $managerId = Auth::id();
-        $shippedOrder = $this->orderService->markAsShipped($order, $managerId);
+        try {
+            $shippedOrder = $this->orderService->markAsShipped($order, $managerId);
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Заказ отмечен как отправленный',
@@ -73,7 +86,11 @@ class AdminOrderActionController extends Controller
     public function markAsDelivered(Order $order): JsonResponse
     {
         $managerId = Auth::id();
-        $deliveredOrder = $this->orderService->markAsDelivered($order, $managerId);
+        try {
+            $deliveredOrder = $this->orderService->markAsDelivered($order, $managerId);
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Заказ отмечен как доставленный',
@@ -101,5 +118,13 @@ class AdminOrderActionController extends Controller
             'message' => 'Способ доставки обновлен',
             'data' => new AdminOrderResource($updatedOrder)
         ]);
+    }
+
+    private function transitionRejected(DomainException $exception): JsonResponse
+    {
+        return response()->json([
+            'message' => $exception->getMessage(),
+            'code' => 'order_transition_rejected',
+        ], 409);
     }
 }

@@ -32,6 +32,8 @@ class InventorySeeder extends Seeder
                     'product_id' => $product->id,
                     'warehouse_id' => $warehouse->id,
                     'quantity' => $quantity,
+                    'reserved_online_quantity' => 0,
+                    'reserved_seller_quantity' => 0,
                     'last_restock_date' => $quantity > 0 ? now()->subDays(rand(1, 30)) : null,
                     'created_at' => now(),
                     'updated_at' => now(),

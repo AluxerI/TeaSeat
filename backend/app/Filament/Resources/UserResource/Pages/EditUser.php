@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\UserResource\Pages;
 
 use App\Filament\Resources\UserResource;
+use App\Services\StaffAccessService;
 use Filament\Actions;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\Hash;
@@ -10,6 +11,9 @@ use Illuminate\Support\Facades\Hash;
 class EditUser extends EditRecord
 {
     protected static string $resource = UserResource::class;
+
+    /** @var array<int, int|string> */
+    private array $activeWorkLocationIds = [];
 
     protected function getHeaderActions(): array
     {
@@ -23,6 +27,9 @@ class EditUser extends EditRecord
 
     protected function mutateFormDataBeforeSave(array $data): array
     {
+        $this->activeWorkLocationIds = $data['active_work_location_ids'] ?? [];
+        unset($data['active_work_location_ids']);
+
         if (isset($data['password']) && filled($data['password'])) {
             $data['password'] = Hash::make($data['password']);
         } else {
@@ -30,5 +37,13 @@ class EditUser extends EditRecord
         }
         
         return $data;
+    }
+
+    protected function afterSave(): void
+    {
+        app(StaffAccessService::class)->syncActiveLocations(
+            $this->record,
+            $this->activeWorkLocationIds
+        );
     }
 }

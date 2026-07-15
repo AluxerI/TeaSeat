@@ -33,7 +33,10 @@ class WarehouseResource extends Resource
             ->withCount(['inventories']) // 👈 Добавляем подсчет количества товаров
             ->addSelect([
                 'total_quantity' => Inventory::selectRaw('COALESCE(SUM(quantity), 0)')
-                    ->whereColumn('warehouse_id', 'warehouses.id')
+                    ->whereColumn('warehouse_id', 'warehouses.id'),
+                'total_available_quantity' => Inventory::selectRaw(
+                    'COALESCE(SUM(' . Inventory::ONLINE_AVAILABLE_EXPRESSION . '), 0)'
+                )->whereColumn('warehouse_id', 'warehouses.id'),
             ]);
     }
 
@@ -67,48 +70,31 @@ class WarehouseResource extends Resource
                                     ->label('Адрес / Расположение')
                                     ->maxLength(255)
                                     ->columnSpanFull(),
+
+                                Forms\Components\Select::make('type')
+                                    ->label('Тип точки')
+                                    ->options([
+                                        Warehouse::TYPE_WAREHOUSE => 'Склад',
+                                        Warehouse::TYPE_STORE => 'Магазин',
+                                    ])
+                                    ->default(Warehouse::TYPE_WAREHOUSE)
+                                    ->required(),
                                 
                                 Forms\Components\Toggle::make('is_active')
                                     ->label('Активен')
                                     ->default(true),
                                 
-                                Forms\Components\Toggle::make('is_supplier')
-                                    ->label('Является поставщиком')
-                                    ->default(false)
-                                    ->reactive(),
+                                Forms\Components\Toggle::make('is_online_fulfillment_enabled')
+                                    ->label('Можно собирать интернет-заказы')
+                                    ->helperText('Остатки точки участвуют в доступности интернет-магазина')
+                                    ->default(true),
+
+                                Forms\Components\Toggle::make('is_delivery_hub')
+                                    ->label('Точка консолидации доставок')
+                                    ->helperText('Сюда свозятся части заказов из других точек города')
+                                    ->default(false),
                             ]),
                     ]),
-
-                Forms\Components\Section::make('Параметры заказа у поставщика')
-                    ->schema([
-                        Forms\Components\Grid::make(2)
-                            ->schema([
-                                Forms\Components\TextInput::make('min_order_quantity')
-                                    ->label('Минимальный заказ')
-                                    ->numeric()
-                                    ->default(1)
-                                    ->suffix('шт.'),
-                                
-                                Forms\Components\TextInput::make('lead_time_days')
-                                    ->label('Срок поставки')
-                                    ->numeric()
-                                    ->default(7)
-                                    ->suffix('дней'),
-                                
-                                Forms\Components\TextInput::make('consolidation_period')
-                                    ->label('Период консолидации')
-                                    ->numeric()
-                                    ->default(3)
-                                    ->suffix('дня'),
-                                
-                                Forms\Components\KeyValue::make('order_schedule')
-                                    ->label('График заказов')
-                                    ->keyLabel('Параметр')
-                                    ->valueLabel('Значение')
-                                    ->default(['days' => [8, 18, 28], 'type' => 'monthly']),
-                            ]),
-                    ])
-                    ->visible(fn ($get) => $get('is_supplier') === true),
             ]);
     }
 
@@ -132,19 +118,32 @@ class WarehouseResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                IconColumn::make('is_supplier')
-                    ->label('Поставщик')
-                    ->boolean()
-                    ->trueIcon('heroicon-o-truck')
-                    ->falseIcon('heroicon-o-building-storefront')
-                    ->trueColor('warning')
-                    ->falseColor('gray'),
+                TextColumn::make('type')
+                    ->label('Тип')
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        Warehouse::TYPE_STORE => 'Магазин',
+                        default => 'Склад',
+                    })
+                    ->badge()
+                    ->color(fn (string $state) => $state === Warehouse::TYPE_STORE ? 'info' : 'gray'),
 
                 IconColumn::make('is_active')
                     ->label('Активен')
                     ->boolean()
                     ->trueColor('success')
                     ->falseColor('danger'),
+
+                IconColumn::make('is_online_fulfillment_enabled')
+                    ->label('Онлайн-заказы')
+                    ->boolean()
+                    ->trueColor('success')
+                    ->falseColor('gray'),
+
+                IconColumn::make('is_delivery_hub')
+                    ->label('Консолидация')
+                    ->boolean()
+                    ->trueColor('success')
+                    ->falseColor('gray'),
 
                 // 👈 ИСПРАВЛЕНО: теперь сортировка работает через withCount
                 TextColumn::make('inventories_count')
@@ -156,7 +155,12 @@ class WarehouseResource extends Resource
                 
                 // 👈 ИСПРАВЛЕНО: теперь сортировка работает через addSelect
                 TextColumn::make('total_quantity')
-                    ->label('Единиц товара')
+                    ->label('Физический остаток')
+                    ->sortable()
+                    ->alignCenter(),
+
+                TextColumn::make('total_available_quantity')
+                    ->label('Свободный остаток')
                     ->sortable()
                     ->alignCenter(),
 
@@ -172,9 +176,12 @@ class WarehouseResource extends Resource
                     ->options(fn () => Warehouse::distinct()->whereNotNull('city')->pluck('city', 'city')->toArray())
                     ->multiple(),
                 
-                Filter::make('is_supplier')
-                    ->label('Только поставщики')
-                    ->query(fn (Builder $query): Builder => $query->where('is_supplier', true)),
+                SelectFilter::make('type')
+                    ->label('Тип точки')
+                    ->options([
+                        Warehouse::TYPE_WAREHOUSE => 'Склад',
+                        Warehouse::TYPE_STORE => 'Магазин',
+                    ]),
                 
                 Filter::make('is_active')
                     ->label('Только активные')
@@ -182,7 +189,10 @@ class WarehouseResource extends Resource
                 
                 Filter::make('has_stock')
                     ->label('Есть товары')
-                    ->query(fn (Builder $query): Builder => $query->whereHas('inventories', fn ($q) => $q->where('quantity', '>', 0))),
+                    ->query(fn (Builder $query): Builder => $query->whereHas(
+                        'inventories',
+                        fn ($q) => $q->whereRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' > 0')
+                    )),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),

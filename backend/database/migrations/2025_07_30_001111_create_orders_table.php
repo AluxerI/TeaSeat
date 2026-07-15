@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -14,6 +15,7 @@ return new class extends Migration
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('sales_channel', 16)->default('online');
             $table->string('contact_name')->nullable();
             $table->string('contact_phone')->nullable();
             $table->string('contact_email')->nullable();            
@@ -68,6 +70,9 @@ return new class extends Migration
             $table->timestamp('shipped_at')->nullable();
             $table->timestamp('delivered_at')->nullable();
             $table->timestamp('cancelled_at')->nullable();
+            $table->timestamp('stock_reserved_at')->nullable();
+            $table->timestamp('stock_committed_at')->nullable();
+            $table->timestamp('stock_released_at')->nullable();
 
             // Мягкое удаление
             $table->softDeletes();
@@ -75,6 +80,7 @@ return new class extends Migration
 
             // Индексы
             $table->index(['user_id', 'status']);
+            $table->index(['sales_channel', 'status']);
             $table->index('status');
             $table->index('warehouse_id');
             $table->index('created_at');
@@ -84,6 +90,8 @@ return new class extends Migration
             $table->index(['user_id', 'created_at']);
             $table->index('discount_id'); // добавляем индекс для нового поля
         });
+
+        DB::statement("ALTER TABLE orders ADD CONSTRAINT orders_sales_channel_check CHECK (sales_channel IN ('online', 'seller', 'internal'))");
     }
 
     /**

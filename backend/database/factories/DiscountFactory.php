@@ -18,6 +18,7 @@ class DiscountFactory extends Factory
             'name' => $this->faker->unique()->sentence(3),
             'description' => $this->faker->optional()->paragraph(),
             'value' => $this->faker->numberBetween(5, 50),
+            'value_type' => Discount::VALUE_PERCENT,
             'type' => $this->faker->randomElement($types),
             'is_active' => $this->faker->boolean(80),
             'code' => $hasCode ? $this->faker->unique()->bothify('PROMO-####') : null,

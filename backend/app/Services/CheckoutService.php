@@ -5,18 +5,23 @@ namespace App\Services;
 use App\Models\Order;
 use App\Models\DeliveryMethod;
 use App\Models\AddressClient;
+use App\Models\OrderStatusHistory;
+use App\Models\Supplier;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
-use App\Models\Inventory;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
+use DomainException;
 
 class CheckoutService
 {
     public function __construct(
         protected CartService $cartService,
+        protected PricingService $pricingService,
         protected WarehouseService $warehouseService,
         protected LocationService $locationService,
-        protected SupplierOrderService $supplierOrderService
+        protected SupplierOrderService $supplierOrderService,
+        protected GiftAvailabilityService $giftAvailabilityService
     ) {}
 
     /**
@@ -28,27 +33,81 @@ class CheckoutService
         int $deliveryMethodId,
         string $paymentMethod,
         ?string $customerNotes = null,
-        bool $isSupplierOrder = false
+        bool $isSupplierOrder = false,
+        string $idempotencyKey = '',
+        ?array $discountSelection = null
     ): Order {
         return DB::transaction(function () use (
-            $userId, $shippingAddressId, $deliveryMethodId, $paymentMethod, $customerNotes, $isSupplierOrder
+            $userId,
+            $shippingAddressId,
+            $deliveryMethodId,
+            $paymentMethod,
+            $customerNotes,
+            $isSupplierOrder,
+            $idempotencyKey,
+            $discountSelection
         ) {
-            $cart = $this->cartService->getCart($userId);
+            if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
+                return $existingOrder;
+            }
+
+            // Блокируем корзину: два параллельных checkout одного пользователя
+            // не смогут одновременно превратить её в заказ.
+            $cart = Order::where('user_id', $userId)
+                ->where('status', Order::STATUS_CART)
+                ->whereNull('parent_order_id')
+                ->lockForUpdate()
+                ->first();
+
+            if (!$cart) {
+                // Повторная проверка нужна для запроса, который ожидал блокировку:
+                // первый запрос уже мог завершить checkout с тем же ключом.
+                if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
+                    return $existingOrder;
+                }
+
+                throw new DomainException('Активная корзина не найдена');
+            }
+
+            $cart->load([
+                'items.product.inventories.warehouse',
+                'items.product.suppliers',
+                'gifts.items.product',
+            ]);
             
             if ($cart->items->isEmpty()) {
-                throw new \Exception('Корзина пуста');
+                throw new DomainException('Корзина пуста');
             }
 
             $shippingAddress = AddressClient::where('user_id', $userId)->findOrFail($shippingAddressId);
             $deliveryMethod = DeliveryMethod::active()->findOrFail($deliveryMethodId);
 
             if (!$deliveryMethod->isAvailableInCity($shippingAddress->city)) {
-                throw new \Exception("Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}");
+                throw new DomainException("Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}");
             }
+
+            // Цена и лимиты скидок проверяются в той же транзакции, что и остатки.
+            // Поэтому checkout никогда не доверяет цене, сохранённой в корзине ранее.
+            $user = User::findOrFail($userId);
+            $pricingQuote = $this->pricingService->quoteOrder(
+                $cart,
+                $user,
+                (float) $deliveryMethod->cost,
+                $discountSelection
+            );
+            $this->pricingService->applyQuoteToOrder($cart, $pricingQuote);
+            $this->pricingService->consumeUsage($user, $pricingQuote);
 
             // Если это заказ у поставщика
             if ($isSupplierOrder) {
-                return $this->processSupplierOrder($cart, $shippingAddress, $deliveryMethod, $paymentMethod, $customerNotes);
+                return $this->processSupplierOrder(
+                    $cart,
+                    $shippingAddress,
+                    $deliveryMethod,
+                    $paymentMethod,
+                    $customerNotes,
+                    $idempotencyKey
+                );
             }
 
             // Обычный заказ - проверяем доступность товаров в городе
@@ -56,29 +115,68 @@ class CheckoutService
             
             // Определяем склады для заказа
             $warehouseAllocation = $this->warehouseService->determineWarehousesForOrder($cart, $shippingAddress);
-            
-            // Резервируем товары
-            $this->warehouseService->reserveStockByAllocation($warehouseAllocation);
 
             // Обновляем заказ
             $cart->update([
+                'sales_channel' => Order::SALES_CHANNEL_ONLINE,
                 'status' => Order::STATUS_PENDING,
                 'shipping_address_id' => $shippingAddressId,
                 'delivery_method_id' => $deliveryMethodId,
                 'payment_method' => $paymentMethod,
                 'shipping_cost' => $deliveryMethod->cost,
                 'customer_notes' => $customerNotes,
+                'checkout_idempotency_key' => $idempotencyKey,
+                'warehouse_id' => null,
                 'confirmed_at' => now(),
             ]);
 
             // Создаем частичные заказы по складам
-            $this->warehouseService->createPartialOrders($cart, $warehouseAllocation, $shippingAddress);
+            $partialOrders = $this->warehouseService->createPartialOrders(
+                $cart,
+                $warehouseAllocation,
+                $shippingAddress
+            );
+
+            // Физический остаток не меняется до завершения сборки:
+            // checkout создаёт только складской резерв.
+            $this->warehouseService->reserveOnlineStockForOrders(
+                $partialOrders,
+                $userId
+            );
+            $cart->update(['stock_reserved_at' => now()]);
             
             // Очищаем кеш корзины
             $this->cartService->clearCartCache($userId);
 
-            return $cart->fresh(['items.product', 'deliveryMethod', 'shippingAddress']);
+            return $cart->fresh([
+                'items.product',
+                'gifts.items.product',
+                'deliveryMethod',
+                'shippingAddress',
+                'partialOrders.items.product',
+                'partialOrders.warehouse',
+            ]);
         });
+    }
+
+    private function findExistingCheckout(int $userId, string $idempotencyKey): ?Order
+    {
+        if ($idempotencyKey === '') {
+            return null;
+        }
+
+        return Order::where('user_id', $userId)
+            ->where('checkout_idempotency_key', $idempotencyKey)
+            ->whereNull('parent_order_id')
+            ->first()
+            ?->load([
+                'items.product',
+                'gifts.items.product',
+                'deliveryMethod',
+                'shippingAddress',
+                'partialOrders.items.product',
+                'partialOrders.warehouse',
+            ]);
     }
 
     /**
@@ -86,17 +184,9 @@ class CheckoutService
      */
     private function validateOrderAvailability(Order $cart, string $city): void
     {
-        foreach ($cart->items as $item) {
-            $availableInCity = $this->locationService->getProductQuantityInCity($item->product, $city);
-            
-            if ($availableInCity < $item->quantity) {
-                $productName = $item->product->name;
-                throw new \Exception(
-                    "Товар '{$productName}' недоступен в городе {$city} в нужном количестве. " .
-                    "Доступно: {$availableInCity}, требуется: {$item->quantity}"
-                );
-            }
-        }
+        // Одинаковый SKU может находиться отдельно и в нескольких подарках.
+        // Проверяем общую потребность, а не каждую строку изолированно.
+        $this->giftAvailabilityService->assertCartAvailable($cart, $city);
     }
 
     /**
@@ -107,7 +197,8 @@ class CheckoutService
         AddressClient $shippingAddress, 
         DeliveryMethod $deliveryMethod,
         string $paymentMethod,
-        ?string $customerNotes
+        ?string $customerNotes,
+        string $idempotencyKey
     ): Order {
         // Проверяем доступность товаров у поставщиков
         $supplierAllocations = [];
@@ -117,7 +208,7 @@ class CheckoutService
             
             if (!$isAvailableFromSupplier) {
                 $productName = $item->product->name;
-                throw new \Exception("Товар '{$productName}' недоступен для заказа у поставщиков");
+                throw new DomainException("Товар '{$productName}' недоступен для заказа у поставщиков");
             }
             
             // Находим лучшего поставщика для товара
@@ -125,7 +216,7 @@ class CheckoutService
             
             if (!$bestSupplier) {
                 $productName = $item->product->name;
-                throw new \Exception("Не найден поставщик для товара '{$productName}'");
+                throw new DomainException("Не найден поставщик для товара '{$productName}'");
             }
             
             $supplierAllocations[$bestSupplier->id][] = [
@@ -137,6 +228,7 @@ class CheckoutService
         
         // Обновляем заказ
         $cart->update([
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
             'status' => Order::STATUS_PENDING,
             'shipping_address_id' => $shippingAddress->id,
             'delivery_method_id' => $deliveryMethod->id,
@@ -144,24 +236,22 @@ class CheckoutService
             'shipping_cost' => $deliveryMethod->cost,
             'customer_notes' => $customerNotes,
             'is_supplier_order' => true,
+            'checkout_idempotency_key' => $idempotencyKey,
             'internal_notes' => 'ЗАКАЗ У ПОСТАВЩИКА - требуется ручная обработка',
             'confirmed_at' => now(),
         ]);
         
         // Создаем заказы поставщикам
         foreach ($supplierAllocations as $supplierId => $items) {
-            $supplier = \App\Models\Warehouse::find($supplierId);
+            $supplier = Supplier::findOrFail($supplierId);
+            $supplierOrder = $this->supplierOrderService->getOrCreateActiveOrder($supplier);
             
-            if ($supplier) {
-                $supplierOrder = $this->supplierOrderService->getOrCreateActiveOrder($supplier);
-                
-                foreach ($items as $item) {
-                    $this->supplierOrderService->addItemToSupplierOrder($supplierOrder, [
-                        'product_id' => $item['product_id'],
-                        'customer_order_id' => $cart->id,
-                        'quantity' => $item['quantity']
-                    ]);
-                }
+            foreach ($items as $item) {
+                $this->supplierOrderService->addItemToSupplierOrder($supplierOrder, [
+                    'product_id' => $item['product_id'],
+                    'customer_order_id' => $cart->id,
+                    'quantity' => $item['quantity']
+                ]);
             }
         }
         
@@ -174,7 +264,7 @@ class CheckoutService
             'items_count' => $cart->items->count()
         ]);
 
-        return $cart->fresh(['items.product', 'deliveryMethod', 'shippingAddress']);
+        return $cart->fresh(['items.product', 'gifts.items.product', 'deliveryMethod', 'shippingAddress']);
     }
 
     /**
@@ -197,6 +287,8 @@ class CheckoutService
                         'name' => $method->name,
                         'description' => $method->description,
                         'cost' => (float) $method->cost,
+                        'type' => $method->type,
+                        'provider_code' => $method->provider_code,
                         'estimated_days' => $method->getEstimatedDaysFormatted(),
                     ];
                 })
@@ -211,30 +303,128 @@ class CheckoutService
     {
         return DB::transaction(function () use ($userId, $orderId) {
             $order = Order::where('user_id', $userId)
-                ->where('status', '!=', Order::STATUS_CART)
+                ->where('sales_channel', Order::SALES_CHANNEL_ONLINE)
+                ->whereNull('parent_order_id')
+                ->lockForUpdate()
                 ->findOrFail($orderId);
-        
-            // Возвращаем товары на склад (если заказ не у поставщика)
-            if (!$order->is_supplier_order && $order->warehouse_id) {
-                foreach ($order->items as $item) {
-                    Inventory::where('product_id', $item->product_id)
-                        ->where('warehouse_id', $order->warehouse_id)
-                        ->increment('quantity', $item->quantity);
-                    
-                    // Очищаем кеш количества товара
-                    Cache::forget("product_{$item->product_id}_total_quantity");
-                }
-            }
-        
-            $order->update([
-                'status' => Order::STATUS_CANCELLED,
-                'cancelled_at' => now()
-            ]);
-            
-            // Очищаем кеш
-            Cache::forget("user_{$userId}_orders");
-        
-            return $order;
+
+            return $this->cancelLockedOrder(
+                $order,
+                $userId,
+                'Заказ отменён покупателем'
+            );
         });
+    }
+
+    public function cancelOrderByManager(
+        int $orderId,
+        int $managerId,
+        ?string $reason = null
+    ): Order {
+        return DB::transaction(function () use ($orderId, $managerId, $reason) {
+            $requestedOrder = Order::query()->findOrFail($orderId);
+            if ($requestedOrder->sales_channel === Order::SALES_CHANNEL_SELLER) {
+                throw new DomainException(
+                    'Продажа продавца обрабатывается через workflow fulfillment issues'
+                );
+            }
+            $mainOrderId = $requestedOrder->parent_order_id ?? $requestedOrder->id;
+
+            $order = Order::whereNull('parent_order_id')
+                ->lockForUpdate()
+                ->findOrFail($mainOrderId);
+
+            $notes = 'Отменён менеджером ID: ' . $managerId .
+                '. Причина: ' . ($reason ?? 'не указана');
+
+            return $this->cancelLockedOrder($order, $managerId, $notes);
+        });
+    }
+
+    private function cancelLockedOrder(Order $order, int $actorId, string $notes): Order
+    {
+        if ($order->status === Order::STATUS_CANCELLED) {
+            return $order->fresh([
+                'items.product',
+                'gifts.items.product',
+                'deliveryMethod',
+                'shippingAddress',
+                'partialOrders.items.product',
+                'partialOrders.warehouse',
+            ]);
+        }
+
+        if (!$order->canBeCancelled()) {
+            throw new DomainException('Невозможно отменить заказ в текущем статусе');
+        }
+
+        $partialOrders = Order::where('parent_order_id', $order->id)
+            ->orderBy('id')
+            ->lockForUpdate()
+            ->with(['items', 'warehouse'])
+            ->get();
+
+        // Поддержка старых заказов, где основной order одновременно был
+        // исполнением первого склада.
+        if ($partialOrders->isEmpty() && !$order->is_supplier_order && $order->warehouse_id) {
+            $order->loadMissing(['items', 'warehouse']);
+            $this->warehouseService->releaseOnlineStockForOrder($order, $actorId);
+        }
+
+        foreach ($partialOrders as $partialOrder) {
+            if ($partialOrder->status === Order::STATUS_CANCELLED) {
+                continue;
+            }
+
+            if (!$partialOrder->is_supplier_order) {
+                $this->warehouseService->releaseOnlineStockForOrder(
+                    $partialOrder,
+                    $actorId
+                );
+            }
+
+            $oldStatus = $partialOrder->status;
+            $partialOrder->update([
+                'status' => Order::STATUS_CANCELLED,
+                'cancelled_at' => now(),
+            ]);
+            $this->recordCancellation($partialOrder, $oldStatus, $actorId, $notes);
+        }
+
+        $oldStatus = $order->status;
+        $order->update([
+            'status' => Order::STATUS_CANCELLED,
+            'cancelled_at' => now(),
+            'stock_released_at' => $order->stock_reserved_at ? now() : null,
+            'internal_notes' => trim(($order->internal_notes ?? '') . "\n" . $notes),
+        ]);
+        $this->pricingService->releaseUsage($order);
+        $this->recordCancellation($order, $oldStatus, $actorId, $notes);
+
+        Cache::forget("user_{$order->user_id}_orders");
+
+        return $order->fresh([
+            'items.product',
+            'gifts.items.product',
+            'deliveryMethod',
+            'shippingAddress',
+            'partialOrders.items.product',
+            'partialOrders.warehouse',
+        ]);
+    }
+
+    private function recordCancellation(
+        Order $order,
+        string $oldStatus,
+        int $actorId,
+        string $notes
+    ): void {
+        OrderStatusHistory::create([
+            'order_id' => $order->id,
+            'from_status' => $oldStatus,
+            'to_status' => Order::STATUS_CANCELLED,
+            'changed_by' => $actorId,
+            'notes' => $notes,
+        ]);
     }
 }

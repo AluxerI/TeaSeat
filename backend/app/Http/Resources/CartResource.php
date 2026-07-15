@@ -16,15 +16,23 @@ class CartResource extends JsonResource
             'status_name' => $this->status_name,
             
             // Товары в корзине
-            'items' => CartItemResource::collection($this->whenLoaded('items')),
+            'items' => CartItemResource::collection(
+                $this->whenLoaded('items', fn () => $this->items
+                    ->whereNull('order_gift_id')
+                    ->values())
+            ),
+            'gifts' => OrderGiftResource::collection($this->whenLoaded('gifts')),
             
             // Итоговые суммы
             'products_total' => (float) $this->products_total,
+            'gift_markup_total' => (float) ($this->pricing_snapshot['gift_markup_total'] ?? 0),
             'promotion_discount' => (float) $this->promotion_discount,
             'personal_discount' => (float) $this->personal_discount,
             'cart_discount' => (float) ($this->cart_discount ?? 0),
             'shipping_cost' => (float) $this->shipping_cost,
+            'shipping_discount' => (float) ($this->shipping_discount ?? 0),
             'final_total' => (float) $this->final_total,
+            'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
             
             // Информация о доставке (если есть)
             'shipping_address' => $this->whenLoaded('shippingAddress', function() {
@@ -68,6 +76,7 @@ class CartItemResource extends JsonResource
         
         return [
             'id' => $this->id,
+            'order_gift_id' => $this->order_gift_id,
             'product_id' => $this->product_id,
             'quantity' => $this->quantity,
             
@@ -76,6 +85,9 @@ class CartItemResource extends JsonResource
                 'id' => $product->id,
                 'name' => $product->name,
                 'price' => (float) $product->price,
+                'stock_unit' => $product->stockUnit(),
+                'sale_step' => $product->saleStep(),
+                'price_unit_quantity' => $product->priceUnitQuantity(),
                 'image' => $productData['main_image_url'] ?? $product->main_image_url,
                 'weight_grams' => $product->weight_grams,
                 'is_available' => $productData['is_available'] ?? true,
@@ -83,13 +95,31 @@ class CartItemResource extends JsonResource
             
             // Цены с учётом скидок
             'unit_price' => (float) $this->unit_price,
+            'base_total' => (float) ($this->pricing_snapshot['base_total'] ?? round(
+                (float) $this->unit_price * $this->quantity / max(1, (int) $this->price_unit_quantity),
+                2
+            )),
+            'stock_unit' => $this->stock_unit ?: $product?->stockUnit(),
+            'sale_step' => (int) ($this->sale_step ?: $product?->saleStep() ?: 1),
+            'price_unit_quantity' => (int) ($this->price_unit_quantity ?: $product?->priceUnitQuantity() ?: 1),
             'promotion_discount_percent' => (float) ($this->promotion_discount_percent ?? 0),
             'personal_discount_percent' => (float) ($this->personal_discount_percent ?? 0),
+            'promotion_discount_amount' => (float) ($this->promotion_discount_amount ?? 0),
+            'selected_discount_amount' => (float) ($this->selected_discount_amount ?? 0),
+            'promotion' => $this->pricing_snapshot['promotion'] ?? null,
+            'selected_discount' => $this->pricing_snapshot['selected_discount'] ?? null,
             'final_unit_price' => (float) $this->final_unit_price,
             'total_price' => (float) $this->total_price,
             
             // Сумма сэкономленного
-            'saved_amount' => (float) (($this->unit_price - $this->final_unit_price) * $this->quantity),
+            'saved_amount' => round(max(
+                0,
+                (float) ($this->pricing_snapshot['base_total'] ?? round(
+                    (float) $this->unit_price * $this->quantity / max(1, (int) $this->price_unit_quantity),
+                    2
+                ))
+                    - (float) $this->total_price
+            ), 2),
         ];
     }
 }

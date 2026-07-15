@@ -85,6 +85,26 @@ services:
       retries: 5
       start_period: 10s
 
+  # Отдельная одноразовая PostgreSQL для PHPUnit.
+  # Запуск: docker compose --profile test up -d pgsql_test
+  pgsql_test:
+    image: postgres:13
+    profiles: ["test"]
+    environment:
+      - POSTGRES_USER=my_user
+      - POSTGRES_PASSWORD=102101
+      - POSTGRES_DB=teaseatsql_test
+    tmpfs:
+      - /var/lib/postgresql/data
+    networks:
+      - app
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U my_user -d teaseatsql_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 10
+      start_period: 3s
+
   redis:
     image: redis:alpine
     restart: always

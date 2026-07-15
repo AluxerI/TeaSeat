@@ -11,7 +11,7 @@ class IndexController extends Controller
 {
     public function __invoke(): JsonResponse
     {
-        $users = User::with(['addresses', 'roles'])->get();
+        $users = User::with(['addresses', 'roles', 'activeWarehouses'])->get();
 
         return response()->json([
             'data' => UserResource::collection($users)

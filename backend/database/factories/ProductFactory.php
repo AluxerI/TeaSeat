@@ -19,6 +19,9 @@ class ProductFactory extends Factory
             'description' => $this->faker->paragraph(),
             'brand_id' => Brand::factory(),
             'price' => $this->faker->numberBetween(100, 5000),
+            'stock_unit' => Product::STOCK_UNIT_PIECE,
+            'sale_step' => 1,
+            'price_unit_quantity' => 1,
             'weight_grams' => $this->faker->numberBetween(50, 1000),
             'sold_count' => $this->faker->numberBetween(0, 1000),
             // Добавляем поля для кеширования

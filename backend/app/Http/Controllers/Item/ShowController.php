@@ -16,7 +16,7 @@ class ShowController extends Controller
             'brand',
             'inventories.warehouse',
             'discounts'
-        ])->find($productId);
+        ])->individualSale()->find($productId);
 
         if (!$product) {
             return response()->json(['error' => 'Товар не найден'], 404);

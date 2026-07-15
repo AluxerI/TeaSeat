@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Support\Facades\Cache;
@@ -13,15 +14,31 @@ class Product extends Model
 {
     use HasFactory, ClearsModelCache, ResetsAdminBadges;
 
+    public const STOCK_UNIT_PIECE = 'piece';
+    public const STOCK_UNIT_GRAM = 'gram';
+    public const TYPE_REGULAR = 'regular';
+    public const TYPE_PREASSEMBLED_GIFT = 'preassembled_gift';
+
     protected $table = 'products';
+
+    protected $attributes = [
+        'product_type' => self::TYPE_REGULAR,
+        'is_individual_sale_enabled' => true,
+    ];
 
 
     protected $fillable = [
         'name',
         'ingredients',
         'description',
+        'assembly_instructions',
         'brand_id',
         'price',
+        'product_type',
+        'is_individual_sale_enabled',
+        'stock_unit',
+        'sale_step',
+        'price_unit_quantity',
         'weight_grams',
         'sold_count',
         'is_available',
@@ -32,10 +49,69 @@ class Product extends Model
 
     protected $casts = [
         'price' => 'decimal:2',
+        'sale_step' => 'integer',
+        'price_unit_quantity' => 'integer',
+        'is_individual_sale_enabled' => 'boolean',
         'is_available' => 'boolean',
         'total_quantity' => 'integer',
         'cached_data' => 'array',
     ];
+
+    public function stockUnit(): string
+    {
+        return $this->stock_unit ?: self::STOCK_UNIT_PIECE;
+    }
+
+    public function saleStep(): int
+    {
+        return max(1, (int) ($this->sale_step ?: 1));
+    }
+
+    public function priceUnitQuantity(): int
+    {
+        return max(1, (int) ($this->price_unit_quantity ?: 1));
+    }
+
+    public function isWeighted(): bool
+    {
+        return $this->stockUnit() === self::STOCK_UNIT_GRAM;
+    }
+
+    public function assertValidSaleQuantity(int $quantity): void
+    {
+        $step = $this->saleStep();
+
+        if ($quantity < $step || $quantity % $step !== 0) {
+            $unit = $this->isWeighted() ? 'г' : 'шт.';
+            throw new DomainException(
+                "Количество товара «{$this->name}» должно быть кратно {$step} {$unit}"
+            );
+        }
+    }
+
+    public function baseTotalForQuantity(int $quantity): float
+    {
+        $this->assertValidSaleQuantity($quantity);
+
+        return round(
+            (float) $this->price * $quantity / $this->priceUnitQuantity(),
+            2
+        );
+    }
+
+    public function discountUsesForQuantity(int $quantity): int
+    {
+        return $this->isWeighted() ? 1 : $quantity;
+    }
+
+    public function measurementSnapshot(): array
+    {
+        return [
+            'stock_unit' => $this->stockUnit(),
+            'sale_step' => $this->saleStep(),
+            'price_unit_quantity' => $this->priceUnitQuantity(),
+        ];
+    }
 
     /**
      * Отношения
@@ -55,7 +131,13 @@ class Product extends Model
     public function inventories()
     {
         return $this->hasMany(Inventory::class)->select([
-            'product_id', 'warehouse_id', 'quantity'
+            'id',
+            'product_id',
+            'warehouse_id',
+            'quantity',
+            'reserved_online_quantity',
+            'reserved_seller_quantity',
+            'last_restock_date',
         ]);
     }
 
@@ -111,6 +193,26 @@ class Product extends Model
         return $this->belongsToMany(Order::class, 'order_products')
             ->withPivot(['quantity', 'unit_price', 'final_unit_price', 'total_price'])
             ->withTimestamps();
+    }
+
+    public function fulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class);
+    }
+
+    public function constructorSizes()
+    {
+        return $this->hasMany(ProductSize::class);
+    }
+
+    public function isPreassembledGift(): bool
+    {
+        return $this->product_type === self::TYPE_PREASSEMBLED_GIFT;
+    }
+
+    public function canBeSoldIndividually(): bool
+    {
+        return (bool) $this->is_individual_sale_enabled;
     }
     /**
      * Получить URL главного изображения
@@ -210,24 +312,17 @@ class Product extends Model
     /**
      * Получить общее количество на складах
      */
-    private function getTotalQuantity(): float
+    private function getTotalQuantity(): int
     {
         $key = "product.{$this->id}.total_quantity";
 
-        return Cache::remember($key, 300, function () {
-            $inventories = $this->inventories()->get();
-            $total = 0;
-
-            foreach ($inventories as $inv) {
-                if ($inv->unit === 'gram') {
-                    $total += $inv->weight_quantity;
-                } else {
-                    $total += $inv->quantity;
-                }
-            }
-
-            return $total;
-        });
+        return (int) Cache::remember(
+            $key,
+            300,
+            fn () => Inventory::sumOnlineAvailable(
+                $this->inventories()->onlineFulfillment()
+            )
+        );
     }
 
     /**
@@ -242,6 +337,10 @@ class Product extends Model
                 'id' => $this->id,
                 'name' => $this->name,
                 'price' => (float) $this->price,
+                'product_type' => $this->product_type ?: self::TYPE_REGULAR,
+                'stock_unit' => $this->stockUnit(),
+                'sale_step' => $this->saleStep(),
+                'price_unit_quantity' => $this->priceUnitQuantity(),
                 'main_image_path' => $this->getMainImagePath(),
                 'main_image_url' => $this->getMainImageUrl(),
                 'background_image_path' => $this->getBackgroundImagePath(),
@@ -324,6 +423,8 @@ class Product extends Model
      */
     public function updateCacheFields(): void
     {
+        // Остаток мог измениться через Inventory или настройки точки хранения.
+        $this->clearCache();
         $totalQuantity = $this->getTotalQuantity();
         
         $this->updateQuietly([
@@ -397,6 +498,10 @@ class Product extends Model
     {
         return $query->where('is_available', true);
     }
+    public function scopeIndividualSale($query)
+    {
+        return $query->where('is_individual_sale_enabled', true);
+    }
     public function scopeForSelect($query)
     {
         return $query->select('id', 'name');
@@ -405,8 +510,12 @@ class Product extends Model
     public function scopeAvailableInCity($query, string $city)
     {
         return $query->where(function($q) use ($city) {
-            $q->whereHas('inventories.warehouse', function($query) use ($city) {
-                $query->where('city', $city)->where('quantity', '>', 0);
+            $q->whereHas('inventories', function($inventoryQuery) use ($city) {
+                $inventoryQuery
+                    ->availableForOnline()
+                    ->whereHas('warehouse', fn ($warehouseQuery) =>
+                        $warehouseQuery->where('city', $city)
+                    );
             })
             ->orWhereHas('suppliers');
         });
@@ -433,8 +542,14 @@ public function getInventoryData(): array
                 'warehouse_id' => $inventory->warehouse_id,
                 'warehouse_name' => $inventory->warehouse->name,
                 'warehouse_city' => $inventory->warehouse->city,
+                'warehouse_type' => $inventory->warehouse->type,
+                'is_online_fulfillment_enabled' =>
+                    $inventory->warehouse->is_online_fulfillment_enabled,
                 'quantity' => $inventory->quantity,
-                'weight_quantity' => $inventory->weight_quantity,
+                'reserved_online_quantity' => $inventory->reserved_online_quantity,
+                'reserved_seller_quantity' => $inventory->reserved_seller_quantity,
+                'available_quantity' => $inventory->availableQuantity(),
+                'shortage_quantity' => $inventory->shortageQuantity(),
                 'last_restock_date' => $inventory->last_restock_date?->format('d.m.Y'),
             ];
         })->values()->toArray();
@@ -456,8 +571,9 @@ public function getInventoryData(): array
                     'name' => $discount->name,
                     'type' => $discount->type,
                     'value' => (float) $discount->value,
-                    'start_at' => $discount->start_at?->format('d.m.Y'),
-                    'end_at' => $discount->end_at?->format('d.m.Y'),
+                    'value_type' => $discount->value_type,
+                    'start_date' => $discount->start_date?->format('d.m.Y'),
+                    'end_date' => $discount->end_date?->format('d.m.Y'),
                 ];
             })->values()->toArray();
         });

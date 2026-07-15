@@ -8,16 +8,15 @@ use App\Models\OrderProduct;
 use App\Models\User;
 use App\Models\Warehouse;
 use App\Models\Inventory;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 
 class CartService
 {
     public function __construct(
-        protected PriceCalculatorService $priceCalculator,
-        protected InventoryService $inventoryService,
-        protected LocationService $locationService
+        protected PricingService $pricingService,
+        protected GiftAvailabilityService $giftAvailabilityService
     ) {}
 
     /**
@@ -25,12 +24,10 @@ class CartService
      */
     public function getCart(int $userId): Order
     {
-        $cacheKey = "user_cart_{$userId}";
-        
-        return Cache::remember($cacheKey, 300, function () use ($userId) {
-            return Order::with([
+        return DB::transaction(function () use ($userId) {
+            $cart = Order::with([
                 'items.product',
-                'items.product.promotions',
+                'gifts.items.product',
                 'shippingAddress'
             ])->firstOrCreate([
                 'user_id' => $userId,
@@ -43,6 +40,14 @@ class CartService
                 'shipping_cost' => 0,
                 'final_total' => 0
             ]);
+
+            // Корзина может лежать открытой во время изменения акции в Filament.
+            // Поэтому GET корзины обновляет только производные суммы, но не расходует лимиты.
+            if ($cart->items->isNotEmpty()) {
+                $this->recalculateCart($cart);
+            }
+
+            return $cart->fresh(['items.product', 'gifts.items.product', 'shippingAddress']);
         });
     }
 
@@ -62,6 +67,10 @@ class CartService
         return DB::transaction(function () use ($userId, $productId, $quantity, $city, $isSupplierOrder) {
             $cart = $this->getCart($userId);
             $product = Product::with(['inventories.warehouse', 'suppliers'])->findOrFail($productId);
+            if (!$product->canBeSoldIndividually()) {
+                throw new DomainException('Этот товар доступен только как компонент подарка');
+            }
+            $product->assertValidSaleQuantity($quantity);
 
             // Для обычных заказов проверяем город
             if (!$isSupplierOrder && $city) {
@@ -79,14 +88,14 @@ class CartService
                 $this->validateGlobalAvailability($productId, $quantity);
             }
 
-            $user = User::find($userId);
-            $priceCalculation = $this->priceCalculator->calculateForProduct($product, $user);
-            
-            $this->upsertCartItem($cart, $product, $quantity, $priceCalculation);
+            $this->upsertCartItem($cart, $product, $quantity);
+            if (!$isSupplierOrder) {
+                $this->giftAvailabilityService->assertCartAvailable($cart->fresh('items'), $city);
+            }
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product', 'items.product.promotions']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -101,14 +110,14 @@ class CartService
             ->get();
         
         if ($suppliers->isEmpty()) {
-            throw new \Exception("Этот товар недоступен для заказа у поставщиков");
+            throw new DomainException("Этот товар недоступен для заказа у поставщиков");
         }
         
         $supplier = $suppliers->first();
         $minOrderQuantity = $supplier->pivot->min_order_quantity ?? 1;
         
         if ($quantity < $minOrderQuantity) {
-            throw new \Exception("Минимальный заказ у поставщика: {$minOrderQuantity} шт.");
+            throw new DomainException("Минимальный заказ у поставщика: {$minOrderQuantity}");
         }
     }
 
@@ -121,21 +130,25 @@ class CartService
             $cart = $this->getUserCart($userId);
             $cartItem = $cart->items()->with('product')->findOrFail($itemId);
 
+            if ($cartItem->order_gift_id !== null) {
+                throw new DomainException('Компонент подарка изменяется только через группу подарка');
+            }
+
             if ($quantity === 0) {
                 $cartItem->delete();
             } else {
+                $cartItem->product->assertValidSaleQuantity($quantity);
                 $this->validateGlobalAvailability($cartItem->product_id, $quantity);
-                
-                $user = User::find($userId);
-                $priceCalculation = $this->priceCalculator->calculateForProduct($cartItem->product, $user);
 
-                $this->updateCartItem($cartItem, $quantity, $priceCalculation);
+                $this->updateCartItem($cartItem, $quantity);
             }
+
+            $this->giftAvailabilityService->assertCartAvailable($cart->fresh('items'));
 
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product', 'items.product.promotions']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -147,12 +160,15 @@ class CartService
         return DB::transaction(function () use ($userId, $itemId) {
             $cart = $this->getUserCart($userId);
             $cartItem = $cart->items()->findOrFail($itemId);
+            if ($cartItem->order_gift_id !== null) {
+                throw new DomainException('Компонент подарка удаляется только вместе с подарком');
+            }
             
             $cartItem->delete();
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product', 'items.product.promotions']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -163,6 +179,7 @@ class CartService
     {
         return DB::transaction(function () use ($userId) {
             $cart = $this->getCart($userId);
+            $cart->gifts()->delete();
             $cart->items()->delete();
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
@@ -181,7 +198,7 @@ class CartService
 
         // Получаем города для всех товаров в корзине
         $incompatibleItems = $cart->items->load(['product.inventories' => function($query) {
-                $query->where('quantity', '>', 0)->with('warehouse');
+                $query->availableForOnline()->with('warehouse');
             }])
             ->filter(function ($item) use ($city) {
                 $itemCities = $item->product->inventories->pluck('warehouse.city')->unique();
@@ -191,7 +208,7 @@ class CartService
         if ($incompatibleItems->isNotEmpty()) {
             $incompatibleProductNames = $incompatibleItems->pluck('product.name')->join(', ');
             
-            throw new \Exception(
+            throw new DomainException(
                 "Не все товары в корзине доступны в городе {$city}. " .
                 "Следующие товары недоступны: {$incompatibleProductNames}"
             );
@@ -201,7 +218,7 @@ class CartService
         $productCities = $this->getProductCities($productId);
         if (!$productCities->contains($city)) {
             $availableCities = $productCities->join(', ');
-            throw new \Exception(
+            throw new DomainException(
                 "Товар недоступен в городе {$city}. " .
                 "Этот товар доступен в: " . ($availableCities ?: 'не определённых городах')
             );
@@ -216,7 +233,7 @@ class CartService
         $availableInCity = $this->getAvailableQuantityInCity($productId, $city);
         
         if ($availableInCity < $quantity) {
-            throw new \Exception(
+            throw new DomainException(
                 "Недостаточно товара в наличии в городе {$city}. Доступно: {$availableInCity}"
             );
         }
@@ -230,7 +247,7 @@ class CartService
         $totalAvailable = $this->getTotalAvailableQuantity($productId);
         
         if ($totalAvailable < $quantity) {
-            throw new \Exception("Недостаточно товара в наличии. Доступно: {$totalAvailable}");
+            throw new DomainException("Недостаточно товара в наличии. Доступно: {$totalAvailable}");
         }
     }
 
@@ -242,12 +259,16 @@ class CartService
         $cacheKey = "product_{$productId}_city_{$city}_quantity";
         
         return Cache::remember($cacheKey, 60, function () use ($productId, $city) {
-            $warehouseIds = Warehouse::where('city', $city)->active()->pluck('id');
+            $warehouseIds = Warehouse::where('city', $city)
+                ->onlineFulfillment()
+                ->pluck('id');
             
-            return Inventory::where('product_id', $productId)
-                ->whereIn('warehouse_id', $warehouseIds)
-                ->where('quantity', '>', 0)
-                ->sum('quantity');
+            return Inventory::sumOnlineAvailable(
+                Inventory::query()
+                    ->where('product_id', $productId)
+                    ->whereIn('warehouse_id', $warehouseIds)
+                    ->onlineFulfillment()
+            );
         });
     }
 
@@ -259,9 +280,11 @@ class CartService
         $cacheKey = "product_{$productId}_total_quantity";
         
         return Cache::remember($cacheKey, 60, function () use ($productId) {
-            return Inventory::where('product_id', $productId)
-                ->where('quantity', '>', 0)
-                ->sum('quantity');
+            return Inventory::sumOnlineAvailable(
+                Inventory::query()
+                    ->where('product_id', $productId)
+                    ->onlineFulfillment()
+            );
         });
     }
 
@@ -274,7 +297,7 @@ class CartService
         
         return Cache::remember($cacheKey, 3600, function () use ($productId) {
             return Inventory::where('product_id', $productId)
-                ->where('quantity', '>', 0)
+                ->availableForOnline()
                 ->with('warehouse')
                 ->get()
                 ->pluck('warehouse.city')
@@ -286,45 +309,54 @@ class CartService
     /**
      * Добавить или обновить товар в корзине
      */
-    private function upsertCartItem(Order $cart, Product $product, int $quantity, array $priceCalculation): void
+    private function upsertCartItem(Order $cart, Product $product, int $quantity): void
     {
-        $cartItem = $cart->items()->where('product_id', $product->id)->first();
+        $cartItem = $cart->items()
+            ->where('product_id', $product->id)
+            ->whereNull('order_gift_id')
+            ->first();
 
         if ($cartItem) {
-            $this->updateCartItem($cartItem, $quantity, $priceCalculation);
+            $this->updateCartItem($cartItem, $quantity);
         } else {
-            $this->createCartItem($cart, $product, $quantity, $priceCalculation);
+            $this->createCartItem($cart, $product, $quantity);
         }
     }
 
     /**
      * Создать запись товара в корзине
      */
-    private function createCartItem(Order $cart, Product $product, int $quantity, array $priceCalculation): void
+    private function createCartItem(Order $cart, Product $product, int $quantity): void
     {
+        $baseTotal = $product->baseTotalForQuantity($quantity);
+
         $cart->items()->create([
             'product_id' => $product->id,
             'quantity' => $quantity,
-            'unit_price' => $priceCalculation['base_price'],
-            'promotion_discount_percent' => $priceCalculation['promotion_discount'],
-            'personal_discount_percent' => $priceCalculation['personal_discount'],
-            'final_unit_price' => $priceCalculation['final_price'],
-            'total_price' => $quantity * $priceCalculation['final_price']
+            ...$product->measurementSnapshot(),
+            'unit_price' => $product->price,
+            'promotion_discount_percent' => 0,
+            'personal_discount_percent' => 0,
+            'final_unit_price' => $product->price,
+            'total_price' => $baseTotal,
         ]);
     }
 
     /**
      * Обновить запись товара в корзине
      */
-    private function updateCartItem(OrderProduct $cartItem, int $quantity, array $priceCalculation): void
+    private function updateCartItem(OrderProduct $cartItem, int $quantity): void
     {
+        $product = $cartItem->product;
+
         $cartItem->update([
             'quantity' => $quantity,
-            'unit_price' => $priceCalculation['base_price'],
-            'promotion_discount_percent' => $priceCalculation['promotion_discount'],
-            'personal_discount_percent' => $priceCalculation['personal_discount'],
-            'final_unit_price' => $priceCalculation['final_price'],
-            'total_price' => $quantity * $priceCalculation['final_price']
+            ...$product->measurementSnapshot(),
+            'unit_price' => $product->price,
+            'promotion_discount_percent' => 0,
+            'personal_discount_percent' => 0,
+            'final_unit_price' => $product->price,
+            'total_price' => $product->baseTotalForQuantity($quantity),
         ]);
     }
 
@@ -333,26 +365,36 @@ class CartService
      */
     private function recalculateCart(Order $cart): void
     {
-        $cart->load('items');
+        $cart->load('items.product');
 
-        $productsTotal = 0;
-        $promotionDiscount = 0;
-        $personalDiscount = 0;
-        $finalTotal = 0;
-
-        foreach ($cart->items as $item) {
-            $productsTotal += $item->quantity * $item->unit_price;
-            $promotionDiscount += $item->quantity * ($item->unit_price * $item->promotion_discount_percent / 100);
-            $personalDiscount += $item->quantity * ($item->unit_price * $item->personal_discount_percent / 100);
-            $finalTotal += $item->total_price;
+        if ($cart->items->isEmpty()) {
+            $cart->update([
+                'products_total' => 0,
+                'promotion_discount' => 0,
+                'personal_discount' => 0,
+                'cart_discount' => 0,
+                'shipping_discount' => 0,
+                'final_total' => 0,
+                'discount_id' => null,
+                'applied_promotion_code' => null,
+                'pricing_snapshot' => null,
+            ]);
+            return;
         }
 
-        $cart->update([
-            'products_total' => $productsTotal,
-            'promotion_discount' => $promotionDiscount,
-            'personal_discount' => $personalDiscount,
-            'final_total' => $finalTotal - ($cart->cart_discount ?? 0)
-        ]);
+        $quote = $this->pricingService->quoteOrder(
+            $cart,
+            User::findOrFail($cart->user_id)
+        );
+        $this->pricingService->applyQuoteToOrder($cart, $quote);
+    }
+
+    public function refreshPricing(Order $cart): Order
+    {
+        $this->recalculateCart($cart);
+        $this->clearCartCache((int) $cart->user_id);
+
+        return $cart->fresh(['items.product', 'gifts.items.product', 'shippingAddress']);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
+use App\Http\Resources\UserResource;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 
@@ -17,20 +18,25 @@ class AuthenticatedSessionController extends Controller
             'password' => ['required'],
         ]);
 
-        if (!Auth::attempt($request->only('email', 'password'))) { 
+        if (!Auth::attempt([
+            'email' => $request->string('email')->toString(),
+            'password' => $request->string('password')->toString(),
+            'is_active' => true,
+        ])) {
             return response()->json([
                 'message' => 'Invalid credentials'
             ], 401); 
         }
 
-        $user = Auth::user();
-        // $token = $user->createToken('auth-token')->plainTextToken;
-        $token = $user->createTokenWithLimit('auth-token', ['*'], 5);
+        /** @var User $user */
+        $user = Auth::user()->load(['roles', 'activeWarehouses']);
+        $token = $user->createTokenWithLimit('auth-token', ['*'], 5)->plainTextToken;
         
         return response()->json([ 
             'message' => 'Login successful',
-            'user' => $user,
-            'token' => $token
+            'user' => new UserResource($user),
+            'token' => $token,
+            'token_type' => 'Bearer',
         ]);
     }
 

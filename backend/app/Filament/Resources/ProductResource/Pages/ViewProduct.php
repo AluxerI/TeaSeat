@@ -36,10 +36,16 @@ class ViewProduct extends ViewRecord
                                 ->dehydrated(false),
                             
                             TextInput::make('price')
-                                ->label('Цена')
+                                ->label('Цена за базовое количество')
                                 ->disabled()
                                 ->dehydrated(false)
                                 ->prefix('₽'),
+
+                            Placeholder::make('measurement')
+                                ->label('Единица и шаг продажи')
+                                ->content(fn ($record) => $record->isWeighted()
+                                    ? "{$record->priceUnitQuantity()} г, шаг {$record->saleStep()} г"
+                                    : 'Штуки, шаг 1 шт.'),
                             
                             TextInput::make('brand.name')
                                 ->label('Бренд')
@@ -47,10 +53,11 @@ class ViewProduct extends ViewRecord
                                 ->dehydrated(false),
                             
                             TextInput::make('weight_grams')
-                                ->label('Вес (грамм)')
+                                ->label('Физический вес одной штуки')
                                 ->disabled()
                                 ->dehydrated(false)
-                                ->suffix('г'),
+                                ->suffix('г')
+                                ->visible(fn ($record) => !$record?->isWeighted()),
                             
                             TextInput::make('sold_count')
                                 ->label('Продано')
@@ -136,7 +143,8 @@ class ViewProduct extends ViewRecord
                             $html .= '<thead><tr class="bg-gray-100">';
                             $html .= '<th class="border p-2 text-left">Склад</th>';
                             $html .= '<th class="border p-2 text-left">Город</th>';
-                            $html .= '<th class="border p-2 text-left">Количество</th>';
+                            $html .= '<th class="border p-2 text-left">Физически</th>';
+                            $html .= '<th class="border p-2 text-left">Свободно</th>';
                             $html .= '<th class="border p-2 text-left">Последняя поставка</th>';
                             $html .= '</tr></thead><tbody>';
                             
@@ -144,7 +152,9 @@ class ViewProduct extends ViewRecord
                                 $html .= '<tr>';
                                 $html .= '<td class="border p-2">' . ($inventory->warehouse->name ?? '—') . '</td>';
                                 $html .= '<td class="border p-2">' . ($inventory->warehouse->city ?? '—') . '</td>';
-                                $html .= '<td class="border p-2">' . $inventory->quantity . '</td>';
+                                $unit = $record->isWeighted() ? ' г' : ' шт.';
+                                $html .= '<td class="border p-2">' . $inventory->quantity . $unit . '</td>';
+                                $html .= '<td class="border p-2">' . $inventory->availableQuantity() . $unit . '</td>';
                                 $html .= '<td class="border p-2">' . ($inventory->last_restock_date ?? '—') . '</td>';
                                 $html .= '</tr>';
                             }
@@ -201,8 +211,14 @@ class ViewProduct extends ViewRecord
                                 ->dehydrated(false),
                             
                             Placeholder::make('total_quantity')
-                                ->label('Общий остаток')
-                                ->content(fn ($record) => $record->inventories->sum('quantity') . ' шт.'),
+                                ->label('Доступно онлайн')
+                                ->content(fn ($record) => $record->inventories->sum(
+                                    fn ($inventory) => $inventory->warehouse?->is_active
+                                        && $inventory->warehouse?->is_online_fulfillment_enabled
+                                            ? $inventory->availableQuantity()
+                                            : 0
+                                )
+                                    . ($record->isWeighted() ? ' г' : ' шт.')),
                             
                             Placeholder::make('created_at')
                                 ->label('Дата создания')

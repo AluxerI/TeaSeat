@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\UserResource\Pages;
 use App\Models\User;
+use App\Models\Warehouse;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -20,11 +21,13 @@ use Filament\Forms\Components\Toggle;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\TrashedFilter;
+use Illuminate\Database\Eloquent\Model;
 use Spatie\Permission\Models\Role;
 use App\Traits\HasNavigationBadge;
 
@@ -45,7 +48,7 @@ class UserResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['roles']);
+            ->with(['roles', 'activeWarehouses']);
     }
     public static function form(Form $form): Form
     {
@@ -152,7 +155,39 @@ class UserResource extends Resource
                                             ->options(function () {
                                                 return Role::pluck('name', 'id');
                                             })
-                                            ->helperText('Назначьте роли пользователю (admin, manager, user)'),
+                                            ->helperText('Один аккаунт может совмещать роли admin, manager, seller, picker, courier и user.'),
+                                    ]),
+
+                                Section::make('Рабочие точки')
+                                    ->description('Активная связь разрешает сотруднику работать на точке. Можно выбрать несколько.')
+                                    ->schema([
+                                        CheckboxList::make('active_work_location_ids')
+                                            ->label('Активные точки')
+                                            ->options(fn (): array => Warehouse::query()
+                                                ->active()
+                                                ->orderBy('city')
+                                                ->orderBy('name')
+                                                ->get()
+                                                ->mapWithKeys(fn (Warehouse $warehouse) => [
+                                                    $warehouse->id => sprintf(
+                                                        '%s · %s%s',
+                                                        $warehouse->type === Warehouse::TYPE_STORE ? 'Магазин' : 'Склад',
+                                                        $warehouse->name,
+                                                        $warehouse->city ? ' — ' . $warehouse->city : ''
+                                                    ),
+                                                ])
+                                                ->all())
+                                            ->afterStateHydrated(function (CheckboxList $component, ?User $record): void {
+                                                $component->state(
+                                                    $record?->activeWarehouses()
+                                                        ->pluck('warehouses.id')
+                                                        ->map(fn ($id) => (string) $id)
+                                                        ->all() ?? []
+                                                );
+                                            })
+                                            ->bulkToggleable()
+                                            ->columns(2)
+                                            ->helperText('Для покупателя список должен быть пустым. Менеджер пока видит все заказы независимо от точек.'),
                                     ]),
                                 
                                 Section::make('Пермиссии')
@@ -375,10 +410,19 @@ class UserResource extends Resource
                     ->color(fn (string $state): string => match ($state) {
                         'admin' => 'danger',
                         'manager' => 'warning',
+                        'seller' => 'info',
+                        'picker' => 'success',
+                        'courier' => 'primary',
                         'user' => 'success',
                         default => 'gray',
                     })
                     ->searchable(),
+
+                TextColumn::make('activeWarehouses.name')
+                    ->label('Рабочие точки')
+                    ->badge()
+                    ->separator(',')
+                    ->toggleable(),
                 
                 TextColumn::make('orders_count')
                     ->label('Заказов')
@@ -454,6 +498,56 @@ class UserResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function canViewAny(): bool
+    {
+        return auth()->user()?->can('manage users') ?? false;
+    }
+
+    public static function canView(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canCreate(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canForceDelete(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canForceDeleteAny(): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canRestore(Model $record): bool
+    {
+        return static::canViewAny();
+    }
+
+    public static function canRestoreAny(): bool
+    {
+        return static::canViewAny();
     }
 
     public static function getPages(): array

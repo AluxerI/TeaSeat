@@ -11,7 +11,7 @@ class UserSeeder extends Seeder
     public function run(): void
     {
         // Создаём администратора (created_by = 1)
-        User::firstOrCreate(
+        $admin = User::firstOrCreate(
             ['email' => 'admin@teaseat.com'],
             [
                 'name' => 'Admin',
@@ -20,9 +20,10 @@ class UserSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+        $admin->syncRoles([User::ROLE_ADMIN]);
 
         // Создаём тестового пользователя
-        User::firstOrCreate(
+        $customer = User::firstOrCreate(
             ['email' => 'user@teaseat.com'],
             [
                 'name' => 'Test User',
@@ -31,10 +32,14 @@ class UserSeeder extends Seeder
                 'is_active' => true,
             ]
         );
+        $customer->syncRoles([User::ROLE_USER]);
 
         // Создаём ещё несколько тестовых пользователей (если нужно)
         if (User::count() < 5) {
-            User::factory()->count(3)->create();
+            User::factory()
+                ->count(3)
+                ->create()
+                ->each(fn (User $user) => $user->assignRole(User::ROLE_USER));
         }
     }
 }

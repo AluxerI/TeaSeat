@@ -6,6 +6,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget as BaseWidget;
 use App\Services\AdminDashboardService;
+use App\Models\Inventory;
 use Filament\Tables\Filters\SelectFilter;
 
 class LowStockTable extends BaseWidget
@@ -30,7 +31,9 @@ class LowStockTable extends BaseWidget
                     ->badge()
                     ->color('danger')
                     ->getStateUsing(function ($record) {
-                        return $record->inventories()->sum('quantity');
+                        return Inventory::sumOnlineAvailable(
+                            $record->inventories()->onlineFulfillment()
+                        );
                     }),
             ])
             ->filters([
@@ -41,14 +44,14 @@ class LowStockTable extends BaseWidget
                     ->query(function ($query, $data) {
                         if (!$data['value']) {
                             return $query->whereHas('inventories', function ($q) {
-                                $q->where('quantity', '>', 0)
-                                  ->where('quantity', '<', 10);
+                                $q->availableForOnline()
+                                    ->whereRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' < 10');
                             });
                         }
                         return $query->whereHas('inventories', function ($q) use ($data) {
                             $q->where('warehouse_id', $data['value'])
-                              ->where('quantity', '>', 0)
-                              ->where('quantity', '<', 10);
+                                ->availableForOnline()
+                                ->whereRaw(Inventory::ONLINE_AVAILABLE_EXPRESSION . ' < 10');
                         });
                     }),
             ])

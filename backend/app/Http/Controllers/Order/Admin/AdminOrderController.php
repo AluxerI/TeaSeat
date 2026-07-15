@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Order;
 use App\Http\Resources\AdminOrderResource;
 use App\Services\OrderManagementService;
+use DomainException;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
@@ -41,9 +42,13 @@ class AdminOrderController extends Controller
     {
         $order->load([
             'items.product', 
+            'gifts.items.product',
             'deliveryMethod', 
             'shippingAddress',
             'warehouse',
+            'destinationWarehouse',
+            'picker',
+            'courier',
             'user',
             'partialOrders.items.product',
             'partialOrders.warehouse',
@@ -61,22 +66,40 @@ class AdminOrderController extends Controller
      */
     public function updateStatus(Order $order, Request $request): JsonResponse
     {
+        if ($order->sales_channel === Order::SALES_CHANNEL_SELLER) {
+            return response()->json([
+                'message' => 'Статусы продажи продавца меняются только через PWA и будущий workflow проблем комплектации.',
+            ], 422);
+        }
+
         $request->validate([
             'status' => 'required|in:pending,confirmed,processing,shipped,delivered,cancelled',
             'internal_notes' => 'nullable|string|max:1000'
         ]);
 
-        $updatedOrder = $this->orderService->updateOrderStatus(
-            $order, 
-            $request->status, 
-            $request->internal_notes,
-            Auth::id() 
-        );
+        try {
+            $updatedOrder = $this->orderService->updateOrderStatus(
+                $order,
+                $request->status,
+                $request->internal_notes,
+                Auth::id()
+            );
+        } catch (DomainException $exception) {
+            return $this->transitionRejected($exception);
+        }
 
         return response()->json([
             'message' => 'Статус заказа обновлен',
             'data' => new AdminOrderResource($updatedOrder)
         ]);
+    }
+
+    private function transitionRejected(DomainException $exception): JsonResponse
+    {
+        return response()->json([
+            'message' => $exception->getMessage(),
+            'code' => 'order_transition_rejected',
+        ], 409);
     }
 
     /**

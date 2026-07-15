@@ -43,6 +43,8 @@ class InventoryFactory extends Factory
             'product_id' => $productId,
             'warehouse_id' => $warehouseId,
             'quantity' => $quantity,
+            'reserved_online_quantity' => 0,
+            'reserved_seller_quantity' => 0,
             'last_restock_date' => $quantity > 0 
                 ? $this->faker->dateTimeBetween('-1 year', 'now') 
                 : null,

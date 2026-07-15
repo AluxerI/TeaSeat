@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\DB;
 use App\Traits\ClearsModelCache;
 use App\Traits\HasDiscountRelations;
 
@@ -17,6 +16,7 @@ class Discount extends Model
         'name',
         'description',
         'value',
+        'value_type',
         'type',
         'start_date',
         'end_date',
@@ -32,6 +32,7 @@ class Discount extends Model
 
     protected $casts = [
         'value' => 'decimal:2',
+        'value_type' => 'string',
         'min_order_amount' => 'decimal:2',
         'is_active' => 'boolean',
         'is_global' => 'boolean',
@@ -50,6 +51,18 @@ class Discount extends Model
     const TYPE_PROMOTION = 'promotion';
     const TYPE_CART = 'cart';
     const TYPE_SHIPPING = 'shipping';
+
+    const VALUE_PERCENT = 'percent';
+    const VALUE_FIXED = 'fixed';
+
+    public function setCodeAttribute(?string $value): void
+    {
+        $normalized = trim((string) $value);
+
+        $this->attributes['code'] = $normalized === ''
+            ? null
+            : mb_strtoupper($normalized);
+    }
 
     /**
      * Заказы, в которых применена эта скидка
@@ -116,13 +129,18 @@ class Discount extends Model
      */
     public function markAsUsedForUser(User $user): void
     {
+        $newUsedCount = (int) $this->users()
+            ->where('users.id', $user->id)
+            ->firstOrFail()
+            ->pivot
+            ->used_count + 1;
+
         $this->users()->updateExistingPivot($user->id, [
-            'is_used' => true,
-            'used_count' => DB::raw('used_count + 1')
+            'is_used' => $this->usage_per_user
+                ? $newUsedCount >= $this->usage_per_user
+                : false,
+            'used_count' => $newUsedCount,
         ]);
-        
-        // Увеличиваем общий счётчик использований
-        $this->increment('used_count');
     }
 
     /**
@@ -142,7 +160,11 @@ class Discount extends Model
      */
     public function calculateDiscountAmount(float $amount): float
     {
-        return round($amount * ($this->value / 100), 2);
+        $discount = $this->value_type === self::VALUE_FIXED
+            ? (float) $this->value
+            : $amount * ((float) $this->value / 100);
+
+        return round(min($amount, $discount), 2);
     }
 
     /**

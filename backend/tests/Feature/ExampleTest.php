@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 // use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\Group;
 use Tests\TestCase;
 
+#[Group('legacy')]
 class ExampleTest extends TestCase
 {
     /**

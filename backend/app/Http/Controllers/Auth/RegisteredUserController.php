@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Http\Resources\UserResource;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -30,7 +31,7 @@ class RegisteredUserController extends Controller
             'phone' => $request->phone,
             'password' => Hash::make($request->string('password')),
         ]);
-        $user->assignRole('user');
+        $user->assignRole(User::ROLE_USER);
         $token = $user->createToken('auth-token')->plainTextToken;
 
 
@@ -41,8 +42,9 @@ class RegisteredUserController extends Controller
 
         return response()->json([
             'message' => 'User registered successfully',
-            'user' => $user,
-            'token' => $token
+            'user' => new UserResource($user->load(['roles', 'activeWarehouses'])),
+            'token' => $token,
+            'token_type' => 'Bearer',
         ], 201); // 201 Created - стандартный код для успешного создания ресурса
         
     }

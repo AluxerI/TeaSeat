@@ -2,19 +2,36 @@
 
 namespace App\Models;
 
+use App\Services\AdminBadgeService;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
-use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Facades\Cache;
-use App\Services\AdminBadgeService;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     use HasFactory, HasRoles, HasApiTokens, Notifiable, SoftDeletes;
+
+    public const ROLE_ADMIN = 'admin';
+    public const ROLE_MANAGER = 'manager';
+    public const ROLE_SELLER = 'seller';
+    public const ROLE_PICKER = 'picker';
+    public const ROLE_COURIER = 'courier';
+    public const ROLE_USER = 'user';
+
+    public const STAFF_ROLES = [
+        self::ROLE_ADMIN,
+        self::ROLE_MANAGER,
+        self::ROLE_SELLER,
+        self::ROLE_PICKER,
+        self::ROLE_COURIER,
+    ];
 
     public function discounts()
     {
@@ -32,7 +49,6 @@ class User extends Authenticatable implements MustVerifyEmail
                 Discount::TYPE_LOYALTY,
                 Discount::TYPE_REFERRAL,
             ])
-            ->wherePivot('is_used', false)
             ->where(function($query) {
                 $query->whereNull('discounts.start_date')
                       ->orWhere('discounts.start_date', '<=', now());
@@ -97,6 +113,66 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return $this->hasMany(Order::class);
     }
+
+    public function warehouses()
+    {
+        return $this->belongsToMany(Warehouse::class, 'user_warehouse')
+            ->withPivot('is_active')
+            ->withTimestamps();
+    }
+
+    public function activeWarehouses()
+    {
+        return $this->warehouses()
+            ->wherePivot('is_active', true)
+            ->where('warehouses.is_active', true);
+    }
+
+    public function staffDevices()
+    {
+        return $this->hasMany(StaffDevice::class);
+    }
+
+    public function managedFulfillmentIssues()
+    {
+        return $this->hasMany(FulfillmentIssue::class, 'manager_id');
+    }
+
+    public function pickedOrders()
+    {
+        return $this->hasMany(Order::class, 'picker_id');
+    }
+
+    public function courierOrders()
+    {
+        return $this->hasMany(Order::class, 'courier_id');
+    }
+
+    public function isStaff(): bool
+    {
+        return $this->hasAnyRole(self::STAFF_ROLES);
+    }
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        return $this->is_active
+            && $this->hasAnyRole([self::ROLE_ADMIN, self::ROLE_MANAGER]);
+    }
+
+    public function hasWarehouseAccess(int $warehouseId): bool
+    {
+        if (!$this->is_active) {
+            return false;
+        }
+
+        if ($this->hasAnyRole([self::ROLE_ADMIN, self::ROLE_MANAGER])) {
+            return true;
+        }
+
+        return $this->activeWarehouses()
+            ->whereKey($warehouseId)
+            ->exists();
+    }
     
     public function phoneVerificationCodes()
     {
@@ -151,9 +227,14 @@ class User extends Authenticatable implements MustVerifyEmail
      */
      protected static function booted()
     {
-        static::saved(function ($user) {
+        static::saved(function (User $user) {
             $user->clearCache();
             AdminBadgeService::clearCache(); // 👈 ОЧИЩАЕМ КЕШ БЕЙДЖЕРОВ
+
+            if ($user->wasChanged('is_active') && !$user->is_active) {
+                $user->tokens()->delete();
+                $user->sessions()->delete();
+            }
         });
 
         static::deleted(function ($user) {
@@ -191,6 +272,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function cart()
     {
         return $this->hasOne(Order::class)->where('status', Order::STATUS_CART);
+    }
+
+    public function gifts()
+    {
+        return $this->hasMany(Gift::class);
     }
 
     public function completedOrders()

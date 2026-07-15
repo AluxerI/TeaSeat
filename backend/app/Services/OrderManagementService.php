@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DeliveryMethod;
 use App\Models\Order;
 use App\Models\OrderStatusHistory;
 use Illuminate\Http\Request;
@@ -10,6 +11,10 @@ use Illuminate\Support\Facades\DB;
 
 class OrderManagementService
 {
+    public function __construct(
+        protected CheckoutService $checkoutService
+    ) {}
+
     /**
      * Получить заказы с фильтрами
      */
@@ -17,6 +22,7 @@ class OrderManagementService
     {
         $query = Order::with(['user', 'deliveryMethod', 'shippingAddress'])
             ->realOrders()
+            ->whereNull('parent_order_id')
             ->latest();
 
         // Фильтр по статусу
@@ -61,30 +67,160 @@ class OrderManagementService
      */
     public function updateOrderStatus(Order $order, string $status, ?string $notes = null, ?int $managerId = null): Order
     {
+        if ($order->sales_channel === Order::SALES_CHANNEL_SELLER) {
+            throw new \DomainException(
+                'Продажа продавца меняется только через PWA и workflow fulfillment issues'
+            );
+        }
+
+        if ($status === Order::STATUS_CANCELLED) {
+            return $this->cancelOrderByManager(
+                $order,
+                $notes,
+                $managerId ?? $order->user_id
+            );
+        }
+
         return DB::transaction(function () use ($order, $status, $notes, $managerId) {
-            $oldStatus = $order->status;
-            
-            $order->update(['status' => $status]);
+            $lockedOrder = Order::query()
+                ->lockForUpdate()
+                ->findOrFail($order->id);
+            $oldStatus = $lockedOrder->status;
+            $actorId = $managerId ?? $lockedOrder->user_id;
+
+            if ($oldStatus === $status) {
+                return $lockedOrder->fresh();
+            }
+
+            $isOnlineFulfillment = $lockedOrder->sales_channel
+                    === Order::SALES_CHANNEL_ONLINE
+                && !$lockedOrder->is_supplier_order;
+
+            if ($isOnlineFulfillment
+                && $status === Order::STATUS_PROCESSING) {
+                throw new \DomainException(
+                    'Сборку может начать только сборщик через workflow сборки'
+                );
+            }
+            if ($isOnlineFulfillment && in_array($oldStatus, [
+                Order::STATUS_PROCESSING,
+                Order::STATUS_AWAITING_RECEIPT,
+                Order::STATUS_DELIVERED,
+            ], true)) {
+                throw new \DomainException(
+                    'Текущий этап меняется только через workflow ответственного сотрудника'
+                );
+            }
+
+            if ($status === Order::STATUS_READY_FOR_DELIVERY) {
+                throw new \DomainException(
+                    'Готовность подтверждается только сборщиком через workflow сборки'
+                );
+            }
+            if ($oldStatus === Order::STATUS_READY_FOR_DELIVERY) {
+                $lockedOrder->loadMissing('deliveryMethod');
+                if ($lockedOrder->isWarehouseTransfer()
+                    || $lockedOrder->deliveryMethod?->isHandledByCourier()) {
+                    throw new \DomainException(
+                        'Готовая доставка меняется только через workflow курьера или возврата на склад'
+                    );
+                }
+
+                $allowedStatuses = $lockedOrder->deliveryMethod?->type
+                    === DeliveryMethod::TYPE_PICKUP
+                        ? [Order::STATUS_DELIVERED]
+                        : [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED];
+                if (!in_array($status, $allowedStatuses, true)) {
+                    throw new \DomainException(
+                        'Упакованный заказ можно только передать внешней службе или выдать покупателю'
+                    );
+                }
+            }
+
+            if ($isOnlineFulfillment
+                && in_array($status, [
+                    Order::STATUS_SHIPPED,
+                    Order::STATUS_DELIVERED,
+                ], true)
+                && $oldStatus !== Order::STATUS_READY_FOR_DELIVERY
+                && !($oldStatus === Order::STATUS_SHIPPED
+                    && $status === Order::STATUS_DELIVERED)) {
+                throw new \DomainException(
+                    'Сначала заказ должен пройти сборку и получить статус готовности'
+                );
+            }
+
+            if (
+                in_array($status, [Order::STATUS_SHIPPED, Order::STATUS_DELIVERED], true)
+                && $isOnlineFulfillment
+            ) {
+                if ($lockedOrder->stock_committed_at === null) {
+                    throw new \DomainException(
+                        'Сначала сборщик должен завершить упаковку и складское списание'
+                    );
+                }
+            }
+
+            $lockedOrder->update(['status' => $status]);
         
             // Логируем смену статуса
             OrderStatusHistory::create([
-                'order_id' => $order->id,
+                'order_id' => $lockedOrder->id,
                 'from_status' => $oldStatus,
                 'to_status' => $status,
-                'changed_by' => $managerId, // ← используем переданный ID
+                'changed_by' => $actorId,
                 'notes' => $notes
             ]);
         
             // Обновляем internal_notes если есть
             if ($notes) {
-                $order->update([
-                    'internal_notes' => ($order->internal_notes ?? '') . "\n" . now()->format('d.m.Y H:i') . ": " . $notes
+                $lockedOrder->update([
+                    'internal_notes' => ($lockedOrder->internal_notes ?? '') . "\n" . now()->format('d.m.Y H:i') . ": " . $notes
                 ]);
             }
         
-            $this->updateStatusTimestamps($order, $status);
+            $this->updateStatusTimestamps($lockedOrder, $status);
+
+            if (!$lockedOrder->parent_order_id) {
+                $partialOrders = Order::query()
+                    ->where('parent_order_id', $lockedOrder->id)
+                    ->where('status', '!=', Order::STATUS_CANCELLED)
+                    ->orderBy('id')
+                    ->lockForUpdate()
+                    ->get();
+
+                foreach ($partialOrders as $partialOrder) {
+                    $partialOldStatus = $partialOrder->status;
+                    if ($partialOldStatus === $status) {
+                        continue;
+                    }
+                    if (in_array($partialOldStatus, [
+                        Order::STATUS_CANCELLED,
+                        Order::STATUS_DELIVERED,
+                    ], true)) {
+                        continue;
+                    }
+                    if ($status === Order::STATUS_CONFIRMED
+                        && !in_array($partialOldStatus, [
+                            Order::STATUS_PENDING,
+                            Order::STATUS_MANAGER_REVIEW,
+                        ], true)) {
+                        continue;
+                    }
+
+                    $partialOrder->update(['status' => $status]);
+                    $this->updateStatusTimestamps($partialOrder, $status);
+                    OrderStatusHistory::create([
+                        'order_id' => $partialOrder->id,
+                        'from_status' => $partialOldStatus,
+                        'to_status' => $status,
+                        'changed_by' => $actorId,
+                        'notes' => 'Синхронизировано с основным заказом',
+                    ]);
+                }
+            }
         
-            return $order->fresh();
+            return $lockedOrder->fresh();
         });
     }
 
@@ -108,32 +244,11 @@ class OrderManagementService
      */
     public function cancelOrderByManager(Order $order, ?string $reason, int $managerId): Order
     {
-        return DB::transaction(function () use ($order, $reason, $managerId) {
-            $oldStatus = $order->status;
-            
-            $order->update([
-                'status' => Order::STATUS_CANCELLED,
-                'cancelled_at' => now(),
-                'internal_notes' => ($order->internal_notes ?? '') . 
-                    "\nОтменен менеджером ID: {$managerId}. Причина: " . ($reason ?? 'не указана')
-            ]);
-
-            // Логируем отмену
-            OrderStatusHistory::create([
-                'order_id' => $order->id,
-                'from_status' => $oldStatus,
-                'to_status' => Order::STATUS_CANCELLED,
-                'changed_by' => $managerId,
-                'notes' => $reason
-            ]);
-
-            // Возвращаем товары на склад (если не заказ у поставщика)
-            if (!$order->is_supplier_order && $order->warehouse_id) {
-                $this->returnItemsToStock($order);
-            }
-
-            return $order->fresh();
-        });
+        return $this->checkoutService->cancelOrderByManager(
+            $order->id,
+            $managerId,
+            $reason
+        );
     }
 
     /**
@@ -144,7 +259,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_CONFIRMED, 
-            "Подтвержден менеджером ID: {$managerId}"
+            "Подтвержден менеджером ID: {$managerId}",
+            $managerId
         );
     }
 
@@ -156,7 +272,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_SHIPPED, 
-            "Отмечен как отправленный менеджером ID: {$managerId}"
+            "Отмечен как отправленный менеджером ID: {$managerId}",
+            $managerId
         );
     }
 
@@ -168,7 +285,8 @@ class OrderManagementService
         return $this->updateOrderStatus(
             $order, 
             Order::STATUS_DELIVERED, 
-            "Отмечен как доставленный менеджером ID: {$managerId}"
+            "Отмечен как доставленный менеджером ID: {$managerId}",
+            $managerId
         );
     }
 
@@ -197,7 +315,7 @@ class OrderManagementService
      */
     public function getOrderStats(Request $request): array
     {
-        $query = Order::realOrders();
+        $query = Order::realOrders()->whereNull('parent_order_id');
 
         if ($request->has('date_from')) {
             $query->whereDate('created_at', '>=', $request->date_from);
@@ -232,6 +350,9 @@ class OrderManagementService
             case Order::STATUS_SHIPPED:
                 $updates['shipped_at'] = now();
                 break;
+            case Order::STATUS_READY_FOR_DELIVERY:
+                $updates['ready_for_delivery_at'] = now();
+                break;
             case Order::STATUS_DELIVERED:
                 $updates['delivered_at'] = now();
                 break;
@@ -246,28 +367,26 @@ class OrderManagementService
     }
 
     /**
-     * Вернуть товары на склад
-     */
-    private function returnItemsToStock(Order $order): void
-    {
-        foreach ($order->items as $item) {
-            \App\Models\Inventory::where('product_id', $item->product_id)
-                ->where('warehouse_id', $order->warehouse_id)
-                ->increment('quantity', $item->quantity);
-        }
-    }
-
-    /**
      * Пересчитать итоговую сумму
      */
     private function recalculateOrderTotal(Order $order): void
     {
-        $productsTotal = $order->items->sum('total_price');
-        $shippingCost = $order->shipping_cost;
-        
+        $itemsTotal = (float) $order->items()->sum('total_price');
+        $shippingCost = (float) $order->shipping_cost;
+        $shippingDiscount = (float) ($order->shipping_discount ?? 0);
+
+        $order->loadMissing('discount');
+        if ($order->discount?->type === \App\Models\Discount::TYPE_SHIPPING) {
+            $shippingDiscount = $order->discount->calculateDiscountAmount($shippingCost);
+        }
+
         $order->update([
-            'products_total' => $productsTotal,
-            'final_total' => $productsTotal + $shippingCost
+            'shipping_discount' => $shippingDiscount,
+            'final_total' => round(
+                max(0, $itemsTotal - (float) ($order->cart_discount ?? 0))
+                + max(0, $shippingCost - $shippingDiscount),
+                2
+            ),
         ]);
     }
 }

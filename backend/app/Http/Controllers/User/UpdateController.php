@@ -17,7 +17,7 @@ class UpdateController extends Controller
         
         return response()->json([
             'message' => 'Данные пользователя обновлены',
-            'user' => new UserResource($user->load('roles'))
+            'user' => new UserResource($user->load(['roles', 'activeWarehouses']))
         ]);
     }
 }
