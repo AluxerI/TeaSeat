@@ -21,6 +21,7 @@ class ShowController extends Controller
             // Загружаем только то, что нужно пользователю
             $order->load([
                 'items.product', 
+                'gifts.items.product',
                 'deliveryMethod', 
                 'shippingAddress',
                 // УБРАЛИ: warehouse, partialOrders - это внутренняя информация

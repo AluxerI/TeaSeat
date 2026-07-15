@@ -25,7 +25,7 @@ class IndexController extends Controller
             $productsQuery = Product::with([
                 'brand',
                 'inventories.warehouse',
-            ])->whereHas('inventories', function($query) {
+            ])->individualSale()->whereHas('inventories', function($query) {
                 $query->availableForOnline();
             });
             
@@ -54,7 +54,7 @@ class IndexController extends Controller
     {
         $params = $request->only(['category_id', 'brand_id', 'search', 'page', 'per_page', 'sort_by', 'sort_order']);
         ksort($params);
-        return 'catalog_' . md5(json_encode($params));
+        return 'catalog_v2_' . md5(json_encode($params));
     }
     
     private function applyFilters($query, Request $request)

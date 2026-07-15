@@ -15,6 +15,14 @@ class OrderItemResource extends JsonResource
         
         return [
             'id' => $this->id,
+            'order_gift_id' => $this->order_gift_id,
+            'gift_item_client_id' => $this->gift_item_client_id,
+            'gift_item_quantity' => $this->gift_item_quantity !== null
+                ? (int) $this->gift_item_quantity
+                : null,
+            'gift_item_sort_order' => $this->gift_item_sort_order !== null
+                ? (int) $this->gift_item_sort_order
+                : null,
             'product' => $product ? [
                 'id' => $product->id,
                 'name' => $product->name,

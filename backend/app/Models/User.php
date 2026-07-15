@@ -274,6 +274,11 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return $this->hasOne(Order::class)->where('status', Order::STATUS_CART);
     }
 
+    public function gifts()
+    {
+        return $this->hasMany(Gift::class);
+    }
+
     public function completedOrders()
     {
         return $this->hasMany(Order::class)->where('status', Order::STATUS_DELIVERED);

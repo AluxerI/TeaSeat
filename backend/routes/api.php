@@ -25,7 +25,10 @@ use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmen
 use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDeliveryAssignmentController;
 use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
 use App\Http\Controllers\Picker\OrderController as PickerOrderController;
+use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftController;
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
+use App\Http\Controllers\Gift\GiftConstructorController;
+use App\Http\Controllers\Cart\GiftController as CartGiftController;
 
 
 Route::prefix('auth')->group(function () {
@@ -62,6 +65,30 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
     Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
 
+    Route::prefix('gift-constructor')->group(function () {
+        Route::get('/advanced/options', [GiftConstructorController::class, 'advancedOptions'])
+            ->name('gift-constructor.advanced.options');
+        Route::post('/advanced/validate-layout', [GiftConstructorController::class, 'validateLayout'])
+            ->name('gift-constructor.advanced.validate');
+        Route::post('/advanced/quote', [GiftConstructorController::class, 'advancedQuote'])
+            ->name('gift-constructor.advanced.quote');
+        Route::post('/advanced/gifts', [GiftConstructorController::class, 'advancedStore'])
+            ->name('gift-constructor.advanced.store');
+        Route::get('/simple/options', [GiftConstructorController::class, 'simpleOptions'])
+            ->name('gift-constructor.simple.options');
+        Route::post('/simple/quote', [GiftConstructorController::class, 'simpleQuote'])
+            ->name('gift-constructor.simple.quote');
+        Route::post('/simple/gifts', [GiftConstructorController::class, 'simpleStore'])
+            ->name('gift-constructor.simple.store');
+    });
+    Route::get('/gifts', [GiftConstructorController::class, 'index'])->name('gifts.index');
+    Route::get('/gifts/{gift}', [GiftConstructorController::class, 'show'])
+        ->whereNumber('gift')->name('gifts.show');
+    Route::put('/gifts/{gift}', [GiftConstructorController::class, 'update'])
+        ->whereNumber('gift')->name('gifts.update');
+    Route::delete('/gifts/{gift}', [GiftConstructorController::class, 'destroy'])
+        ->whereNumber('gift')->name('gifts.destroy');
+
     //Адреса
     Route::group(['prefix' => 'addresses',  'namespace' => '\App\Http\Controllers\User\Address'], function () {
     Route::get('/', action: 'IndexController')->name('address.index');
@@ -72,6 +99,11 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::group(['prefix' => 'cart',  'namespace' => 'App\Http\Controllers\Cart'], function () {
         Route::get('/', 'IndexController') -> name('cart.index');
         Route::post('/add', 'AddController') -> name('cart.add');
+        Route::post('/gifts', [CartGiftController::class, 'store'])->name('cart.gifts.store');
+        Route::put('/gifts/{orderGift}', [CartGiftController::class, 'update'])
+            ->whereNumber('orderGift')->name('cart.gifts.update');
+        Route::delete('/gifts/{orderGift}', [CartGiftController::class, 'destroy'])
+            ->whereNumber('orderGift')->name('cart.gifts.destroy');
         Route::put('/update/{itemId}', 'UpdateItemController') -> name('cart.update');
         Route::delete('/remove/{itemId}', 'RemoveItemController') -> name('cart.remove');
         Route::delete('/clear', 'ClearCartController');
@@ -141,6 +173,13 @@ Route::prefix('seller')->middleware('auth:sanctum')->group(function () {
 
 // Сборщик работает только со складскими исполнениями назначенных точек.
 Route::prefix('picker')->middleware('auth:sanctum')->group(function () {
+    Route::get('/assembled-gifts', [PickerAssembledGiftController::class, 'index'])
+        ->middleware('permission:view picking orders')
+        ->name('picker.assembled-gifts.index');
+    Route::post('/assembled-gifts/{product}/replenish', [PickerAssembledGiftController::class, 'replenish'])
+        ->whereNumber('product')
+        ->middleware('permission:manage own picking orders')
+        ->name('picker.assembled-gifts.replenish');
     Route::get('/incoming-transfers', [PickerOrderController::class, 'incomingTransfers'])
         ->middleware('permission:view picking orders')
         ->name('picker.transfers.index');

@@ -182,6 +182,73 @@ class ProductResource extends Resource
                                             }),
                                     ]),
                             ]),
+
+                        Forms\Components\Tabs\Tab::make('Подарки')
+                            ->schema([
+                                Forms\Components\Section::make('Продажа готового подарка')
+                                    ->schema([
+                                        Forms\Components\Select::make('product_type')
+                                            ->label('Тип товара')
+                                            ->options([
+                                                Product::TYPE_REGULAR => 'Обычный товар',
+                                                Product::TYPE_PREASSEMBLED_GIFT => 'Собранный подарочный набор',
+                                            ])
+                                            ->default(Product::TYPE_REGULAR)
+                                            ->required()
+                                            ->live(),
+                                        Forms\Components\Toggle::make('is_individual_sale_enabled')
+                                            ->label('Можно заказывать отдельно')
+                                            ->default(true)
+                                            ->helperText('Отключите для товара, доступного только внутри конструктора'),
+                                        Forms\Components\Textarea::make('assembly_instructions')
+                                            ->label('Внутренняя инструкция по сборке')
+                                            ->rows(5)
+                                            ->columnSpanFull()
+                                            ->visible(fn ($get) => $get('product_type') === Product::TYPE_PREASSEMBLED_GIFT)
+                                            ->helperText('Покупателю не показывается; доступна администратору и сборщику.'),
+                                    ])->columns(2),
+                                Forms\Components\Section::make('Форматы для конструктора')
+                                    ->description('Наличие активной записи разрешает товар в конструкторе.')
+                                    ->schema([
+                                        Forms\Components\Repeater::make('constructorSizes')
+                                            ->relationship()
+                                            ->schema([
+                                                Forms\Components\TextInput::make('label')
+                                                    ->label('Название формата')
+                                                    ->required()
+                                                    ->maxLength(255),
+                                                Forms\Components\TextInput::make('product_quantity')
+                                                    ->label('Количество товара')
+                                                    ->integer()
+                                                    ->minValue(1)
+                                                    ->required(),
+                                                Forms\Components\Select::make('gift_size_profile_id')
+                                                    ->label('Профиль размера')
+                                                    ->relationship(
+                                                        'sizeProfile',
+                                                        'name',
+                                                        fn ($query) => $query->where('kind', 'item')
+                                                    )
+                                                    ->required()
+                                                    ->searchable()
+                                                    ->preload(),
+                                                Forms\Components\Select::make('constructor_role')
+                                                    ->label('Роль в простом конструкторе')
+                                                    ->options([
+                                                        'tea' => 'Чай',
+                                                        'sweet' => 'Сладость',
+                                                        'general' => 'Обычный компонент',
+                                                    ])
+                                                    ->default('general')
+                                                    ->required(),
+                                                Forms\Components\Toggle::make('is_active')
+                                                    ->label('Активен')
+                                                    ->default(true),
+                                            ])
+                                            ->columns(2)
+                                            ->columnSpanFull(),
+                                    ]),
+                            ]),
                         
                         Forms\Components\Tabs\Tab::make('Категория')
                             ->schema([

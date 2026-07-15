@@ -41,10 +41,36 @@ class PickerOrderResource extends JsonResource
                 'order_product_id' => $item->id,
                 'product_id' => $item->product_id,
                 'product_name' => $item->product?->name,
+                'order_gift_id' => $item->order_gift_id,
+                'gift_name' => $item->orderGift?->name,
+                'gift_item_client_id' => $item->gift_item_client_id,
+                'gift_item_quantity' => $item->gift_item_quantity !== null
+                    ? (int) $item->gift_item_quantity
+                    : null,
                 'quantity' => (int) $item->quantity,
                 'stock_unit' => $item->stock_unit,
                 'sale_step' => (int) $item->sale_step,
             ])->values(),
+            'gifts' => $this->items
+                ->whereNotNull('order_gift_id')
+                ->groupBy('order_gift_id')
+                ->map(function ($items, $orderGiftId): array {
+                    $gift = $items->first()->orderGift;
+                    return [
+                        'order_gift_id' => (int) $orderGiftId,
+                        'name' => $gift?->name,
+                        'quantity' => (int) ($gift?->quantity ?? 1),
+                        'layout' => $gift?->layout_snapshot,
+                        'components' => $items->map(fn ($item): array => [
+                            'order_product_id' => $item->id,
+                            'product_id' => $item->product_id,
+                            'product_name' => $item->product?->name,
+                            'quantity' => (int) $item->quantity,
+                            'stock_unit' => $item->stock_unit,
+                            'gift_item_client_id' => $item->gift_item_client_id,
+                        ])->values(),
+                    ];
+                })->values(),
             'customer_notes' => $customerOrder->customer_notes,
             'timestamps' => [
                 'created_at' => $this->created_at?->toIso8601String(),

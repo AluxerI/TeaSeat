@@ -16,16 +16,26 @@ class Product extends Model
 
     public const STOCK_UNIT_PIECE = 'piece';
     public const STOCK_UNIT_GRAM = 'gram';
+    public const TYPE_REGULAR = 'regular';
+    public const TYPE_PREASSEMBLED_GIFT = 'preassembled_gift';
 
     protected $table = 'products';
+
+    protected $attributes = [
+        'product_type' => self::TYPE_REGULAR,
+        'is_individual_sale_enabled' => true,
+    ];
 
 
     protected $fillable = [
         'name',
         'ingredients',
         'description',
+        'assembly_instructions',
         'brand_id',
         'price',
+        'product_type',
+        'is_individual_sale_enabled',
         'stock_unit',
         'sale_step',
         'price_unit_quantity',
@@ -41,6 +51,7 @@ class Product extends Model
         'price' => 'decimal:2',
         'sale_step' => 'integer',
         'price_unit_quantity' => 'integer',
+        'is_individual_sale_enabled' => 'boolean',
         'is_available' => 'boolean',
         'total_quantity' => 'integer',
         'cached_data' => 'array',
@@ -188,6 +199,21 @@ class Product extends Model
     {
         return $this->hasMany(FulfillmentIssue::class);
     }
+
+    public function constructorSizes()
+    {
+        return $this->hasMany(ProductSize::class);
+    }
+
+    public function isPreassembledGift(): bool
+    {
+        return $this->product_type === self::TYPE_PREASSEMBLED_GIFT;
+    }
+
+    public function canBeSoldIndividually(): bool
+    {
+        return (bool) $this->is_individual_sale_enabled;
+    }
     /**
      * Получить URL главного изображения
      */
@@ -311,6 +337,7 @@ class Product extends Model
                 'id' => $this->id,
                 'name' => $this->name,
                 'price' => (float) $this->price,
+                'product_type' => $this->product_type ?: self::TYPE_REGULAR,
                 'stock_unit' => $this->stockUnit(),
                 'sale_step' => $this->saleStep(),
                 'price_unit_quantity' => $this->priceUnitQuantity(),
@@ -470,6 +497,10 @@ class Product extends Model
     public function scopeInStock($query)
     {
         return $query->where('is_available', true);
+    }
+    public function scopeIndividualSale($query)
+    {
+        return $query->where('is_individual_sale_enabled', true);
     }
     public function scopeForSelect($query)
     {

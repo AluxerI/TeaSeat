@@ -56,11 +56,13 @@ class LocationController extends Controller
 
     public function getProductAvailabilityDetails(string $city, int $productId)
     {
-        $cacheKey = "city_{$city}_product_{$productId}_availability";
+        $cacheKey = "city_v2_{$city}_product_{$productId}_availability";
         
         return Cache::remember($cacheKey, 60, function () use ($city, $productId) {
             try {
-                $product = \App\Models\Product::with(['inventories.warehouse'])->findOrFail($productId);
+                $product = \App\Models\Product::with(['inventories.warehouse'])
+                    ->individualSale()
+                    ->findOrFail($productId);
                 
                 $availability = $this->locationService->enrichProductWithAvailability($product, $city);
 
@@ -70,6 +72,8 @@ class LocationController extends Controller
                     ]
                 ]);
                 
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException) {
+                return response()->json(['message' => 'Товар не найден'], 404);
             } catch (\Exception $e) {
                 Log::error('Ошибка при получении информации о доступности', [
                     'city' => $city,

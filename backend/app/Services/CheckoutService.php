@@ -20,7 +20,8 @@ class CheckoutService
         protected PricingService $pricingService,
         protected WarehouseService $warehouseService,
         protected LocationService $locationService,
-        protected SupplierOrderService $supplierOrderService
+        protected SupplierOrderService $supplierOrderService,
+        protected GiftAvailabilityService $giftAvailabilityService
     ) {}
 
     /**
@@ -68,7 +69,11 @@ class CheckoutService
                 throw new DomainException('Активная корзина не найдена');
             }
 
-            $cart->load(['items.product.inventories.warehouse', 'items.product.suppliers']);
+            $cart->load([
+                'items.product.inventories.warehouse',
+                'items.product.suppliers',
+                'gifts.items.product',
+            ]);
             
             if ($cart->items->isEmpty()) {
                 throw new DomainException('Корзина пуста');
@@ -145,6 +150,7 @@ class CheckoutService
 
             return $cart->fresh([
                 'items.product',
+                'gifts.items.product',
                 'deliveryMethod',
                 'shippingAddress',
                 'partialOrders.items.product',
@@ -165,6 +171,7 @@ class CheckoutService
             ->first()
             ?->load([
                 'items.product',
+                'gifts.items.product',
                 'deliveryMethod',
                 'shippingAddress',
                 'partialOrders.items.product',
@@ -177,17 +184,9 @@ class CheckoutService
      */
     private function validateOrderAvailability(Order $cart, string $city): void
     {
-        foreach ($cart->items as $item) {
-            $availableInCity = $this->locationService->getProductQuantityInCity($item->product, $city);
-            
-            if ($availableInCity < $item->quantity) {
-                $productName = $item->product->name;
-                throw new DomainException(
-                    "Товар '{$productName}' недоступен в городе {$city} в нужном количестве. " .
-                    "Доступно: {$availableInCity}, требуется: {$item->quantity}"
-                );
-            }
-        }
+        // Одинаковый SKU может находиться отдельно и в нескольких подарках.
+        // Проверяем общую потребность, а не каждую строку изолированно.
+        $this->giftAvailabilityService->assertCartAvailable($cart, $city);
     }
 
     /**
@@ -265,7 +264,7 @@ class CheckoutService
             'items_count' => $cart->items->count()
         ]);
 
-        return $cart->fresh(['items.product', 'deliveryMethod', 'shippingAddress']);
+        return $cart->fresh(['items.product', 'gifts.items.product', 'deliveryMethod', 'shippingAddress']);
     }
 
     /**
@@ -347,6 +346,7 @@ class CheckoutService
         if ($order->status === Order::STATUS_CANCELLED) {
             return $order->fresh([
                 'items.product',
+                'gifts.items.product',
                 'deliveryMethod',
                 'shippingAddress',
                 'partialOrders.items.product',
@@ -405,6 +405,7 @@ class CheckoutService
 
         return $order->fresh([
             'items.product',
+            'gifts.items.product',
             'deliveryMethod',
             'shippingAddress',
             'partialOrders.items.product',

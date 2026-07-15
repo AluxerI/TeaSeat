@@ -22,7 +22,7 @@ class LocationService
             'promotions', 
             'inventories.warehouse',
             'suppliers'
-        ]);
+        ])->individualSale();
 
         // 🎯 ФИЛЬТРАЦИЯ ПО ТИПУ ДОСТУПНОСТИ
         if (!empty($filters['availability'])) {

@@ -140,6 +140,11 @@ class Order extends Model
         return $this->hasMany(OrderProduct::class);
     }
 
+    public function gifts()
+    {
+        return $this->hasMany(OrderGift::class);
+    }
+
     public function inventoryMovements()
     {
         return $this->hasMany(InventoryMovement::class);
@@ -421,7 +426,8 @@ class Order extends Model
      */
     public function recalculateProductsTotal(): void
     {
-        $total = $this->items()->sum('total_price');
+        $total = (float) $this->items()->sum('total_price')
+            + (float) $this->gifts()->sum('markup_total_amount');
         $this->updateQuietly(['products_total' => $total]);
     }
 

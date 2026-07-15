@@ -39,15 +39,19 @@ class PricingService
     ): array {
         $order->loadMissing([
             'items.product.sub_subcategories.subcategory.category',
+            'gifts.items',
         ]);
 
         if ($order->items->isEmpty()) {
             throw new DomainException('Корзина пуста');
         }
 
+        $giftMarkupTotal = $this->money($order->gifts->sum(
+            fn ($gift) => (float) $gift->markup_unit_amount * (int) $gift->quantity
+        ));
         $baseSubtotal = $this->money($order->items->sum(
             fn ($item) => $item->product->baseTotalForQuantity((int) $item->quantity)
-        ));
+        ) + $giftMarkupTotal);
 
         $promotions = $this->activePromotions();
 
@@ -85,6 +89,7 @@ class PricingService
             $lines[$item->id] = [
                 'order_product_id' => $item->id,
                 'product_id' => $product->id,
+                'order_gift_id' => $item->order_gift_id ? (int) $item->order_gift_id : null,
                 'quantity' => $quantity,
                 'stock_unit' => $product->stockUnit(),
                 'sale_step' => $product->saleStep(),
@@ -160,14 +165,34 @@ class PricingService
             $plannedUsage[$selected->id] = ($plannedUsage[$selected->id] ?? 0) + 1;
         }
 
-        $itemsTotal = $this->money(array_sum(array_column($lines, 'final_total')));
+        $itemsTotal = $this->money(
+            array_sum(array_column($lines, 'final_total')) + $giftMarkupTotal
+        );
         $finalTotal = $this->money(
             max(0, $itemsTotal - $cartDiscount) + max(0, $shippingCost - $shippingDiscount)
         );
 
+        $giftQuotes = $order->gifts->map(function ($gift) use ($lines): array {
+            $giftLines = collect($lines)->where('order_gift_id', (int) $gift->id);
+            $componentsBase = $this->money($giftLines->sum('base_total'));
+            $componentsFinal = $this->money($giftLines->sum('final_total'));
+            $markup = $this->money((float) $gift->markup_unit_amount * (int) $gift->quantity);
+
+            return [
+                'order_gift_id' => (int) $gift->id,
+                'quantity' => (int) $gift->quantity,
+                'markup_unit_amount' => $this->money((float) $gift->markup_unit_amount),
+                'markup_total_amount' => $markup,
+                'components_base_total' => $componentsBase,
+                'components_discount_amount' => $this->money($componentsBase - $componentsFinal),
+                'total_price' => $this->money($componentsFinal + $markup),
+            ];
+        })->values()->all();
+
         return [
             'currency' => 'RUB',
             'products_total' => $baseSubtotal,
+            'gift_markup_total' => $giftMarkupTotal,
             'promotion_discount' => $promotionDiscount,
             'personal_discount' => $personalDiscount,
             'cart_discount' => $cartDiscount,
@@ -176,6 +201,7 @@ class PricingService
             'final_total' => $finalTotal,
             'selected_discount' => $this->discountData($selected),
             'lines' => array_values($lines),
+            'gifts' => $giftQuotes,
             'usages' => collect($plannedUsage)
                 ->map(fn (int $uses, int $discountId) => [
                     'discount_id' => $discountId,
@@ -219,6 +245,15 @@ class PricingService
             ]);
         }
 
+        foreach ($quote['gifts'] ?? [] as $gift) {
+            $order->gifts()->whereKey($gift['order_gift_id'])->update([
+                'markup_total_amount' => $gift['markup_total_amount'],
+                'components_base_total' => $gift['components_base_total'],
+                'components_discount_amount' => $gift['components_discount_amount'],
+                'total_price' => $gift['total_price'],
+            ]);
+        }
+
         $order->update([
             'products_total' => $quote['products_total'],
             'promotion_discount' => $quote['promotion_discount'],
@@ -232,7 +267,7 @@ class PricingService
             'pricing_snapshot' => $quote,
         ]);
 
-        $order->load('items.product');
+        $order->load('items.product', 'gifts.items.product');
     }
 
     /**

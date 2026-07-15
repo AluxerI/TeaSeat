@@ -15,7 +15,8 @@ use Illuminate\Support\Facades\Cache;
 class CartService
 {
     public function __construct(
-        protected PricingService $pricingService
+        protected PricingService $pricingService,
+        protected GiftAvailabilityService $giftAvailabilityService
     ) {}
 
     /**
@@ -26,6 +27,7 @@ class CartService
         return DB::transaction(function () use ($userId) {
             $cart = Order::with([
                 'items.product',
+                'gifts.items.product',
                 'shippingAddress'
             ])->firstOrCreate([
                 'user_id' => $userId,
@@ -45,7 +47,7 @@ class CartService
                 $this->recalculateCart($cart);
             }
 
-            return $cart->fresh(['items.product', 'shippingAddress']);
+            return $cart->fresh(['items.product', 'gifts.items.product', 'shippingAddress']);
         });
     }
 
@@ -65,6 +67,9 @@ class CartService
         return DB::transaction(function () use ($userId, $productId, $quantity, $city, $isSupplierOrder) {
             $cart = $this->getCart($userId);
             $product = Product::with(['inventories.warehouse', 'suppliers'])->findOrFail($productId);
+            if (!$product->canBeSoldIndividually()) {
+                throw new DomainException('Этот товар доступен только как компонент подарка');
+            }
             $product->assertValidSaleQuantity($quantity);
 
             // Для обычных заказов проверяем город
@@ -84,10 +89,13 @@ class CartService
             }
 
             $this->upsertCartItem($cart, $product, $quantity);
+            if (!$isSupplierOrder) {
+                $this->giftAvailabilityService->assertCartAvailable($cart->fresh('items'), $city);
+            }
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -122,6 +130,10 @@ class CartService
             $cart = $this->getUserCart($userId);
             $cartItem = $cart->items()->with('product')->findOrFail($itemId);
 
+            if ($cartItem->order_gift_id !== null) {
+                throw new DomainException('Компонент подарка изменяется только через группу подарка');
+            }
+
             if ($quantity === 0) {
                 $cartItem->delete();
             } else {
@@ -131,10 +143,12 @@ class CartService
                 $this->updateCartItem($cartItem, $quantity);
             }
 
+            $this->giftAvailabilityService->assertCartAvailable($cart->fresh('items'));
+
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -146,12 +160,15 @@ class CartService
         return DB::transaction(function () use ($userId, $itemId) {
             $cart = $this->getUserCart($userId);
             $cartItem = $cart->items()->findOrFail($itemId);
+            if ($cartItem->order_gift_id !== null) {
+                throw new DomainException('Компонент подарка удаляется только вместе с подарком');
+            }
             
             $cartItem->delete();
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
 
-            return $cart->fresh(['items.product']);
+            return $cart->fresh(['items.product', 'gifts.items.product']);
         });
     }
 
@@ -162,6 +179,7 @@ class CartService
     {
         return DB::transaction(function () use ($userId) {
             $cart = $this->getCart($userId);
+            $cart->gifts()->delete();
             $cart->items()->delete();
             $this->recalculateCart($cart);
             $this->clearCartCache($userId);
@@ -293,7 +311,10 @@ class CartService
      */
     private function upsertCartItem(Order $cart, Product $product, int $quantity): void
     {
-        $cartItem = $cart->items()->where('product_id', $product->id)->first();
+        $cartItem = $cart->items()
+            ->where('product_id', $product->id)
+            ->whereNull('order_gift_id')
+            ->first();
 
         if ($cartItem) {
             $this->updateCartItem($cartItem, $quantity);
@@ -366,6 +387,14 @@ class CartService
             User::findOrFail($cart->user_id)
         );
         $this->pricingService->applyQuoteToOrder($cart, $quote);
+    }
+
+    public function refreshPricing(Order $cart): Order
+    {
+        $this->recalculateCart($cart);
+        $this->clearCartCache((int) $cart->user_id);
+
+        return $cart->fresh(['items.product', 'gifts.items.product', 'shippingAddress']);
     }
 
     /**

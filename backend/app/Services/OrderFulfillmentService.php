@@ -327,16 +327,17 @@ class OrderFulfillmentService
                     'Недостача фиксируется на складской части, а не на консолидации'
                 );
             }
-            $orderItem = $order->items->first(
+            $matchingItems = $order->items->filter(
                 fn ($item): bool => (int) $item->product_id === $productId
             );
-            if (!$orderItem) {
+            if ($matchingItems->isEmpty()) {
                 throw new DomainException('Товар не входит в это складское исполнение');
             }
+            $orderedQuantity = (int) $matchingItems->sum('quantity');
             if ($shortageQuantity <= 0
-                || $shortageQuantity > (int) $orderItem->quantity) {
+                || $shortageQuantity > $orderedQuantity) {
                 throw new DomainException(
-                    'Недостача должна быть положительной и не больше количества позиции'
+                    'Недостача должна быть положительной и не больше общего количества товара'
                 );
             }
 
@@ -698,6 +699,7 @@ class OrderFulfillmentService
     {
         return [
             'items.product',
+            'items.orderGift',
             'warehouse',
             'destinationWarehouse',
             'picker',

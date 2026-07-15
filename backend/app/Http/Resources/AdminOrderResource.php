@@ -77,6 +77,7 @@ class AdminOrderResource extends JsonResource
             
             // Товары
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            'gifts' => OrderGiftResource::collection($this->whenLoaded('gifts')),
             
             // Частичные заказы
             'partial_orders' => $this->whenLoaded('partialOrders', function() {

@@ -16,10 +16,16 @@ class CartResource extends JsonResource
             'status_name' => $this->status_name,
             
             // Товары в корзине
-            'items' => CartItemResource::collection($this->whenLoaded('items')),
+            'items' => CartItemResource::collection(
+                $this->whenLoaded('items', fn () => $this->items
+                    ->whereNull('order_gift_id')
+                    ->values())
+            ),
+            'gifts' => OrderGiftResource::collection($this->whenLoaded('gifts')),
             
             // Итоговые суммы
             'products_total' => (float) $this->products_total,
+            'gift_markup_total' => (float) ($this->pricing_snapshot['gift_markup_total'] ?? 0),
             'promotion_discount' => (float) $this->promotion_discount,
             'personal_discount' => (float) $this->personal_discount,
             'cart_discount' => (float) ($this->cart_discount ?? 0),
@@ -70,6 +76,7 @@ class CartItemResource extends JsonResource
         
         return [
             'id' => $this->id,
+            'order_gift_id' => $this->order_gift_id,
             'product_id' => $this->product_id,
             'quantity' => $this->quantity,
             

@@ -42,6 +42,7 @@ class AdminOrderController extends Controller
     {
         $order->load([
             'items.product', 
+            'gifts.items.product',
             'deliveryMethod', 
             'shippingAddress',
             'warehouse',

@@ -4,6 +4,7 @@ namespace App\Http\Resources\Item;
 
 use Illuminate\Http\Resources\Json\JsonResource;
 use App\Services\PriceCalculatorService;
+use App\Models\Product;
 
 class ItemResource extends JsonResource
 {
@@ -21,6 +22,7 @@ class ItemResource extends JsonResource
         return [
             'id' => $data['id'],
             'name' => $data['name'],
+            'product_type' => $data['product_type'] ?? Product::TYPE_REGULAR,
             
             'original_price' => $priceData['base_price'],
             'final_price' => $priceData['final_price'],

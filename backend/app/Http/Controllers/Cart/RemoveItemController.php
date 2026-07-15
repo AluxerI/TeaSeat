@@ -7,6 +7,7 @@ use App\Services\CartService;
 use Illuminate\Support\Facades\Auth;
 use App\Http\Resources\CartResource;
 use Illuminate\Support\Facades\Log;
+use DomainException;
 
 class RemoveItemController extends Controller
 {
@@ -26,6 +27,10 @@ class RemoveItemController extends Controller
             $userId = Auth::id();
             $cart = $this->cartService->removeItem($userId, $itemId);
             return new CartResource($cart);
+        } catch (DomainException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 422);
         } catch (\Exception $e) {
             Log::error('Ошибка при удалении товара из корзины', [
                 'user_id' => Auth::id(),

@@ -62,7 +62,7 @@ class WarehouseService
         Collection $warehouses
     ): array {
         $allocation = [];
-        $remainingItems = $orderItems->pluck('quantity', 'product_id')->toArray();
+        $remainingItems = $orderItems->pluck('quantity', 'id')->toArray();
 
         foreach ($warehouses as $warehouse) {
             $warehouseAllocation = [
@@ -70,16 +70,21 @@ class WarehouseService
                 'items' => [],
             ];
 
+            $inventoryByProduct = $warehouse->inventories()
+                ->whereIn('product_id', $orderItems->pluck('product_id')->unique())
+                ->get()
+                ->keyBy('product_id');
+            $availableByProduct = $inventoryByProduct->map(
+                fn (Inventory $inventory): int => $inventory->availableQuantity()
+            )->all();
+
             foreach ($orderItems as $item) {
-                $remaining = (int) ($remainingItems[$item->product_id] ?? 0);
+                $remaining = (int) ($remainingItems[$item->id] ?? 0);
                 if ($remaining <= 0) {
                     continue;
                 }
 
-                $inventory = $warehouse->inventories()
-                    ->where('product_id', $item->product_id)
-                    ->first();
-                $availableQuantity = $inventory?->availableQuantity() ?? 0;
+                $availableQuantity = (int) ($availableByProduct[$item->product_id] ?? 0);
 
                 if ($availableQuantity <= 0) {
                     continue;
@@ -91,7 +96,8 @@ class WarehouseService
                     'quantity' => $quantityToAllocate,
                     'order_product_id' => $item->id,
                 ];
-                $remainingItems[$item->product_id] -= $quantityToAllocate;
+                $remainingItems[$item->id] -= $quantityToAllocate;
+                $availableByProduct[$item->product_id] -= $quantityToAllocate;
             }
 
             if ($warehouseAllocation['items'] !== []) {
@@ -115,15 +121,15 @@ class WarehouseService
 
         foreach ($warehouseAllocation as $allocation) {
             foreach ($allocation['items'] as $item) {
-                $allocatedQuantities[$item['product_id']] =
-                    ($allocatedQuantities[$item['product_id']] ?? 0)
+                $allocatedQuantities[$item['order_product_id']] =
+                    ($allocatedQuantities[$item['order_product_id']] ?? 0)
                     + $item['quantity'];
             }
         }
 
         $unfulfilled = [];
         foreach ($orderItems as $item) {
-            $allocated = (int) ($allocatedQuantities[$item->product_id] ?? 0);
+            $allocated = (int) ($allocatedQuantities[$item->id] ?? 0);
             if ($allocated >= $item->quantity) {
                 continue;
             }
@@ -190,7 +196,8 @@ class WarehouseService
     ): Order {
         $partialOrder = Order::create([
             'user_id' => $mainOrder->user_id,
-            'sales_channel' => $mainOrder->sales_channel,
+            'sales_channel' => $mainOrder->sales_channel
+                ?: Order::SALES_CHANNEL_ONLINE,
             'status' => Order::STATUS_PENDING,
             'shipping_address_id' => $mainOrder->shipping_address_id,
             'delivery_method_id' => $mainOrder->delivery_method_id,
@@ -203,6 +210,8 @@ class WarehouseService
             'shipping_cost' => 0,
             'confirmed_at' => now(),
         ]);
+
+        $partialGiftIds = [];
 
         foreach ($allocation['items'] as $item) {
             $mainOrderItem = OrderProduct::find($item['order_product_id']);
@@ -217,8 +226,35 @@ class WarehouseService
                 2
             );
 
+            $partialOrderGiftId = null;
+            if ($mainOrderItem->order_gift_id !== null) {
+                $mainGiftId = (int) $mainOrderItem->order_gift_id;
+                if (!isset($partialGiftIds[$mainGiftId])) {
+                    $mainGift = $mainOrder->gifts()->findOrFail($mainGiftId);
+                    $partialGift = $partialOrder->gifts()->create([
+                        'gift_id' => $mainGift->gift_id,
+                        'client_instance_id' => $mainGift->client_instance_id,
+                        'gift_version' => $mainGift->gift_version,
+                        'name' => $mainGift->name,
+                        'description' => $mainGift->description,
+                        'quantity' => $mainGift->quantity,
+                        // Наценка принадлежит только клиентскому заказу.
+                        'markup_unit_amount' => 0,
+                        'markup_total_amount' => 0,
+                        'layout_snapshot' => $mainGift->layout_snapshot,
+                    ]);
+                    $partialGiftIds[$mainGiftId] = $partialGift->id;
+                }
+                $partialOrderGiftId = $partialGiftIds[$mainGiftId];
+            }
+
             $partialOrder->items()->create([
                 'product_id' => $item['product_id'],
+                'order_gift_id' => $partialOrderGiftId,
+                'product_size_id' => $mainOrderItem->product_size_id,
+                'gift_item_client_id' => $mainOrderItem->gift_item_client_id,
+                'gift_item_quantity' => $mainOrderItem->gift_item_quantity,
+                'gift_item_sort_order' => $mainOrderItem->gift_item_sort_order,
                 'quantity' => $item['quantity'],
                 'stock_unit' => $mainOrderItem->stock_unit,
                 'sale_step' => $mainOrderItem->sale_step,
@@ -337,6 +373,16 @@ class WarehouseService
                         ];
                     });
                 })
+                ->groupBy(fn (array $request): string => implode(':', [
+                    $request['order']->id,
+                    $request['warehouse_id'],
+                    $request['product_id'],
+                ]))
+                ->map(function (Collection $group): array {
+                    $request = $group->first();
+                    $request['quantity'] = (int) $group->sum('quantity');
+                    return $request;
+                })
                 ->sortBy(fn (array $request) => sprintf(
                     '%020d:%020d:%020d',
                     $request['warehouse_id'],
@@ -406,18 +452,19 @@ class WarehouseService
                 return;
             }
 
-            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+            foreach ($lockedOrder->items->groupBy('product_id')->sortKeys() as $productId => $items) {
+                $quantity = (int) $items->sum('quantity');
                 $inventory = $this->lockInventory(
                     (int) $lockedOrder->warehouse_id,
-                    (int) $item->product_id
+                    (int) $productId
                 );
 
-                if ($inventory->reserved_online_quantity < $item->quantity) {
+                if ($inventory->reserved_online_quantity < $quantity) {
                     throw new DomainException('Складской онлайн-резерв повреждён');
                 }
 
                 $before = $this->balances($inventory);
-                $inventory->reserved_online_quantity -= $item->quantity;
+                $inventory->reserved_online_quantity -= $quantity;
                 $inventory->save();
 
                 $this->recordMovement(
@@ -425,7 +472,7 @@ class WarehouseService
                     InventoryMovement::TYPE_ONLINE_RELEASE,
                     $before,
                     0,
-                    -$item->quantity,
+                    -$quantity,
                     0,
                     $lockedOrder,
                     $actorId,
@@ -495,25 +542,26 @@ class WarehouseService
             throw new DomainException('У заказа отсутствует складской резерв');
         }
 
-        foreach ($order->items->sortBy('product_id') as $item) {
+        foreach ($order->items->groupBy('product_id')->sortKeys() as $productId => $items) {
+            $quantity = (int) $items->sum('quantity');
             $inventory = $this->lockInventory(
                 (int) $order->warehouse_id,
-                (int) $item->product_id
+                (int) $productId
             );
 
-            if ($inventory->reserved_online_quantity < $item->quantity) {
+            if ($inventory->reserved_online_quantity < $quantity) {
                 throw new DomainException('Складской онлайн-резерв повреждён');
             }
 
-            if ($inventory->quantity < $item->quantity) {
+            if ($inventory->quantity < $quantity) {
                 throw new DomainException(
                     'Физического остатка недостаточно для отгрузки заказа'
                 );
             }
 
             $before = $this->balances($inventory);
-            $inventory->quantity -= $item->quantity;
-            $inventory->reserved_online_quantity -= $item->quantity;
+            $inventory->quantity -= $quantity;
+            $inventory->reserved_online_quantity -= $quantity;
             $inventory->save();
 
             $returnCycle = InventoryMovement::query()
@@ -529,8 +577,8 @@ class WarehouseService
                 $inventory,
                 InventoryMovement::TYPE_ONLINE_SALE,
                 $before,
-                -$item->quantity,
-                -$item->quantity,
+                -$quantity,
+                -$quantity,
                 0,
                 $order,
                 $actorId,
@@ -566,10 +614,11 @@ class WarehouseService
                 throw new DomainException('Для возврата на склад нужна причина');
             }
 
-            foreach ($lockedOrder->items->sortBy('product_id') as $item) {
+            foreach ($lockedOrder->items->groupBy('product_id')->sortKeys() as $productId => $items) {
+                $quantity = (int) $items->sum('quantity');
                 $inventory = $this->lockInventory(
                     (int) $lockedOrder->warehouse_id,
-                    (int) $item->product_id
+                    (int) $productId
                 );
                 $returnCycle = InventoryMovement::query()
                     ->where('order_id', $lockedOrder->id)
@@ -577,16 +626,16 @@ class WarehouseService
                     ->where('type', InventoryMovement::TYPE_ONLINE_RETURN)
                     ->count() + 1;
                 $before = $this->balances($inventory);
-                $inventory->quantity += (int) $item->quantity;
-                $inventory->reserved_online_quantity += (int) $item->quantity;
+                $inventory->quantity += $quantity;
+                $inventory->reserved_online_quantity += $quantity;
                 $inventory->save();
 
                 $this->recordMovement(
                     $inventory,
                     InventoryMovement::TYPE_ONLINE_RETURN,
                     $before,
-                    (int) $item->quantity,
-                    (int) $item->quantity,
+                    $quantity,
+                    $quantity,
                     0,
                     $lockedOrder,
                     $actorId,

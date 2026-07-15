@@ -66,6 +66,7 @@ class OrderResource extends JsonResource
             
             // Товары в заказе (используем кешированные данные)
             'items' => OrderItemResource::collection($this->whenLoaded('items')),
+            'gifts' => OrderGiftResource::collection($this->whenLoaded('gifts')),
             
             // Дополнительная информация
             'customer_notes' => $this->customer_notes,

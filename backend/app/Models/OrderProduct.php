@@ -12,6 +12,11 @@ class OrderProduct extends Model
     protected $fillable = [
         'order_id',
         'product_id',
+        'order_gift_id',
+        'product_size_id',
+        'gift_item_client_id',
+        'gift_item_quantity',
+        'gift_item_sort_order',
         'quantity',
         'stock_unit',
         'sale_step',
@@ -40,6 +45,8 @@ class OrderProduct extends Model
         'quantity' => 'integer',
         'sale_step' => 'integer',
         'price_unit_quantity' => 'integer',
+        'gift_item_quantity' => 'integer',
+        'gift_item_sort_order' => 'integer',
     ];
 
     public function order()
@@ -50,6 +57,16 @@ class OrderProduct extends Model
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function orderGift()
+    {
+        return $this->belongsTo(OrderGift::class);
+    }
+
+    public function productSize()
+    {
+        return $this->belongsTo(ProductSize::class);
     }
 
     public function promotionDiscount()
