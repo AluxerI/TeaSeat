@@ -4,7 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Brand;
 use App\Models\Product;
-use App\Models\Sub_subcategory;
+use App\Models\Sub_Subcategory;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class ProductFactory extends Factory
@@ -49,14 +49,14 @@ class ProductFactory extends Factory
     public function configure()
     {
         return $this->afterCreating(function (Product $product) {
-            $subSubcategory = Sub_subcategory::inRandomOrder()->first() 
-                ?? Sub_subcategory::factory()->create();
+            $subSubcategory = Sub_Subcategory::inRandomOrder()->first() 
+                ?? Sub_Subcategory::factory()->create();
             
             $product->sub_subcategories()->attach($subSubcategory);
 
             if ($this->faker->boolean(30)) {
                 $count = $this->faker->numberBetween(1, 3);
-                $additionalSubSubcategories = Sub_subcategory::inRandomOrder()
+                $additionalSubSubcategories = Sub_Subcategory::inRandomOrder()
                     ->whereNotIn('id', [$subSubcategory->id])
                     ->take($count)
                     ->get();

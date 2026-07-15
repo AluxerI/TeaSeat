@@ -3,7 +3,7 @@
 namespace Database\Factories;
 
 use Illuminate\Database\Eloquent\Factories\Factory;
-use App\Models\Sub_subcategory;
+use App\Models\Sub_Subcategory;
 use App\Models\Product;
 
 class Sub_SubcategoryProductFactory extends Factory
