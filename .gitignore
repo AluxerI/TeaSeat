@@ -3,3 +3,14 @@
 /.vscode/
 
 /.vscode
+
+# Storage images (kept on disk, excluded from git)
+backend/storage/app/public/**/*.jpg
+backend/storage/app/public/**/*.jpeg
+backend/storage/app/public/**/*.png
+backend/storage/app/public/**/*.gif
+backend/storage/app/public/**/*.webp
+backend/storage/app/public/**/*.svg
+backend/storage/app/public/**/*.ico
+backend/storage/app/public/**/*.avif
+backend/storage/app/public/**/*.bmp
