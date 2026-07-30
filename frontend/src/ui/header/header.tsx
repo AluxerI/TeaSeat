@@ -148,7 +148,7 @@ export default function Header() {
             <button className="header__icon-btn" aria-label="Избранное">
               <HeartIcon size={20} />
             </button>
-            <button className="header__icon-btn" aria-label="Корзина">
+            <button className="header__icon-btn" aria-label="Корзина" id="constructor-cart-target">
               <CartIcon size={20} />
             </button>
 

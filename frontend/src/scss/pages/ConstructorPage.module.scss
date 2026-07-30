@@ -1,0 +1,734 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-bg-page: #faf5ee;
+$color-surface: #ffffff;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-accent-hover: #5c4033;
+$color-accent-light: #c8903c;
+$color-success: #5a8a2a;
+$color-badge: #b5532e;
+
+// ── Page layout ─────────────────────────────────────────────────────────────
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: $color-bg-page;
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: max-width(full);
+  margin: 0 auto;
+  padding: spacing(lg) spacing(xxl) spacing(xxl);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: $color-text-primary;
+  overflow: hidden;
+
+  @media (max-width: 900px) {
+    padding: spacing(md);
+  }
+}
+
+.pageTitle {
+  font-size: 28px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin-bottom: spacing(lg) !important;
+  text-align: center;
+}
+
+// ── Progress bar ────────────────────────────────────────────────────────────
+
+.progressBar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(sm);
+  margin-bottom: spacing(xl);
+}
+
+.progressStep {
+  display: flex;
+  align-items: center;
+  gap: spacing(xs);
+  font-size: 14px;
+  font-weight: 600;
+  color: $color-text-secondary;
+  transition: color 0.3s ease;
+
+  &.active {
+    color: $color-accent;
+  }
+
+  &.completed {
+    color: $color-success;
+  }
+}
+
+.progressDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid $color-border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  transition: all 0.3s ease;
+
+  .active & {
+    border-color: $color-accent;
+    background: $color-accent;
+    color: white;
+  }
+
+  .completed & {
+    border-color: $color-success;
+    background: $color-success;
+    color: white;
+  }
+}
+
+.progressLine {
+  width: 40px;
+  height: 2px;
+  background: $color-border;
+  transition: background 0.3s ease;
+
+  &.filled {
+    background: $color-success;
+  }
+}
+
+// ── Stage container ─────────────────────────────────────────────────────────
+
+.stageContainer {
+  position: relative;
+  min-height: 400px;
+}
+
+// ── Stage 0: gift type selection ────────────────────────────────────────────
+
+.stageZero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(xl);
+}
+
+.stageZeroSubtitle {
+  font-size: 16px;
+  color: $color-text-secondary;
+  text-align: center;
+  max-width: 500px;
+}
+
+.giftTypeGrid {
+  display: flex;
+  gap: spacing(xl);
+  justify-content: center;
+  flex-wrap: wrap;
+
+  @media (max-width: 700px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.giftTypeCard {
+  position: relative;
+  width: 320px;
+  background: $color-surface;
+  border: 2px solid $color-border;
+  border-radius: 16px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(sm);
+  padding: spacing(lg);
+  overflow: hidden;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(200, 144, 60, 0.06), transparent);
+    pointer-events: none;
+  }
+}
+
+.giftTypeCard:hover {
+  border-color: $color-accent-light;
+  box-shadow: 0 8px 32px rgba(74, 52, 40, 0.12);
+}
+
+/** Состав набора — короткие чипы под описанием */
+.giftTypeContents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(xs);
+  justify-content: center;
+  margin-top: spacing(xs);
+}
+
+.giftTypeChip {
+  font-size: 12px;
+  font-weight: 600;
+  color: $color-accent;
+  background: rgba(200, 144, 60, 0.14);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
+.giftTypeLabel {
+  font-size: 20px;
+  font-weight: 700;
+  color: $color-text-primary;
+}
+
+.giftTypeDescription {
+  font-size: 14px;
+  color: $color-text-secondary;
+  text-align: center;
+  line-height: 1.5;
+}
+
+.giftTypeBadge {
+  position: absolute;
+  top: spacing(sm);
+  right: spacing(sm);
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badgeSimple {
+  background: rgba(90, 138, 42, 0.12);
+  color: $color-success;
+}
+
+.badgeComplex {
+  background: rgba(181, 83, 46, 0.12);
+  color: $color-badge;
+}
+
+// ── Stage 1 & 2: item selection grid ────────────────────────────────────────
+
+.selectionStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(lg);
+}
+
+.selectionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: spacing(md);
+  width: 100%;
+  max-width: 900px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.selectionCard {
+  background: $color-surface;
+  border: 2px solid $color-border;
+  border-radius: 14px;
+  padding: spacing(md);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+
+  &:hover {
+    border-color: $color-accent-light;
+    box-shadow: 0 4px 20px rgba(74, 52, 40, 0.08);
+  }
+}
+
+.selectionCard.selected {
+  border-color: $color-accent;
+  box-shadow: 0 0 0 3px rgba(74, 52, 40, 0.1);
+}
+
+.selectionCardImage {
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  background: #f0e8dc;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.selectionCardImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.selectionCardName {
+  font-size: 16px;
+  font-weight: 700;
+  color: $color-text-primary;
+}
+
+.selectionCardDesc {
+  font-size: 13px;
+  color: $color-text-secondary;
+  line-height: 1.4;
+}
+
+.selectionCardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+}
+
+.selectionCardPrice {
+  font-size: 16px;
+  font-weight: 700;
+  color: $color-accent;
+}
+
+.selectionCardWeight {
+  font-size: 12px;
+  color: $color-text-secondary;
+}
+
+.selectionCheck {
+  position: absolute;
+  top: spacing(sm);
+  right: spacing(sm);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: $color-accent;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+// ── Box preview (right side / bottom) ───────────────────────────────────────
+
+.boxPreviewPanel {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  padding: spacing(md);
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 14px;
+  min-width: 260px;
+  max-width: 300px;
+  position: sticky;
+  top: spacing(lg);
+
+  @media (max-width: 900px) {
+    position: static;
+    max-width: 100%;
+  }
+}
+
+.boxPreviewTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: $color-text-primary;
+  text-align: center;
+  padding-bottom: spacing(sm);
+  border-bottom: 1px solid $color-border;
+}
+
+.boxPreviewItems {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+}
+
+.boxPreviewItem {
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+  padding: spacing(xs) 0;
+  font-size: 13px;
+  color: $color-text-primary;
+}
+
+.boxPreviewItemDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+
+  &.tea {
+    background: $color-success;
+  }
+
+  &.sweet {
+    background: $color-badge;
+  }
+
+  &.empty {
+    background: $color-border;
+  }
+}
+
+.boxPreviewItemName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.boxPreviewPrice {
+  font-weight: 700;
+  color: $color-text-primary;
+  white-space: nowrap;
+}
+
+.boxPreviewTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: spacing(sm);
+  border-top: 1px solid $color-border;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.selectionLayout {
+  display: flex;
+  gap: spacing(lg);
+  width: 100%;
+  max-width: 1200px;
+  align-items: flex-start;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.selectionMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+// ── Stage 3: confirm ────────────────────────────────────────────────────────
+
+.confirmStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(xl);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.confirmCard {
+  width: 100%;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: spacing(lg);
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.confirmSection {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.confirmSectionTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: $color-text-primary;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.confirmItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: spacing(sm) 0;
+  border-bottom: 1px solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.confirmItemName {
+  font-size: 15px;
+  color: $color-text-primary;
+}
+
+.confirmItemPrice {
+  font-size: 15px;
+  font-weight: 600;
+  color: $color-text-primary;
+}
+
+.confirmTotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: spacing(md);
+  border-top: 2px solid $color-accent;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.confirmTotalValue {
+  color: $color-accent;
+}
+
+// ── Action buttons ──────────────────────────────────────────────────────────
+
+.actions {
+  display: flex;
+  gap: spacing(sm);
+  justify-content: center;
+  margin-top: spacing(md);
+}
+
+.btnPrimary {
+  background: $color-accent;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+
+  &:hover {
+    background: $color-accent-hover;
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    background: #ccc;
+    color: #888;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.btnSecondary {
+  background: transparent;
+  color: $color-text-secondary;
+  border: 1px solid $color-border;
+  border-radius: 10px;
+  padding: 12px 28px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+
+  &:hover {
+    background: #f5efe6;
+    border-color: $color-text-secondary;
+  }
+}
+
+// ── Статусы подтверждения ───────────────────────────────────────────────────
+//
+// DOM-«призрак» для полёта в корзину удалён: теперь летит сама коробка
+// в 3D-сцене, а не её плоский двойник поверх страницы.
+
+.confirmError {
+  color: #c9564e;
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+
+.confirmStatus {
+  color: $color-text-secondary;
+  font-size: 14px;
+  text-align: center;
+  margin: 0;
+}
+
+// ── Success toast ───────────────────────────────────────────────────────────
+
+.successToast {
+  position: fixed;
+  bottom: spacing(xl);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 600;
+  background: $color-success;
+  color: white;
+  padding: spacing(sm) spacing(lg);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: 0 8px 24px rgba(90, 138, 42, 0.3);
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+}
+
+// ── 3D Scene: hero stage ─────────────────────────────────────────────────────
+//
+// Сцена — главный элемент страницы, а не превью сбоку: в панели 280×320
+// не читаются ни облёт камеры, ни поток чаинок, ни две коробки на этапе 0.
+
+.heroStage {
+  position: relative;
+  width: 100%;
+  margin-bottom: spacing(lg);
+}
+
+.heroCanvas {
+  position: relative;
+  width: 100%;
+  height: clamp(340px, 52vh, 620px);
+  border-radius: 20px;
+  overflow: hidden;
+  border: 1px solid $color-border;
+
+  // Мягкая «студийная» подложка: коробка стоит в световом пятне.
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 42%, #fffdf9 0%, rgba(255, 253, 249, 0) 70%),
+    linear-gradient(180deg, #f6efe4 0%, #efe5d6 100%);
+
+  // Вертикальный скролл остаётся у страницы, горизонтальный жест забирает
+  // CameraRig. Без этого палец по канвасу «залипал» бы и страница не скроллилась.
+  touch-action: pan-y;
+
+  canvas {
+    display: block;
+    width: 100% !important;
+    height: 100% !important;
+    outline: none;
+  }
+
+  @media (max-width: 900px) {
+    height: clamp(280px, 42vh, 400px);
+    border-radius: 16px;
+  }
+}
+
+/** Слой подписей поверх сцены. Сам по себе кликов не ловит. */
+.heroOverlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.heroHint {
+  position: absolute;
+  left: 50%;
+  bottom: spacing(sm);
+  transform: translateX(-50%);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: $color-text-secondary;
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(4px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+/** Заголовок текущего этапа, вписанный в сцену */
+.heroCaption {
+  position: absolute;
+  top: spacing(md);
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  color: $color-text-primary;
+}
+
+.heroCaptionTitle {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+
+  @media (max-width: 900px) {
+    font-size: 16px;
+  }
+}
+
+.heroCaptionSub {
+  font-size: 13px;
+  color: $color-text-secondary;
+  margin: 4px 0 0;
+}
+
+/** Панель выбора под сценой */
+.stagePanel {
+  position: relative;
+  width: 100%;
+}
+
+/** Заглушка на время скриптовых анимаций — гасит клики по карточкам */
+.stageLocked {
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.25s ease;
+}
+
+// ── Back button ─────────────────────────────────────────────────────────────
+
+.backRow {
+  margin-bottom: spacing(md);
+}
+
+.backButton {
+  color: $color-text-secondary !important;
+  text-transform: none !important;
+  font-size: 14px !important;
+  padding: 0 !important;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-weight: 600;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $color-accent;
+  }
+}

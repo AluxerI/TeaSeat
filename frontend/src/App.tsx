@@ -22,6 +22,11 @@ import SellerCatalogPage from './pages/seller/CatalogPage';
 import SellerCartPage from './pages/seller/CartPage';
 import SellerOrdersPage from './pages/seller/OrdersPage';
 
+// Конструктор тянет за собой three.js и @react-three/* — около 600 КБ.
+// Статический импорт клал бы их в общий бандл, то есть в загрузку каждой
+// страницы, включая офлайн-precache PWA. Грузим только при переходе на роут.
+const ConstructorPage = React.lazy(() => import('./pages/ConstructorPage'));
+
 
 interface Data {
   id: number;
@@ -99,6 +104,14 @@ const App: React.FC = () => {
              <Route path='profile' Component={ProfilePage}/>
              <Route path='order/:id' Component={OrderPage}/>
              <Route path='cart' Component={CartPage}/>
+             <Route
+               path='constructor'
+               element={
+                 <React.Suspense fallback={null}>
+                   <ConstructorPage />
+                 </React.Suspense>
+               }
+             />
              <Route path="/seller" element={<SellerProvider><LayoutSeller /></SellerProvider>}>
                <Route index element={<Navigate to="dashboard" replace />} />
                <Route path="dashboard" element={<SellerDashboardPage />} />
