@@ -1,0 +1,195 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-matcha: #87a617;
+$color-danger: #c9564e;
+$color-warning: #c98a2d;
+$color-warning-bg: #fdf6e8;
+$color-warning-border: #f0d9a8;
+$color-danger-bg: #fdf0ee;
+$color-danger-border: #ecc7c3;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  padding: spacing(md);
+}
+
+.centerWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(md);
+  min-height: 40vh;
+  padding: spacing(lg);
+  text-align: center;
+}
+
+.emptyText {
+  color: $color-text-secondary;
+  font-size: 15px !important;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+  flex-wrap: wrap;
+}
+
+.backBtn {
+  text-transform: none !important;
+  font-weight: 700 !important;
+  color: $color-text-secondary !important;
+}
+
+.pageTitle {
+  flex: 1;
+  min-width: 0;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+}
+
+.statusChip {
+  font-weight: 700 !important;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: spacing(sm);
+}
+
+.summaryCard {
+  padding: spacing(md);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.summaryLabel {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.summaryValue {
+  font-weight: 700 !important;
+  font-size: 16px !important;
+  color: $color-text-primary;
+}
+
+.summaryHint {
+  font-size: 11px !important;
+  color: $color-text-secondary;
+}
+
+.syncBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(md);
+  padding: spacing(md) spacing(lg);
+  background: $color-warning-bg !important;
+  border: 1px solid $color-warning-border !important;
+  border-radius: 16px;
+  flex-wrap: wrap;
+}
+
+.syncBannerText {
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+  color: $color-warning;
+}
+
+.syncBannerLabel {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+}
+
+.errorCard {
+  display: flex;
+  align-items: flex-start;
+  gap: spacing(sm);
+  padding: spacing(md) spacing(lg);
+  background: $color-danger-bg !important;
+  border: 1px solid $color-danger-border !important;
+  border-radius: 16px;
+}
+
+.errorIcon {
+  color: $color-danger;
+}
+
+.errorText {
+  color: $color-danger;
+  font-size: 14px !important;
+  font-weight: 600;
+}
+
+.conflictLine {
+  font-size: 13px !important;
+  color: $color-danger;
+}
+
+.itemsCard {
+  padding: spacing(md) spacing(lg);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.sectionTitle {
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: $color-text-primary;
+}
+
+.itemLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(md);
+}
+
+.itemName {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+}
+
+.itemMeta {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.itemTotal {
+  font-weight: 700 !important;
+  white-space: nowrap;
+}
+
+.noteText {
+  color: $color-text-primary;
+  font-size: 14px !important;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+@media (max-width: 640px) {
+  .summary {
+    grid-template-columns: 1fr;
+  }
+}

@@ -5,6 +5,8 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
+    "@fontsource-variable/manrope": "^5.3.0",
+    "@fontsource-variable/unbounded": "^5.3.0",
     "@mui/icons-material": "^7.3.11",
     "@mui/material": "^7.3.7",
     "@react-spring/three": "^10.1.2",
@@ -20,6 +22,8 @@
     "@vitejs/plugin-react": "^6.0.3",
     "ajv": "^6.12.6",
     "axios": "^1.13.4",
+    "dexie": "^4.4.4",
+    "dexie-react-hooks": "^4.4.0",
     "framer-motion": "^12.42.2",
     "lucide-react": "^1.18.0",
     "query-string": "^9.3.1",
@@ -35,14 +39,17 @@
   "scripts": {
     "dev": "vite --host",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "devDependencies": {
-    "@types/jest": "^30.0.0",
-    "@types/supertest": "^6.0.3",
-    "jest": "^29.7.0",
+    "@vitest/coverage-v8": "^4.1.10",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^29.1.1",
+    "msw": "^2.15.0",
     "sass": "^1.89.2",
-    "supertest": "^7.1.4",
-    "ts-jest": "^29.4.4"
+    "vitest": "^4.1.10"
   }
 }
