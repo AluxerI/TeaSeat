@@ -232,12 +232,26 @@ Frontend не должен вычислять доступность коман�
 | `POST /manager/orders/{order}/confirm` | `manager.orders.confirm` | `manage manager orders` | пустое тело |
 | `POST /manager/orders/{order}/cancel` | `manager.orders.cancel` | `manage manager orders` | `reason` |
 | `POST /manager/orders/{order}/reschedule` | `manager.orders.reschedule` | `manage manager orders` | `scheduled_delivery_date`, `delivery_time_slot_id`, `reason` |
+| `POST /manager/orders/{order}/items` | `manager.orders.items.store` | `manage manager orders` | `operation_id`, `product_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `PATCH /manager/orders/{order}/items/{item}` | `manager.orders.items.quantity` | `manage manager orders` | `operation_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/items/{item}/replace` | `manager.orders.items.replace` | `manage manager orders` | `operation_id`, `product_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/items/{item}/remove` | `manager.orders.items.remove` | `manage manager orders` | `operation_id`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/gifts/{gift}/replace` | `manager.orders.gifts.replace` | `manage manager orders` | `operation_id`, `gift_id`, `gift_version`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/gifts/{gift}/remove` | `manager.orders.gifts.remove` | `manage manager orders` | `operation_id`, `reason`, `fulfillment_issue_id?` |
 | `GET /manager/fulfillment-issues` | `manager.fulfillment-issues.index` | `view fulfillment issues` | `status`, `warehouse_id`, `product_id`, `reason`, `mine`, `per_page` |
 | `GET /manager/fulfillment-issues/{issue}` | `manager.fulfillment-issues.show` | `view fulfillment issues` | — |
 | `GET /manager/fulfillment-issues/{issue}/affected-orders` | `manager.fulfillment-issues.affected-orders` | `view fulfillment issues` | `per_page` |
 | `POST /manager/fulfillment-issues/{issue}/take` | `manager.fulfillment-issues.take` | `manage fulfillment issues` | пустое тело |
 | `POST /manager/fulfillment-issues/{issue}/release` | `manager.fulfillment-issues.release` | `manage fulfillment issues` | пустое тело |
 | `POST /manager/fulfillment-issues/{issue}/close` | `manager.fulfillment-issues.close` | `manage fulfillment issues` | пустое тело |
+
+Команды состава разрешены только для неоплаченного интернет-заказа до начала
+физической сборки и требуют назначения на все затронутые точки. Увеличение
+существующей строки сохраняет её checkout-цену. Новый товар и замена получают
+актуальную серверную цену каталога с действующей автоматической акцией. После
+правки backend атомарно освобождает прежние резервы, заново распределяет заказ
+и создаёт резервы. `operation_id` обязателен и делает повтор безопасным.
+Компоненты подарка отдельно не меняются: набор заменяется или удаляется целиком.
 | `POST /manager/deliveries/{order}/assign-courier` | `manager.deliveries.assign-courier` | `assign couriers` | `courier_id` |
 | `POST /manager/orders/{order}/return-to-stock` | `manager.orders.return-to-stock` | `manage orders` | `reason` (обязательно, до 1000) |
 

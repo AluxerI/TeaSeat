@@ -159,6 +159,12 @@ class ManagerOrderResource extends JsonResource
                     ->values()
                     ->all()
             ),
+            'manager_adjustments' => $this->when(
+                $this->relationLoaded('managerAdjustments'),
+                fn () => ManagerOrderAdjustmentResource::collection(
+                    $this->managerAdjustments
+                )
+            ),
             'notes' => $this->when(
                 $this->relationLoaded('items'),
                 fn () => [
@@ -390,10 +396,18 @@ class ManagerOrderResource extends JsonResource
             ->contains(fn (FulfillmentIssue $issue): bool =>
                 $issue->status !== FulfillmentIssue::STATUS_CLOSED);
         $hasStartedFulfillment = $this->stock_committed_at !== null
+            || $this->picking_started_at !== null
+            || $this->ready_for_delivery_at !== null
+            || $this->picker_id !== null
+            || $this->courier_id !== null
             || (
                 $this->relationLoaded('partialOrders')
                 && $this->partialOrders->contains(function (Order $part): bool {
                     return $part->stock_committed_at !== null
+                        || $part->picking_started_at !== null
+                        || $part->ready_for_delivery_at !== null
+                        || $part->picker_id !== null
+                        || $part->courier_id !== null
                         || in_array($part->status, [
                             Order::STATUS_PROCESSING,
                             Order::STATUS_READY_FOR_DELIVERY,
@@ -432,6 +446,15 @@ class ManagerOrderResource extends JsonResource
                     Order::STATUS_DELIVERED,
                     Order::STATUS_CANCELLED,
                     Order::STATUS_COMPLETED,
+                ], true),
+            'can_modify_items' => $allLocationsAssigned
+                && $isOnlineOrder
+                && $this->paid_at === null
+                && !$hasStartedFulfillment
+                && in_array($this->status, [
+                    Order::STATUS_PENDING,
+                    Order::STATUS_CONFIRMED,
+                    Order::STATUS_MANAGER_REVIEW,
                 ], true),
         ];
     }

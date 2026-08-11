@@ -78,7 +78,36 @@
 - `assigned_fulfillment_order_ids` — доступные ему исполнения.
 
 Блок `actions` сообщает frontend доступность `can_add_internal_note`,
-`can_confirm`, `can_cancel` и `can_reschedule`.
+`can_confirm`, `can_cancel`, `can_reschedule` и `can_modify_items`.
+
+## Изменение состава заказа
+
+Состав можно менять только у неоплаченного интернет-заказа до начала сборки.
+Менеджер должен быть назначен на все текущие точки; если после нового
+распределения потребуется другая точка, он также должен иметь к ней доступ.
+
+- `POST /api/manager/orders/{order}/items` — добавить товар;
+- `PATCH /api/manager/orders/{order}/items/{item}` — изменить количество;
+- `POST /api/manager/orders/{order}/items/{item}/replace` — заменить товар;
+- `POST /api/manager/orders/{order}/items/{item}/remove` — удалить товар;
+- `POST /api/manager/orders/{order}/gifts/{gift}/replace` — заменить весь набор;
+- `POST /api/manager/orders/{order}/gifts/{gift}/remove` — удалить весь набор.
+
+Каждое тело содержит обязательные UUID `operation_id` и `reason`; необязательный
+`fulfillment_issue_id` связывает решение со взятым менеджером делом. Повтор с
+тем же `operation_id` не применяет правку второй раз и возвращает
+`already_applied=true`.
+
+Старая строка при изменении количества сохраняет checkout-цену. Добавленная
+или заменяющая позиция рассчитывается по актуальной цене каталога и текущей
+автоматической акции. Остальные строки не переоцениваются. Внутренности
+подарочного набора не редактируются.
+
+В одной транзакции backend освобождает прежние резервы, меняет клиентский
+документ, пересчитывает суммы, заново распределяет его по складам и создаёт
+резервы. Нехватка товара откатывает все эти действия. История сохраняется в
+`manager_order_adjustments` и возвращается в `manager_adjustments` карточки.
+Ошибка состояния имеет код `manager_order_edit_rejected`.
 
 ## Внутренняя заметка
 
@@ -144,6 +173,7 @@
 ```bash
 php artisan test --filter=ManagerOrderReadTest
 php artisan test --filter=ManagerOrderCommandTest
+php artisan test --filter=ManagerOrderItemTest
 php artisan test --filter=StaffApiContractTest
 php artisan test
 ```

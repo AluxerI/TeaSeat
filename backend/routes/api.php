@@ -26,6 +26,7 @@ use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDelivery
 use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
 use App\Http\Controllers\Manager\OrderController as ManagerOrderController;
 use App\Http\Controllers\Manager\OrderCommandController as ManagerOrderCommandController;
+use App\Http\Controllers\Manager\OrderItemController as ManagerOrderItemController;
 use App\Http\Controllers\Picker\OrderController as PickerOrderController;
 use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftController;
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
@@ -347,6 +348,35 @@ Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
         ->whereNumber('order')
         ->middleware('permission:manage manager orders')
         ->name('manager.orders.reschedule');
+    Route::post('/orders/{order}/items', [ManagerOrderItemController::class, 'store'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.store');
+    Route::patch('/orders/{order}/items/{item}', [ManagerOrderItemController::class, 'changeQuantity'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.quantity');
+    Route::post('/orders/{order}/items/{item}/replace', [ManagerOrderItemController::class, 'replace'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.replace');
+    Route::post('/orders/{order}/items/{item}/remove', [ManagerOrderItemController::class, 'remove'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.remove');
+    Route::post('/orders/{order}/gifts/{gift}/remove', [ManagerOrderItemController::class, 'removeGift'])
+        ->whereNumber('order')
+        ->whereNumber('gift')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.gifts.remove');
+    Route::post('/orders/{order}/gifts/{gift}/replace', [ManagerOrderItemController::class, 'replaceGift'])
+        ->whereNumber('order')
+        ->whereNumber('gift')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.gifts.replace');
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
         ->middleware('permission:manage orders')

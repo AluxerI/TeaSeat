@@ -205,6 +205,8 @@ class ManagerOrderService
             'inventoryMovements.warehouse',
             'inventoryMovements.actor',
             'statusHistory.changedBy',
+            'managerAdjustments.manager',
+            'managerAdjustments.fulfillmentIssue',
             'supplierOrder.supplier',
             'partialOrders.user',
             'partialOrders.deliveryMethod',

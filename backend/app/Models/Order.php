@@ -160,6 +160,11 @@ class Order extends Model
         return $this->hasOne(OrderFeedback::class);
     }
 
+    public function managerAdjustments()
+    {
+        return $this->hasMany(ManagerOrderAdjustment::class)->latest('id');
+    }
+
     public function sellerDevice()
     {
         return $this->belongsTo(StaffDevice::class, 'seller_device_id');

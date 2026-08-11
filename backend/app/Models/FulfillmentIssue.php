@@ -37,7 +37,9 @@ class FulfillmentIssue extends Model
 
     public function sourceOrder()
     {
-        return $this->belongsTo(Order::class, 'source_order_id');
+        // Складское исполнение может быть заменено при атомарной корректировке
+        // состава. Мягко удалённый документ остаётся источником дела и аудита.
+        return $this->belongsTo(Order::class, 'source_order_id')->withTrashed();
     }
 
     public function product()

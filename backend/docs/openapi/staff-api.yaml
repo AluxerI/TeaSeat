@@ -888,6 +888,210 @@ paths:
         '422':
           $ref: '#/components/responses/ValidationError'
 
+  /manager/orders/{order}/items:
+    post:
+      tags: [Manager]
+      summary: Добавить товар в неоплаченный заказ
+      description: >-
+        Permission: manage manager orders. Цена берётся из текущего серверного
+        каталога. Резервы заказа полностью перестраиваются атомарно.
+      operationId: managerOrderItemsStore
+      x-laravel-route-name: manager.orders.items.store
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, product_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                product_id: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}:
+    patch:
+      tags: [Manager]
+      summary: Изменить количество с сохранением checkout-цены строки
+      description: >-
+        Permission: manage manager orders. Разрешено увеличение и уменьшение;
+        прочие строки не переоцениваются.
+      operationId: managerOrderItemsQuantity
+      x-laravel-route-name: manager.orders.items.quantity
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}/replace:
+    post:
+      tags: [Manager]
+      summary: Заменить товар по актуальной цене сайта
+      description: >-
+        Permission: manage manager orders. Новая строка получает текущую цену
+        каталога и действующую автоматическую акцию.
+      operationId: managerOrderItemsReplace
+      x-laravel-route-name: manager.orders.items.replace
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, product_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                product_id: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}/remove:
+    post:
+      tags: [Manager]
+      summary: Удалить обычную позицию заказа
+      description: 'Permission: manage manager orders. Последнюю позицию удалить нельзя.'
+      operationId: managerOrderItemsRemove
+      x-laravel-route-name: manager.orders.items.remove
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/gifts/{gift}/replace:
+    post:
+      tags: [Manager]
+      summary: Заменить подарочный набор целиком
+      description: >-
+        Permission: manage manager orders. Новый активный набор должен
+        принадлежать покупателю; компоненты отдельно не редактируются.
+      operationId: managerOrderGiftsReplace
+      x-laravel-route-name: manager.orders.gifts.replace
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: gift
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, gift_id, gift_version, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                gift_id: {type: integer, minimum: 1}
+                gift_version: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1, maximum: 100}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/gifts/{gift}/remove:
+    post:
+      tags: [Manager]
+      summary: Удалить подарочный набор целиком
+      description: 'Permission: manage manager orders. Компоненты каскадно удаляются вместе с набором.'
+      operationId: managerOrderGiftsRemove
+      x-laravel-route-name: manager.orders.gifts.remove
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: gift
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
   /manager/fulfillment-issues:
     get:
       tags: [Manager]
@@ -2097,12 +2301,13 @@ components:
             open_issues_count: {type: integer}
         actions:
           type: object
-          required: [can_add_internal_note, can_confirm, can_cancel, can_reschedule]
+          required: [can_add_internal_note, can_confirm, can_cancel, can_reschedule, can_modify_items]
           properties:
             can_add_internal_note: {type: boolean}
             can_confirm: {type: boolean}
             can_cancel: {type: boolean}
             can_reschedule: {type: boolean}
+            can_modify_items: {type: boolean}
         manager_access:
           type: object
           required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids, required_warehouse_ids, all_locations_assigned]
@@ -2132,6 +2337,9 @@ components:
           type: array
           items: {type: object, additionalProperties: true}
         status_history:
+          type: array
+          items: {type: object, additionalProperties: true}
+        manager_adjustments:
           type: array
           items: {type: object, additionalProperties: true}
         notes: {type: object, additionalProperties: true}
