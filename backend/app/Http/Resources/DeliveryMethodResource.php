@@ -16,6 +16,10 @@ class DeliveryMethodResource extends JsonResource
             'type' => $this->type,
             'provider_code' => $this->provider_code,
             'estimated_days' => $this->getEstimatedDaysFormatted(),
+            'requires_scheduling' => $this->requiresScheduling(),
+            'booking_horizon_days' => $this->requiresScheduling()
+                ? max(1, (int) config('delivery.booking_horizon_days', 30))
+                : null,
             'details' => [
                 'min_days' => $this->estimated_days_min,
                 'max_days' => $this->estimated_days_max,

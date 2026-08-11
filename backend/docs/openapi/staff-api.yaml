@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TeaSeat Staff API
-  version: 1.0.0
+  version: 1.2.0
   description: >-
     Контракт backend для PWA продавца, сборщика, менеджера и курьера.
     Подробные бизнес-правила находятся в docs/staff-api-contract.md.
@@ -9,6 +9,7 @@ servers:
   - url: /api
 tags:
   - name: Auth
+  - name: Delivery
   - name: Seller
   - name: Picker
   - name: Courier
@@ -16,6 +17,128 @@ tags:
   - name: Order management
 
 paths:
+  /orders/{order}/requests:
+    get:
+      tags: [Manager]
+      summary: История обращений клиента по своему заказу
+      operationId: customerOrderRequests
+      x-laravel-route-name: orders.requests.index
+      parameters:
+        - {name: order, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [Manager]
+      summary: Создать обращение по своему заказу
+      operationId: createCustomerOrderRequest
+      x-laravel-route-name: orders.requests.store
+      parameters:
+        - {name: order, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrderRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /order-requests/{orderRequest}/withdraw:
+    post:
+      tags: [Manager]
+      summary: Отозвать ожидающее обращение клиента
+      operationId: withdrawCustomerOrderRequest
+      x-laravel-route-name: order-requests.withdraw
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests:
+    get:
+      tags: [Manager]
+      summary: Очередь обращений доступных менеджеру складов
+      operationId: managerOrderRequests
+      x-laravel-route-name: manager.order-requests.index
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /manager/order-requests/{orderRequest}:
+    get:
+      tags: [Manager]
+      summary: Карточка обращения клиента
+      operationId: managerOrderRequest
+      x-laravel-route-name: manager.order-requests.show
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /manager/order-requests/{orderRequest}/take:
+    post:
+      tags: [Manager]
+      summary: Взять обращение в работу
+      operationId: takeManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.take
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/release:
+    post:
+      tags: [Manager]
+      summary: Вернуть своё обращение в очередь
+      operationId: releaseManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.release
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/resolve:
+    post:
+      tags: [Manager]
+      summary: Завершить обращение с ответом клиенту
+      operationId: resolveManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.resolve
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagerOrderRequestComment'}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/reject:
+    post:
+      tags: [Manager]
+      summary: Отклонить обращение с объяснением
+      operationId: rejectManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.reject
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagerOrderRequestComment'}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
   /auth/login:
     post:
       tags: [Auth]
@@ -50,6 +173,40 @@ paths:
           $ref: '#/components/responses/Message'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /checkout/delivery-slots/{addressId}/{deliveryMethodId}:
+    get:
+      tags: [Delivery]
+      summary: Доступные даты и интервалы доставки для адреса покупателя
+      description: >-
+        Возвращает только интервалы с оставшейся вместимостью в пределах
+        горизонта бронирования. Адрес должен принадлежать текущему пользователю.
+      operationId: checkoutDeliverySlots
+      x-laravel-route-name: checkout.delivery-slots
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - name: deliveryMethodId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Календарь доступных интервалов
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeliveryAvailability'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /user:
     get:
@@ -594,6 +751,15 @@ paths:
       x-laravel-route-name: courier.deliveries.release
       parameters:
         - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 1000}
       responses:
         '200':
           $ref: '#/components/responses/CourierDeliveryData'
@@ -605,6 +771,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /courier/deliveries/{order}/start:
     post:
@@ -647,6 +815,404 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+
+  /manager/orders:
+    get:
+      tags: [Manager]
+      summary: Основные заказы активных точек менеджера
+      description: >-
+        Permission: view manager orders. Возвращает только основные заказы;
+        доступ определяется собственным складом заказа и его складскими частями.
+      operationId: managerOrdersIndex
+      x-laravel-route-name: manager.orders.index
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, processing, ready_for_delivery, shipped, awaiting_receipt, delivered, cancelled, seller_review, manager_review, completed]
+        - name: sales_channel
+          in: query
+          schema:
+            type: string
+            enum: [online, seller, internal]
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: has_issue
+          in: query
+          description: Есть открытая проблема у заказа или его складской части
+          schema: {type: boolean}
+        - name: date_from
+          in: query
+          schema: {type: string, format: date}
+        - name: date_to
+          in: query
+          schema: {type: string, format: date}
+        - name: search
+          in: query
+          schema: {type: string, maxLength: 120}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}:
+    get:
+      tags: [Manager]
+      summary: Полная многоскладская карточка заказа
+      description: >-
+        Permission: view manager orders. Недоступный заказ возвращает 404.
+        Назначенные части перечислены в
+        manager_access.assigned_fulfillment_order_ids, а доступность команд —
+        в actions и manager_access.all_locations_assigned.
+      operationId: managerOrdersShow
+      x-laravel-route-name: manager.orders.show
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /manager/orders/{order}/internal-notes:
+    post:
+      tags: [Manager]
+      summary: Добавить внутреннюю заметку к заказу
+      description: >-
+        Permission: manage manager orders. Заметка дописывается с автором и
+        временем; существующие заметки не перезаписываются.
+      operationId: managerOrdersInternalNotes
+      x-laravel-route-name: manager.orders.internal-notes
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/confirm:
+    post:
+      tags: [Manager]
+      summary: Подтвердить ожидающий интернет-заказ
+      description: >-
+        Permission: manage manager orders. Требует назначения менеджера на все
+        точки заказа и отсутствия открытых fulfillment issues.
+      operationId: managerOrdersConfirm
+      x-laravel-route-name: manager.orders.confirm
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/orders/{order}/cancel:
+    post:
+      tags: [Manager]
+      summary: Отменить неоплаченный интернет-заказ
+      description: >-
+        Permission: manage manager orders. Требует назначения менеджера на все
+        точки и освобождает нескоммиченные складские резервы идемпотентно.
+      operationId: managerOrdersCancel
+      x-laravel-route-name: manager.orders.cancel
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 1000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/reschedule:
+    post:
+      tags: [Manager]
+      summary: Изменить обещанный клиенту интервал доставки
+      description: >-
+        Permission: manage manager orders. Требует доступа ко всем точкам
+        заказа. После назначения курьера сначала требуется вернуть заказ в
+        свободную очередь.
+      operationId: managerOrdersReschedule
+      x-laravel-route-name: manager.orders.reschedule
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduled_delivery_date, delivery_time_slot_id, reason]
+              properties:
+                scheduled_delivery_date: {type: string, format: date}
+                delivery_time_slot_id: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 1, maxLength: 1000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/items:
+    post:
+      tags: [Manager]
+      summary: Добавить товар в неоплаченный заказ
+      description: >-
+        Permission: manage manager orders. Цена берётся из текущего серверного
+        каталога. Резервы заказа полностью перестраиваются атомарно.
+      operationId: managerOrderItemsStore
+      x-laravel-route-name: manager.orders.items.store
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, product_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                product_id: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}:
+    patch:
+      tags: [Manager]
+      summary: Изменить количество с сохранением checkout-цены строки
+      description: >-
+        Permission: manage manager orders. Разрешено увеличение и уменьшение;
+        прочие строки не переоцениваются.
+      operationId: managerOrderItemsQuantity
+      x-laravel-route-name: manager.orders.items.quantity
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}/replace:
+    post:
+      tags: [Manager]
+      summary: Заменить товар по актуальной цене сайта
+      description: >-
+        Permission: manage manager orders. Новая строка получает текущую цену
+        каталога и действующую автоматическую акцию.
+      operationId: managerOrderItemsReplace
+      x-laravel-route-name: manager.orders.items.replace
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, product_id, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                product_id: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/items/{item}/remove:
+    post:
+      tags: [Manager]
+      summary: Удалить обычную позицию заказа
+      description: 'Permission: manage manager orders. Последнюю позицию удалить нельзя.'
+      operationId: managerOrderItemsRemove
+      x-laravel-route-name: manager.orders.items.remove
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: item
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/gifts/{gift}/replace:
+    post:
+      tags: [Manager]
+      summary: Заменить подарочный набор целиком
+      description: >-
+        Permission: manage manager orders. Новый активный набор должен
+        принадлежать покупателю; компоненты отдельно не редактируются.
+      operationId: managerOrderGiftsReplace
+      x-laravel-route-name: manager.orders.gifts.replace
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: gift
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, gift_id, gift_version, quantity, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                gift_id: {type: integer, minimum: 1}
+                gift_version: {type: integer, minimum: 1}
+                quantity: {type: integer, minimum: 1, maximum: 100}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /manager/orders/{order}/gifts/{gift}/remove:
+    post:
+      tags: [Manager]
+      summary: Удалить подарочный набор целиком
+      description: 'Permission: manage manager orders. Компоненты каскадно удаляются вместе с набором.'
+      operationId: managerOrderGiftsRemove
+      x-laravel-route-name: manager.orders.gifts.remove
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+        - name: gift
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [operation_id, reason]
+              properties:
+                operation_id: {type: string, format: uuid}
+                reason: {type: string, minLength: 3, maxLength: 1000}
+                fulfillment_issue_id: {type: [integer, 'null'], minimum: 1}
+      responses:
+        '200': {$ref: '#/components/responses/ManagerOrderData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
 
   /manager/fulfillment-issues:
     get:
@@ -853,8 +1419,8 @@ paths:
   /admin/orders:
     get:
       tags: [Order management]
-      summary: Глобальный список заказов менеджера или администратора
-      description: 'Permission: manage orders. Назначенные точки пока не ограничивают список.'
+      summary: Глобальный список заказов администратора
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersIndex
       x-laravel-route-name: management.orders.index
       parameters:
@@ -888,7 +1454,7 @@ paths:
     get:
       tags: [Order management]
       summary: Статистика заказов
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersStats
       x-laravel-route-name: management.orders.stats
       parameters:
@@ -910,7 +1476,7 @@ paths:
     get:
       tags: [Order management]
       summary: Детали заказа
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersShow
       x-laravel-route-name: management.orders.show
       parameters:
@@ -929,7 +1495,7 @@ paths:
     put:
       tags: [Order management]
       summary: Изменить разрешённый статус заказа
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateStatus
       x-laravel-route-name: management.orders.update-status
       parameters:
@@ -958,7 +1524,7 @@ paths:
     put:
       tags: [Order management]
       summary: Обновить трек-номер
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateTracking
       x-laravel-route-name: management.orders.update-tracking
       parameters:
@@ -987,7 +1553,7 @@ paths:
     put:
       tags: [Order management]
       summary: Обновить внутренний комментарий
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateInternalNotes
       x-laravel-route-name: management.orders.update-internal-notes
       parameters:
@@ -1015,7 +1581,7 @@ paths:
     put:
       tags: [Order management]
       summary: Отменить заказ менеджером
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersCancel
       x-laravel-route-name: management.orders.cancel
       parameters:
@@ -1044,7 +1610,7 @@ paths:
     put:
       tags: [Order management]
       summary: Подтвердить заказ
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersConfirm
       x-laravel-route-name: management.orders.confirm
       parameters:
@@ -1065,7 +1631,7 @@ paths:
     put:
       tags: [Order management]
       summary: Передать внешний заказ в доставку
-      description: 'Permission: manage orders. Внутреннего курьера запускает courier API.'
+      description: 'Role: admin. Permission: manage orders. Внутреннего курьера запускает courier API.'
       operationId: managementOrdersShip
       x-laravel-route-name: management.orders.ship
       parameters:
@@ -1086,7 +1652,7 @@ paths:
     put:
       tags: [Order management]
       summary: Завершить выдачу или внешнюю доставку
-      description: 'Permission: manage orders. Внутреннюю доставку завершает courier API.'
+      description: 'Role: admin. Permission: manage orders. Внутреннюю доставку завершает courier API.'
       operationId: managementOrdersDeliver
       x-laravel-route-name: management.orders.deliver
       parameters:
@@ -1107,7 +1673,7 @@ paths:
     put:
       tags: [Order management]
       summary: Изменить способ и стоимость доставки
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateDeliveryMethod
       x-laravel-route-name: management.orders.update-delivery-method
       parameters:
@@ -1313,6 +1879,22 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AffectedOrderListResponse'
+    ManagerOrderData:
+      description: Полная карточка заказа в области доступа менеджера
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                $ref: '#/components/schemas/ManagerOrder'
+    ManagerOrderList:
+      description: Страница основных заказов менеджера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ManagerOrderListResponse'
     AdminOrderData:
       description: Управленческое представление заказа
       content:
@@ -1373,6 +1955,65 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
+    CreateOrderRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [change_delivery, cancel_order, order_problem, other]
+        message:
+          type: [string, 'null']
+          maxLength: 5000
+          description: Обязательно для order_problem и other.
+    ManagerOrderRequestComment:
+      type: object
+      required: [manager_comment]
+      properties:
+        manager_comment: {type: string, minLength: 1, maxLength: 5000}
+    DeliveryAvailability:
+      type: object
+      required: [delivery_method, booking_horizon_days, dates]
+      properties:
+        delivery_method:
+          type: object
+          required: [id, name, type]
+          properties:
+            id: {type: integer}
+            name: {type: string}
+            type: {type: string, enum: [courier, express]}
+        booking_horizon_days: {type: integer, minimum: 1}
+        dates:
+          type: array
+          items:
+            type: object
+            required: [date, weekday, slots]
+            properties:
+              date: {type: string, format: date}
+              weekday: {type: integer, minimum: 1, maximum: 7}
+              slots:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeliveryAvailabilitySlot'
+    DeliveryAvailabilitySlot:
+      type: object
+      required: [id, time_from, time_to, capacity, booked, remaining_capacity]
+      properties:
+        id: {type: integer}
+        time_from: {type: string, pattern: '^\d{2}:\d{2}$'}
+        time_to: {type: string, pattern: '^\d{2}:\d{2}$'}
+        capacity: {type: integer, minimum: 1}
+        booked: {type: integer, minimum: 0}
+        remaining_capacity: {type: integer, minimum: 1}
+    ScheduledDeliveryWindow:
+      type: object
+      required: [date, time_from, time_to, slot_id]
+      properties:
+        date: {type: string, format: date}
+        time_from: {type: string, pattern: '^\d{2}:\d{2}$'}
+        time_to: {type: string, pattern: '^\d{2}:\d{2}$'}
+        slot_id: {type: integer}
+        claim_opens_at: {type: [string, 'null'], format: date-time}
     LoginRequest:
       type: object
       required: [email, password]
@@ -1670,6 +2311,10 @@ components:
         customer: {type: [object, 'null'], additionalProperties: true}
         delivery_address: {type: [object, 'null'], additionalProperties: true}
         delivery_method: {type: [object, 'null'], additionalProperties: true}
+        scheduled_window:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ScheduledDeliveryWindow'
         payment:
           oneOf:
             - type: 'null'
@@ -1764,6 +2409,89 @@ components:
             candidate_orders_count: {type: integer}
             reserved_quantity_total: {type: integer}
             shortage_quantity: {type: integer}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    ManagerOrder:
+      type: object
+      required: [id, order_number, status, sales_channel, totals, fulfillment_summary, actions, manager_access]
+      properties:
+        id: {type: integer}
+        order_number: {type: string}
+        status: {type: string}
+        status_name: {type: string}
+        sales_channel:
+          type: string
+          enum: [online, seller, internal]
+        order_type:
+          type: string
+          enum: [regular, supplier]
+        customer: {type: [object, 'null'], additionalProperties: true}
+        totals: {type: object, additionalProperties: true}
+        payment: {type: object, additionalProperties: true}
+        delivery: {type: object, additionalProperties: true}
+        staff: {type: object, additionalProperties: true}
+        fulfillment_summary:
+          type: object
+          required: [parts_count, issues_count, open_issues_count]
+          properties:
+            parts_count: {type: [integer, 'null']}
+            issues_count: {type: integer}
+            open_issues_count: {type: integer}
+        actions:
+          type: object
+          required: [can_add_internal_note, can_confirm, can_cancel, can_reschedule, can_modify_items]
+          properties:
+            can_add_internal_note: {type: boolean}
+            can_confirm: {type: boolean}
+            can_cancel: {type: boolean}
+            can_reschedule: {type: boolean}
+            can_modify_items: {type: boolean}
+        manager_access:
+          type: object
+          required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids, required_warehouse_ids, all_locations_assigned]
+          properties:
+            full_order_visible: {type: boolean, const: true}
+            read_only_contract: {type: boolean, const: false}
+            assigned_fulfillment_order_ids:
+              type: array
+              items: {type: integer}
+            required_warehouse_ids:
+              type: array
+              items: {type: integer}
+            all_locations_assigned: {type: boolean}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        gifts:
+          type: array
+          items: {type: object, additionalProperties: true}
+        partial_orders:
+          type: array
+          items: {type: object, additionalProperties: true}
+        fulfillment_issues:
+          type: array
+          items: {type: object, additionalProperties: true}
+        inventory_movements:
+          type: array
+          items: {type: object, additionalProperties: true}
+        status_history:
+          type: array
+          items: {type: object, additionalProperties: true}
+        manager_adjustments:
+          type: array
+          items: {type: object, additionalProperties: true}
+        notes: {type: object, additionalProperties: true}
+        stock: {type: object, additionalProperties: true}
+        timestamps: {type: object, additionalProperties: true}
+      additionalProperties: true
+    ManagerOrderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagerOrder'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
     AdminOrder:

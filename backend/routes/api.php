@@ -24,12 +24,25 @@ use App\Http\Controllers\Seller\SyncController as SellerSyncController;
 use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmentIssueController;
 use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDeliveryAssignmentController;
 use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
+use App\Http\Controllers\Manager\OrderController as ManagerOrderController;
+use App\Http\Controllers\Manager\OrderCommandController as ManagerOrderCommandController;
+use App\Http\Controllers\Manager\OrderItemController as ManagerOrderItemController;
 use App\Http\Controllers\Picker\OrderController as PickerOrderController;
 use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftController;
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
 use App\Http\Controllers\Gift\GiftConstructorController;
 use App\Http\Controllers\Cart\GiftController as CartGiftController;
+use App\Http\Controllers\Review\ProductReviewController;
+use App\Http\Controllers\Review\CustomerReviewController;
+use App\Http\Controllers\Review\OrderFeedbackController;
+use App\Http\Controllers\Manager\ReviewModerationController;
+use App\Http\Controllers\Manager\OrderFeedbackModerationController;
+use App\Http\Controllers\Order\OrderRequestController as CustomerOrderRequestController;
+use App\Http\Controllers\Manager\OrderRequestController as ManagerOrderRequestController;
 
+Route::get('/products/{product}/reviews', [ProductReviewController::class, 'index'])
+    ->whereNumber('product')
+    ->name('product.reviews.index');
 
 Route::prefix('auth')->group(function () {
     // Основные эндпоинты
@@ -64,6 +77,33 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/sessions', [SessionController::class, '__invoke']);
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
     Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
+
+    Route::get('/reviews/mine', [CustomerReviewController::class, 'mine'])
+        ->name('reviews.mine');
+    Route::post('/products/{product}/reviews', [CustomerReviewController::class, 'store'])
+        ->whereNumber('product')
+        ->name('product.reviews.store');
+    Route::put('/reviews/{review}', [CustomerReviewController::class, 'update'])
+        ->whereNumber('review')
+        ->name('reviews.update');
+    Route::get('/orders/{order}/feedback', [OrderFeedbackController::class, 'show'])
+        ->whereNumber('order')
+        ->name('orders.feedback.show');
+    Route::post('/orders/{order}/feedback', [OrderFeedbackController::class, 'store'])
+        ->whereNumber('order')
+        ->name('orders.feedback.store');
+    Route::put('/order-feedback/{feedback}', [OrderFeedbackController::class, 'update'])
+        ->whereNumber('feedback')
+        ->name('order-feedback.update');
+    Route::get('/orders/{order}/requests', [CustomerOrderRequestController::class, 'index'])
+        ->whereNumber('order')
+        ->name('orders.requests.index');
+    Route::post('/orders/{order}/requests', [CustomerOrderRequestController::class, 'store'])
+        ->whereNumber('order')
+        ->name('orders.requests.store');
+    Route::post('/order-requests/{orderRequest}/withdraw', [CustomerOrderRequestController::class, 'withdraw'])
+        ->whereNumber('orderRequest')
+        ->name('order-requests.withdraw');
 
     Route::prefix('gift-constructor')->group(function () {
         Route::get('/boxes/{box}/products', [GiftConstructorController::class, 'boxProducts'])
@@ -118,6 +158,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('checkout')->group(function () {
         Route::post('/', [CheckoutController::class, '__invoke']);
         Route::get('/delivery-methods/{addressId}', [CheckoutController::class, 'getDeliveryMethods']);
+        Route::get(
+            '/delivery-slots/{addressId}/{deliveryMethodId}',
+            [CheckoutController::class, 'getDeliverySlots']
+        )
+            ->whereNumber('addressId')
+            ->whereNumber('deliveryMethodId')
+            ->name('checkout.delivery-slots');
     });
     
     // Управление заказами
@@ -249,6 +296,124 @@ Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
 // Отдельный API менеджера. В отличие от Filament, для менеджера здесь
 // обязательно применяется ограничение по назначенным активным складам.
 Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
+    Route::prefix('order-requests')->group(function () {
+        Route::get('/', [ManagerOrderRequestController::class, 'index'])
+            ->middleware('permission:view manager orders')
+            ->name('manager.order-requests.index');
+        Route::get('/{orderRequest}', [ManagerOrderRequestController::class, 'show'])
+            ->whereNumber('orderRequest')
+            ->middleware('permission:view manager orders')
+            ->name('manager.order-requests.show');
+        Route::post('/{orderRequest}/take', [ManagerOrderRequestController::class, 'take'])
+            ->whereNumber('orderRequest')
+            ->middleware('permission:manage manager orders')
+            ->name('manager.order-requests.take');
+        Route::post('/{orderRequest}/release', [ManagerOrderRequestController::class, 'release'])
+            ->whereNumber('orderRequest')
+            ->middleware('permission:manage manager orders')
+            ->name('manager.order-requests.release');
+        Route::post('/{orderRequest}/resolve', [ManagerOrderRequestController::class, 'resolve'])
+            ->whereNumber('orderRequest')
+            ->middleware('permission:manage manager orders')
+            ->name('manager.order-requests.resolve');
+        Route::post('/{orderRequest}/reject', [ManagerOrderRequestController::class, 'reject'])
+            ->whereNumber('orderRequest')
+            ->middleware('permission:manage manager orders')
+            ->name('manager.order-requests.reject');
+    });
+
+    Route::prefix('reviews')->group(function () {
+        Route::get('/', [ReviewModerationController::class, 'index'])
+            ->middleware('permission:view reviews')
+            ->name('manager.reviews.index');
+        Route::get('/{review}', [ReviewModerationController::class, 'show'])
+            ->whereNumber('review')
+            ->middleware('permission:view reviews')
+            ->name('manager.reviews.show');
+        Route::post('/{review}/hide', [ReviewModerationController::class, 'hide'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.hide');
+        Route::post('/{review}/restore', [ReviewModerationController::class, 'restore'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.restore');
+        Route::put('/{review}/reply', [ReviewModerationController::class, 'reply'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.reply');
+    });
+
+    Route::prefix('order-feedback')->group(function () {
+        Route::get('/', [OrderFeedbackModerationController::class, 'index'])
+            ->middleware('permission:view reviews')
+            ->name('manager.order-feedback.index');
+        Route::get('/{feedback}', [OrderFeedbackModerationController::class, 'show'])
+            ->whereNumber('feedback')
+            ->middleware('permission:view reviews')
+            ->name('manager.order-feedback.show');
+        Route::post('/{feedback}/hide', [OrderFeedbackModerationController::class, 'hide'])
+            ->whereNumber('feedback')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.order-feedback.hide');
+        Route::post('/{feedback}/restore', [OrderFeedbackModerationController::class, 'restore'])
+            ->whereNumber('feedback')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.order-feedback.restore');
+    });
+
+    Route::get('/orders', [ManagerOrderController::class, 'index'])
+        ->middleware('permission:view manager orders')
+        ->name('manager.orders.index');
+    Route::get('/orders/{order}', [ManagerOrderController::class, 'show'])
+        ->whereNumber('order')
+        ->middleware('permission:view manager orders')
+        ->name('manager.orders.show');
+    Route::post('/orders/{order}/internal-notes', [ManagerOrderCommandController::class, 'internalNote'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.internal-notes');
+    Route::post('/orders/{order}/confirm', [ManagerOrderCommandController::class, 'confirm'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.confirm');
+    Route::post('/orders/{order}/cancel', [ManagerOrderCommandController::class, 'cancel'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.cancel');
+    Route::post('/orders/{order}/reschedule', [ManagerOrderCommandController::class, 'reschedule'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.reschedule');
+    Route::post('/orders/{order}/items', [ManagerOrderItemController::class, 'store'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.store');
+    Route::patch('/orders/{order}/items/{item}', [ManagerOrderItemController::class, 'changeQuantity'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.quantity');
+    Route::post('/orders/{order}/items/{item}/replace', [ManagerOrderItemController::class, 'replace'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.replace');
+    Route::post('/orders/{order}/items/{item}/remove', [ManagerOrderItemController::class, 'remove'])
+        ->whereNumber('order')
+        ->whereNumber('item')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.items.remove');
+    Route::post('/orders/{order}/gifts/{gift}/remove', [ManagerOrderItemController::class, 'removeGift'])
+        ->whereNumber('order')
+        ->whereNumber('gift')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.gifts.remove');
+    Route::post('/orders/{order}/gifts/{gift}/replace', [ManagerOrderItemController::class, 'replaceGift'])
+        ->whereNumber('order')
+        ->whereNumber('gift')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.gifts.replace');
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
         ->middleware('permission:manage orders')
@@ -304,8 +469,13 @@ Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
         ->middleware(['auth:sanctum', 'can:delete users']);
 });
 
-//Управление заказов для менеджеров или админов
-Route::prefix('admin')->middleware(['auth:sanctum', 'permission:manage orders'])->group(function () {
+// Глобальное управление заказами остаётся только у администратора.
+// Менеджер работает через /manager/orders с ограничением по активным точкам.
+Route::prefix('admin')->middleware([
+    'auth:sanctum',
+    'role:admin',
+    'permission:manage orders',
+])->group(function () {
     
     // Управление заказами
     Route::prefix('orders')->group(function () {

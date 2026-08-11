@@ -47,6 +47,12 @@ class AdminOrderResource extends JsonResource
             
             // Доставка
             'delivery' => [
+                'scheduled_window' => $this->scheduled_delivery_date ? [
+                    'date' => $this->scheduled_delivery_date->toDateString(),
+                    'time_from' => substr((string) $this->delivery_time_from, 0, 5),
+                    'time_to' => substr((string) $this->delivery_time_to, 0, 5),
+                    'slot_id' => (int) $this->delivery_time_slot_id,
+                ] : null,
                 'method' => $this->whenLoaded('deliveryMethod', function() {
                     return [
                         'id' => $this->deliveryMethod->id,

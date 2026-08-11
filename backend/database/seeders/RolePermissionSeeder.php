@@ -42,8 +42,13 @@ class RolePermissionSeeder extends Seeder
             'view assigned deliveries',
             'update assigned deliveries',
             'assign couriers',
+            'view manager orders',
+            'manage manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
+            'manage delivery schedules',
+            'view reviews',
+            'moderate reviews',
         ];
 
         foreach ($permissions as $permission) {
@@ -90,8 +95,13 @@ class RolePermissionSeeder extends Seeder
             'view inventory',
             'adjust inventory',
             'assign couriers',
+            'view manager orders',
+            'manage manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
+            'manage delivery schedules',
+            'view reviews',
+            'moderate reviews',
         ]);
 
         $sellerRole->syncPermissions([

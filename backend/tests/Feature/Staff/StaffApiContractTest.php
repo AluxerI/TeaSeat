@@ -51,6 +51,13 @@ class StaffApiContractTest extends TestCase
                     "Изменилось право маршрута {$name}"
                 );
             }
+            if (str_starts_with($name, 'management.')) {
+                $this->assertContains(
+                    'role:admin',
+                    $middleware,
+                    "Глобальный маршрут {$name} больше не ограничен ролью admin"
+                );
+            }
 
             $this->assertSame(
                 1,
@@ -90,6 +97,10 @@ class StaffApiContractTest extends TestCase
     {
         return [
             'user.show' => ['GET', 'api/user', null],
+            'checkout.delivery-slots' => ['GET', 'api/checkout/delivery-slots/{addressId}/{deliveryMethodId}', null],
+            'orders.requests.index' => ['GET', 'api/orders/{order}/requests', null],
+            'orders.requests.store' => ['POST', 'api/orders/{order}/requests', null],
+            'order-requests.withdraw' => ['POST', 'api/order-requests/{orderRequest}/withdraw', null],
 
             'seller.devices.register' => ['POST', 'api/seller/devices/register', 'create seller orders'],
             'seller.bootstrap' => ['GET', 'api/seller/bootstrap', 'create seller orders'],
@@ -119,7 +130,25 @@ class StaffApiContractTest extends TestCase
             'courier.deliveries.start' => ['POST', 'api/courier/deliveries/{order}/start', 'update assigned deliveries'],
             'courier.deliveries.deliver' => ['POST', 'api/courier/deliveries/{order}/deliver', 'update assigned deliveries'],
 
+            'manager.orders.reschedule' => ['POST', 'api/manager/orders/{order}/reschedule', 'manage manager orders'],
+            'manager.order-requests.index' => ['GET', 'api/manager/order-requests', 'view manager orders'],
+            'manager.order-requests.show' => ['GET', 'api/manager/order-requests/{orderRequest}', 'view manager orders'],
+            'manager.order-requests.take' => ['POST', 'api/manager/order-requests/{orderRequest}/take', 'manage manager orders'],
+            'manager.order-requests.release' => ['POST', 'api/manager/order-requests/{orderRequest}/release', 'manage manager orders'],
+            'manager.order-requests.resolve' => ['POST', 'api/manager/order-requests/{orderRequest}/resolve', 'manage manager orders'],
+            'manager.order-requests.reject' => ['POST', 'api/manager/order-requests/{orderRequest}/reject', 'manage manager orders'],
             'manager.orders.return-to-stock' => ['POST', 'api/manager/orders/{order}/return-to-stock', 'manage orders'],
+            'manager.orders.index' => ['GET', 'api/manager/orders', 'view manager orders'],
+            'manager.orders.show' => ['GET', 'api/manager/orders/{order}', 'view manager orders'],
+            'manager.orders.internal-notes' => ['POST', 'api/manager/orders/{order}/internal-notes', 'manage manager orders'],
+            'manager.orders.confirm' => ['POST', 'api/manager/orders/{order}/confirm', 'manage manager orders'],
+            'manager.orders.cancel' => ['POST', 'api/manager/orders/{order}/cancel', 'manage manager orders'],
+            'manager.orders.items.store' => ['POST', 'api/manager/orders/{order}/items', 'manage manager orders'],
+            'manager.orders.items.quantity' => ['PATCH', 'api/manager/orders/{order}/items/{item}', 'manage manager orders'],
+            'manager.orders.items.replace' => ['POST', 'api/manager/orders/{order}/items/{item}/replace', 'manage manager orders'],
+            'manager.orders.items.remove' => ['POST', 'api/manager/orders/{order}/items/{item}/remove', 'manage manager orders'],
+            'manager.orders.gifts.replace' => ['POST', 'api/manager/orders/{order}/gifts/{gift}/replace', 'manage manager orders'],
+            'manager.orders.gifts.remove' => ['POST', 'api/manager/orders/{order}/gifts/{gift}/remove', 'manage manager orders'],
             'manager.deliveries.assign-courier' => ['POST', 'api/manager/deliveries/{order}/assign-courier', 'assign couriers'],
             'manager.fulfillment-issues.index' => ['GET', 'api/manager/fulfillment-issues', 'view fulfillment issues'],
             'manager.fulfillment-issues.show' => ['GET', 'api/manager/fulfillment-issues/{issue}', 'view fulfillment issues'],

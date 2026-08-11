@@ -207,13 +207,17 @@ Frontend не должен вычислять доступность коман�
 | `GET /courier/deliveries` | `courier.deliveries.index` | `view assigned deliveries` | `status`, `warehouse_id`, `delivery_kind`, `mine`, `per_page` |
 | `GET /courier/deliveries/{order}` | `courier.deliveries.show` | `view assigned deliveries` | — |
 | `POST /courier/deliveries/{order}/claim` | `courier.deliveries.claim` | `update assigned deliveries` | пустое тело |
-| `POST /courier/deliveries/{order}/release` | `courier.deliveries.release` | `update assigned deliveries` | пустое тело |
+| `POST /courier/deliveries/{order}/release` | `courier.deliveries.release` | `update assigned deliveries` | `reason` (обязательно, до 1000) |
 | `POST /courier/deliveries/{order}/start` | `courier.deliveries.start` | `update assigned deliveries` | пустое тело |
 | `POST /courier/deliveries/{order}/deliver` | `courier.deliveries.deliver` | `update assigned deliveries` | пустое тело |
 
 `delivery_kind=customer` — доставка покупателю; `transfer` — межскладское
 перемещение. Ресурс клиентской доставки содержит контакт, адрес,
 `payment.method`, `payment.order_total` и `payment.amount_to_collect`.
+Заказ с выбранным интервалом появляется в свободной очереди за 24 часа до
+начала интервала. Это не предварительная бронь курьера. Отказ до начала
+доставки очищает назначение, возвращает заказ в общую очередь и дописывает
+причину во внутренний журнал заказа.
 
 ### Менеджер: проблемы, упаковки и назначения
 
@@ -222,12 +226,32 @@ Frontend не должен вычислять доступность коман�
 
 | Метод и путь | Имя маршрута | Право | Тело / фильтры |
 | --- | --- | --- | --- |
+| `GET /manager/orders` | `manager.orders.index` | `view manager orders` | `status`, `sales_channel`, `warehouse_id`, `has_issue`, `date_from`, `date_to`, `search`, `per_page` |
+| `GET /manager/orders/{order}` | `manager.orders.show` | `view manager orders` | — |
+| `POST /manager/orders/{order}/internal-notes` | `manager.orders.internal-notes` | `manage manager orders` | `comment` |
+| `POST /manager/orders/{order}/confirm` | `manager.orders.confirm` | `manage manager orders` | пустое тело |
+| `POST /manager/orders/{order}/cancel` | `manager.orders.cancel` | `manage manager orders` | `reason` |
+| `POST /manager/orders/{order}/reschedule` | `manager.orders.reschedule` | `manage manager orders` | `scheduled_delivery_date`, `delivery_time_slot_id`, `reason` |
+| `POST /manager/orders/{order}/items` | `manager.orders.items.store` | `manage manager orders` | `operation_id`, `product_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `PATCH /manager/orders/{order}/items/{item}` | `manager.orders.items.quantity` | `manage manager orders` | `operation_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/items/{item}/replace` | `manager.orders.items.replace` | `manage manager orders` | `operation_id`, `product_id`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/items/{item}/remove` | `manager.orders.items.remove` | `manage manager orders` | `operation_id`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/gifts/{gift}/replace` | `manager.orders.gifts.replace` | `manage manager orders` | `operation_id`, `gift_id`, `gift_version`, `quantity`, `reason`, `fulfillment_issue_id?` |
+| `POST /manager/orders/{order}/gifts/{gift}/remove` | `manager.orders.gifts.remove` | `manage manager orders` | `operation_id`, `reason`, `fulfillment_issue_id?` |
 | `GET /manager/fulfillment-issues` | `manager.fulfillment-issues.index` | `view fulfillment issues` | `status`, `warehouse_id`, `product_id`, `reason`, `mine`, `per_page` |
 | `GET /manager/fulfillment-issues/{issue}` | `manager.fulfillment-issues.show` | `view fulfillment issues` | — |
 | `GET /manager/fulfillment-issues/{issue}/affected-orders` | `manager.fulfillment-issues.affected-orders` | `view fulfillment issues` | `per_page` |
 | `POST /manager/fulfillment-issues/{issue}/take` | `manager.fulfillment-issues.take` | `manage fulfillment issues` | пустое тело |
 | `POST /manager/fulfillment-issues/{issue}/release` | `manager.fulfillment-issues.release` | `manage fulfillment issues` | пустое тело |
 | `POST /manager/fulfillment-issues/{issue}/close` | `manager.fulfillment-issues.close` | `manage fulfillment issues` | пустое тело |
+
+Команды состава разрешены только для неоплаченного интернет-заказа до начала
+физической сборки и требуют назначения на все затронутые точки. Увеличение
+существующей строки сохраняет её checkout-цену. Новый товар и замена получают
+актуальную серверную цену каталога с действующей автоматической акцией. После
+правки backend атомарно освобождает прежние резервы, заново распределяет заказ
+и создаёт резервы. `operation_id` обязателен и делает повтор безопасным.
+Компоненты подарка отдельно не меняются: набор заменяется или удаляется целиком.
 | `POST /manager/deliveries/{order}/assign-courier` | `manager.deliveries.assign-courier` | `assign couriers` | `courier_id` |
 | `POST /manager/orders/{order}/return-to-stock` | `manager.orders.return-to-stock` | `manage orders` | `reason` (обязательно, до 1000) |
 
@@ -236,12 +260,37 @@ Frontend не должен вычислять доступность коман�
 `affected-orders` динамический: backend не назначает пострадавший заказ и не
 изменяет его.
 
-### Менеджер и администратор: общее управление заказами
+Список `/manager/orders` содержит только основные заказы и ограничен активными
+точками менеджера. Если хотя бы одна складская часть доступна, карточка
+показывает весь многоскладской заказ, а
+`manager_access.assigned_fulfillment_order_ids` отмечает части текущего
+менеджера. Заметка доступна при доступе хотя бы к одной точке. Подтверждение и
+отмена требуют назначения на все точки заказа; оплаченный заказ нельзя отменить
+без отдельного возврата оплаты.
 
-Префикс исторически называется `/admin`, но доступ определяется правом
-`manage orders`, которое есть у `manager` и `admin`. В отличие от
-специализированного `/manager` API, этот список сейчас глобальный и не
-ограничивается назначенными точками.
+Перенос доставки также требует доступа ко всем точкам. Он проверяет актуальное
+расписание и вместимость интервала и сохраняет причину в журнале. Если курьер
+уже назначен, сначала курьер должен вернуть заказ в очередь.
+
+### Обращения клиентов
+
+Клиент создаёт обращение через `POST /orders/{order}/requests`, просматривает
+историю через `GET /orders/{order}/requests` и может отозвать только состояние
+`waiting`. Типы: `change_delivery`, `cancel_order`, `order_problem`, `other`.
+Последние два требуют текстового комментария. Обращение не выполняет команду
+над заказом автоматически.
+
+Менеджер использует `/manager/order-requests`: список, карточку, `take`,
+`release`, `resolve`, `reject`. Завершение и отказ требуют `manager_comment`.
+Очередь ограничивается активными назначенными складами через тот же scope, что
+и `/manager/orders`. Статусы: `waiting`, `in_review`, `resolved`, `rejected`,
+`withdrawn`. Полные правила опубликованы в `docs/order-requests-api.md`.
+
+### Администратор: глобальное управление заказами
+
+Префикс `/admin` требует одновременно роль `admin` и право `manage orders`.
+Менеджеру эти маршруты недоступны: он использует складской scope
+`/manager/orders`.
 
 | Метод и путь | Имя маршрута | Тело / фильтры |
 | --- | --- | --- |

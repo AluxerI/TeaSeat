@@ -38,6 +38,10 @@ class Order extends Model
         'discount_id',
         'applied_promotion_code',
         'delivery_method_id',
+        'delivery_time_slot_id',
+        'scheduled_delivery_date',
+        'delivery_time_from',
+        'delivery_time_to',
         'payment_method',
         'tracking_number',
         'customer_notes',
@@ -60,6 +64,7 @@ class Order extends Model
         'supplier_order_id', // связь с консолидированным заказом
         'is_supplier_order',
         'checkout_idempotency_key',
+        'checkout_selection_hash',
         'client_order_id',
         'seller_revision',
         'last_payload_hash',
@@ -82,6 +87,7 @@ class Order extends Model
         'shipping_discount' => 'decimal:2',
         'final_total' => 'decimal:2',
         'pricing_snapshot' => 'array',
+        'scheduled_delivery_date' => 'date',
         'confirmed_at' => 'datetime',
         'paid_at' => 'datetime',
         'shipped_at' => 'datetime',
@@ -150,6 +156,21 @@ class Order extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    public function feedback()
+    {
+        return $this->hasOne(OrderFeedback::class);
+    }
+
+    public function requests()
+    {
+        return $this->hasMany(OrderRequest::class)->latest('id');
+    }
+
+    public function managerAdjustments()
+    {
+        return $this->hasMany(ManagerOrderAdjustment::class)->latest('id');
+    }
+
     public function sellerDevice()
     {
         return $this->belongsTo(StaffDevice::class, 'seller_device_id');
@@ -183,6 +204,11 @@ class Order extends Model
     public function deliveryMethod()
     {
         return $this->belongsTo(DeliveryMethod::class, 'delivery_method_id'); 
+    }
+
+    public function deliveryTimeSlot()
+    {
+        return $this->belongsTo(DeliveryTimeSlot::class);
     }
     /**
      * Получить данные заказа для отображения
@@ -342,9 +368,27 @@ class Order extends Model
             return $statusAllowsCancellation;
         }
 
+        return !$this->hasStartedPhysicalFulfillment();
+    }
+
+    public function canBeCancelledByManager(): bool
+    {
+        if ($this->status !== self::STATUS_MANAGER_REVIEW) {
+            return $this->canBeCancelled();
+        }
+
+        if ($this->parent_order_id) {
+            return true;
+        }
+
+        return !$this->hasStartedPhysicalFulfillment();
+    }
+
+    private function hasStartedPhysicalFulfillment(): bool
+    {
         // После начала физической сборки отмена требует отдельного решения
         // менеджера: часть товара уже может быть упакована или перемещаться.
-        return !$this->partialOrders()
+        return $this->partialOrders()
             ->where(function ($query): void {
                 $query->whereNotNull('stock_committed_at')
                     ->orWhereIn('status', [

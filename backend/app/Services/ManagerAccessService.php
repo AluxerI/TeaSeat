@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\FulfillmentIssue;
+use App\Models\Order;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Database\Eloquent\Builder;
@@ -50,6 +51,74 @@ class ManagerAccessService
             'warehouse_id',
             $this->activeWarehouseIds($user)
         );
+    }
+
+    public function scopeOrders(Builder $query, User $user): Builder
+    {
+        $this->assertManager($user);
+
+        if ($this->isAdmin($user)) {
+            return $query;
+        }
+
+        $warehouseIds = $this->activeWarehouseIds($user)->all();
+
+        return $query->where(function (Builder $orders) use ($warehouseIds): void {
+            $orders
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->orWhereIn('destination_warehouse_id', $warehouseIds)
+                ->orWhereHas('partialOrders', function (Builder $parts) use ($warehouseIds): void {
+                    $parts
+                        ->whereIn('warehouse_id', $warehouseIds)
+                        ->orWhereIn('destination_warehouse_id', $warehouseIds);
+                });
+        });
+    }
+
+    /** @return Collection<int, int> */
+    public function involvedWarehouseIds(Order $order): Collection
+    {
+        $order->loadMissing([
+            'partialOrders:id,parent_order_id,warehouse_id,destination_warehouse_id',
+        ]);
+
+        return collect([
+            $order->warehouse_id,
+            $order->destination_warehouse_id,
+        ])
+            ->concat($order->partialOrders->pluck('warehouse_id'))
+            ->concat($order->partialOrders->pluck('destination_warehouse_id'))
+            ->filter(fn ($id): bool => $id !== null)
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    public function hasAllOrderLocations(User $user, Order $order): bool
+    {
+        $this->assertManager($user);
+
+        if ($this->isAdmin($user)) {
+            return true;
+        }
+
+        $required = $this->involvedWarehouseIds($order);
+        if ($required->isEmpty()) {
+            return false;
+        }
+
+        return $required
+            ->diff($this->activeWarehouseIds($user))
+            ->isEmpty();
+    }
+
+    public function assertAllOrderLocations(User $user, Order $order): void
+    {
+        if (!$this->hasAllOrderLocations($user, $order)) {
+            throw new AuthorizationException(
+                'Для этой команды менеджер должен быть назначен на все точки заказа'
+            );
+        }
     }
 
     public function assertIssueAccess(User $user, FulfillmentIssue $issue): void

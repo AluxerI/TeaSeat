@@ -325,6 +325,119 @@ class PricingService
     }
 
     /**
+     * Корректирует уже списанные лимиты после ручного изменения заказа.
+     * Положительные значения для новой позиции повторно проверяются под
+     * блокировкой. Для сохранённой цены старой строки менеджер может передать
+     * false: такая цена является обязательством уже оформленного заказа.
+     *
+     * @param array<int, int> $deltas discount_id => signed uses delta
+     */
+    public function adjustOrderUsage(
+        Order $order,
+        User $user,
+        array $deltas,
+        bool $enforcePositiveLimits = true
+    ): void {
+        $deltas = collect($deltas)
+            ->map(fn ($delta): int => (int) $delta)
+            ->filter(fn (int $delta): bool => $delta !== 0)
+            ->sortKeys();
+
+        foreach ($deltas as $discountId => $delta) {
+            $discount = Discount::withTrashed()
+                ->lockForUpdate()
+                ->find((int) $discountId);
+
+            if (!$discount) {
+                if ($delta > 0 && $enforcePositiveLimits) {
+                    throw new DomainException('Скидка новой позиции больше не существует');
+                }
+
+                continue;
+            }
+
+            $pivot = DB::table('discount_user')
+                ->where('discount_id', $discount->id)
+                ->where('user_id', $user->id)
+                ->lockForUpdate()
+                ->first();
+
+            if ($delta > 0 && $enforcePositiveLimits) {
+                $this->assertDiscountActive($discount);
+                $this->assertCounterLimit(
+                    $discount,
+                    (int) $discount->used_count,
+                    $delta
+                );
+
+                $userUsed = (int) ($pivot->used_count ?? 0);
+                if ($discount->usage_per_user
+                    && $userUsed + $delta > $discount->usage_per_user) {
+                    throw new DomainException(
+                        "Лимит скидки «{$discount->name}» для пользователя исчерпан"
+                    );
+                }
+            }
+
+            $newUsed = max(0, (int) $discount->used_count + $delta);
+            $discount->updateQuietly(['used_count' => $newUsed]);
+
+            if ($pivot || $delta > 0) {
+                $newUserUsed = max(0, (int) ($pivot->used_count ?? 0) + $delta);
+                $pivotValues = [
+                    'used_count' => $newUserUsed,
+                    'is_used' => $discount->usage_per_user
+                        ? $newUserUsed >= $discount->usage_per_user
+                        : false,
+                    'updated_at' => now(),
+                ];
+
+                if ($pivot) {
+                    DB::table('discount_user')
+                        ->where('discount_id', $discount->id)
+                        ->where('user_id', $user->id)
+                        ->update($pivotValues);
+                } else {
+                    DB::table('discount_user')->insert($pivotValues + [
+                        'discount_id' => $discount->id,
+                        'user_id' => $user->id,
+                        'activated_at' => now(),
+                        'created_at' => now(),
+                    ]);
+                }
+            }
+        }
+
+        $snapshot = is_array($order->pricing_snapshot)
+            ? $order->pricing_snapshot
+            : [];
+        $usages = collect($snapshot['usages'] ?? [])
+            ->mapWithKeys(fn (array $usage): array => [
+                (int) ($usage['discount_id'] ?? 0) => (int) ($usage['uses'] ?? 0),
+            ]);
+
+        foreach ($deltas as $discountId => $delta) {
+            $uses = max(0, (int) ($usages[(int) $discountId] ?? 0) + $delta);
+            if ($uses === 0) {
+                $usages->forget((int) $discountId);
+            } else {
+                $usages[(int) $discountId] = $uses;
+            }
+        }
+
+        $snapshot['usages'] = $usages
+            ->sortKeys()
+            ->map(fn (int $uses, int $discountId): array => [
+                'discount_id' => $discountId,
+                'uses' => $uses,
+            ])
+            ->values()
+            ->all();
+        $order->updateQuietly(['pricing_snapshot' => $snapshot]);
+        $order->pricing_snapshot = $snapshot;
+    }
+
+    /**
      * Возвращает лимиты только для отменённого неоплаченного заказа.
      */
     public function releaseUsage(Order $order): void

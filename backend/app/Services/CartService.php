@@ -365,7 +365,10 @@ class CartService
      */
     private function recalculateCart(Order $cart): void
     {
-        $cart->load('items.product');
+        // После выборочного checkout часть строк и подарков уже перенесена в
+        // новый заказ. Принудительно обновляем обе связи, чтобы ранее
+        // загруженный подарок не оставил свою наценку в исходной корзине.
+        $cart->load(['items.product', 'gifts.items']);
 
         if ($cart->items->isEmpty()) {
             $cart->update([
@@ -395,6 +398,11 @@ class CartService
         $this->clearCartCache((int) $cart->user_id);
 
         return $cart->fresh(['items.product', 'gifts.items.product', 'shippingAddress']);
+    }
+
+    public function refreshAfterPartialCheckout(Order $cart): Order
+    {
+        return $this->refreshPricing($cart);
     }
 
     /**

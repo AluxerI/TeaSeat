@@ -92,6 +92,8 @@ class AdminDashboardService
                 ->get(),
             'top_rated' => DB::table('products')
                 ->join('reviews', 'products.id', '=', 'reviews.product_id')
+                ->where('reviews.status', 'published')
+                ->whereNotNull('reviews.order_product_id')
                 ->select(
                     'products.id', 
                     'products.name', 

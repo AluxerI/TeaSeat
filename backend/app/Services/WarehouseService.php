@@ -432,9 +432,10 @@ class WarehouseService
 
     public function releaseOnlineStockForOrder(
         Order $order,
-        ?int $actorId = null
+        ?int $actorId = null,
+        ?string $reason = null
     ): void {
-        DB::transaction(function () use ($order, $actorId) {
+        DB::transaction(function () use ($order, $actorId, $reason) {
             $lockedOrder = Order::query()
                 ->lockForUpdate()
                 ->with('items')
@@ -476,7 +477,7 @@ class WarehouseService
                     0,
                     $lockedOrder,
                     $actorId,
-                    'Освобождение резерва отменённого заказа',
+                    $reason ?: 'Освобождение резерва отменённого заказа',
                     "online_release:order:{$lockedOrder->id}:inventory:{$inventory->id}"
                 );
             }

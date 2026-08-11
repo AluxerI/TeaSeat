@@ -8,6 +8,7 @@ use App\Models\DeliveryMethod;
 use App\Models\Discount;
 use App\Models\User;
 use App\Services\CartService;
+use App\Services\CartSelectionService;
 use App\Services\PricingService;
 use DomainException;
 use Illuminate\Http\JsonResponse;
@@ -17,7 +18,8 @@ class QuoteController extends Controller
 {
     public function __construct(
         protected CartService $cartService,
-        protected PricingService $pricingService
+        protected PricingService $pricingService,
+        protected CartSelectionService $cartSelectionService
     ) {
     }
 
@@ -30,6 +32,10 @@ class QuoteController extends Controller
             'discount_selection.type' => 'required_with:discount_selection|in:personal,coupon',
             'discount_selection.discount_id' => 'required_if:discount_selection.type,personal|prohibited_unless:discount_selection.type,personal|integer|exists:discounts,id',
             'discount_selection.code' => 'required_if:discount_selection.type,coupon|prohibited_unless:discount_selection.type,coupon|string|max:100',
+            'cart_item_ids' => 'sometimes|array',
+            'cart_item_ids.*' => 'integer|distinct|min:1',
+            'cart_gift_ids' => 'sometimes|array',
+            'cart_gift_ids.*' => 'integer|distinct|min:1',
         ]);
 
         $user = User::findOrFail($request->user()->id);
@@ -65,12 +71,26 @@ class QuoteController extends Controller
                 $shippingCost = (float) $deliveryMethod->cost;
             }
 
-            $quote = $this->pricingService->quoteOrder(
+            $resolved = $this->cartSelectionService->resolve(
                 $cart,
+                array_key_exists('cart_item_ids', $validated)
+                    ? $validated['cart_item_ids']
+                    : null,
+                array_key_exists('cart_gift_ids', $validated)
+                    ? $validated['cart_gift_ids']
+                    : null,
+            );
+            $quote = $this->pricingService->quoteOrder(
+                $resolved['order'],
                 $user,
                 $shippingCost,
                 $selection
             );
+            $quote['cart_selection'] = [
+                'explicit' => $resolved['explicit'],
+                'cart_item_ids' => $resolved['item_ids'],
+                'cart_gift_ids' => $resolved['gift_ids'],
+            ];
         } catch (DomainException $exception) {
             return response()->json([
                 'message' => $exception->getMessage(),

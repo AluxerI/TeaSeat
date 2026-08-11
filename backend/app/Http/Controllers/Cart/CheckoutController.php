@@ -32,6 +32,8 @@ class CheckoutController extends Controller
         $request->validate([
             'shipping_address_id' => 'required|exists:address_client,id',
             'delivery_method_id' => 'required|exists:delivery_methods,id',
+            'scheduled_delivery_date' => 'nullable|date_format:Y-m-d',
+            'delivery_time_slot_id' => 'nullable|integer|exists:delivery_time_slots,id',
             'payment_method' => 'required|in:cash,card,online',
             'customer_notes' => 'nullable|string|max:500',
             'is_supplier_order' => 'boolean',
@@ -39,6 +41,10 @@ class CheckoutController extends Controller
             'discount_selection.type' => 'required_with:discount_selection|in:personal,coupon',
             'discount_selection.discount_id' => 'required_if:discount_selection.type,personal|prohibited_unless:discount_selection.type,personal|integer|exists:discounts,id',
             'discount_selection.code' => 'required_if:discount_selection.type,coupon|prohibited_unless:discount_selection.type,coupon|string|max:100',
+            'cart_item_ids' => 'sometimes|array',
+            'cart_item_ids.*' => 'integer|distinct|min:1',
+            'cart_gift_ids' => 'sometimes|array',
+            'cart_gift_ids.*' => 'integer|distinct|min:1',
             'idempotency_key' => [
                 'required',
                 'string',
@@ -60,6 +66,14 @@ class CheckoutController extends Controller
                 $request->boolean('is_supplier_order'),
                 $request->idempotency_key,
                 $request->input('discount_selection'),
+                $request->input('scheduled_delivery_date'),
+                $request->integer('delivery_time_slot_id') ?: null,
+                $request->has('cart_item_ids')
+                    ? $request->input('cart_item_ids', [])
+                    : null,
+                $request->has('cart_gift_ids')
+                    ? $request->input('cart_gift_ids', [])
+                    : null,
             );
 
             return new OrderResource($order);
@@ -103,6 +117,28 @@ class CheckoutController extends Controller
                 'message' => 'Ошибка при получении способов доставки',
                 'error' => config('app.debug') ? $e->getMessage() : 'Internal server error'
             ], 500);
+        }
+    }
+
+    public function getDeliverySlots(
+        Request $request,
+        int $addressId,
+        int $deliveryMethodId
+    ) {
+        try {
+            $result = $this->checkoutService->getAvailableDeliverySlots(
+                Auth::id(),
+                $addressId,
+                $deliveryMethodId
+            );
+
+            return response()->json(['data' => $result]);
+        } catch (DomainException|ModelNotFoundException $exception) {
+            return response()->json([
+                'message' => $exception instanceof DomainException
+                    ? $exception->getMessage()
+                    : 'Некорректный адрес или способ доставки',
+            ], 422);
         }
     }
 }
