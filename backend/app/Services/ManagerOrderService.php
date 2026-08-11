@@ -171,7 +171,7 @@ class ManagerOrderService
             'picker',
             'courier',
             'fulfillmentIssues:id,source_order_id,status',
-            'partialOrders:id,parent_order_id,warehouse_id,destination_warehouse_id,status,picker_id,courier_id,final_total',
+            'partialOrders:id,parent_order_id,warehouse_id,destination_warehouse_id,status,picker_id,courier_id,final_total,stock_reserved_at,stock_committed_at,stock_released_at,internal_notes',
             'partialOrders.warehouse',
             'partialOrders.destinationWarehouse',
             'partialOrders.picker',

@@ -74,6 +74,7 @@ class ManagerOrderResource extends JsonResource
                     ->where('status', '!=', FulfillmentIssue::STATUS_CLOSED)
                     ->count(),
             ],
+            'actions' => $this->orderActionsData($request, $issues),
             'manager_access' => $this->managerAccessData($request),
             'supplier_order' => $this->when(
                 $this->relationLoaded('supplierOrder'),
@@ -326,10 +327,12 @@ class ManagerOrderResource extends JsonResource
         $warehouseIds = collect(
             $request->attributes->get('manager_active_warehouse_ids', [])
         )->map(fn ($id): int => (int) $id);
-        $orders = collect([$this->resource]);
-        if ($this->relationLoaded('partialOrders')) {
-            $orders = $orders->concat($this->partialOrders);
-        }
+        $orders = $this->orderGraph();
+        $requiredWarehouseIds = $this->requiredWarehouseIds($orders);
+        $allLocationsAssigned = $isAdmin || (
+            $requiredWarehouseIds->isNotEmpty()
+            && $requiredWarehouseIds->diff($warehouseIds)->isEmpty()
+        );
 
         $assignedOrderIds = $orders
             ->filter(function (Order $order) use ($isAdmin, $warehouseIds): bool {
@@ -344,9 +347,89 @@ class ManagerOrderResource extends JsonResource
 
         return [
             'full_order_visible' => true,
-            'read_only_contract' => true,
+            'read_only_contract' => false,
             'assigned_fulfillment_order_ids' => $assignedOrderIds,
+            'required_warehouse_ids' => $requiredWarehouseIds->all(),
+            'all_locations_assigned' => $allLocationsAssigned,
         ];
+    }
+
+    private function orderActionsData($request, Collection $issues): array
+    {
+        $manager = $request->user();
+        $isAdmin = $manager?->hasRole(User::ROLE_ADMIN) ?? false;
+        $warehouseIds = collect(
+            $request->attributes->get('manager_active_warehouse_ids', [])
+        )->map(fn ($id): int => (int) $id);
+        $orders = $this->orderGraph();
+        $requiredWarehouseIds = $this->requiredWarehouseIds($orders);
+        $allLocationsAssigned = $isAdmin || (
+            $requiredWarehouseIds->isNotEmpty()
+            && $requiredWarehouseIds->diff($warehouseIds)->isEmpty()
+        );
+        $isOnlineOrder = $this->sales_channel === Order::SALES_CHANNEL_ONLINE
+            && !$this->is_supplier_order;
+        $hasOpenIssues = $issues
+            ->contains(fn (FulfillmentIssue $issue): bool =>
+                $issue->status !== FulfillmentIssue::STATUS_CLOSED);
+        $hasStartedFulfillment = $this->stock_committed_at !== null
+            || (
+                $this->relationLoaded('partialOrders')
+                && $this->partialOrders->contains(function (Order $part): bool {
+                    return $part->stock_committed_at !== null
+                        || in_array($part->status, [
+                            Order::STATUS_PROCESSING,
+                            Order::STATUS_READY_FOR_DELIVERY,
+                            Order::STATUS_SHIPPED,
+                            Order::STATUS_AWAITING_RECEIPT,
+                            Order::STATUS_DELIVERED,
+                        ], true);
+                })
+            );
+        $cancellableStatus = in_array($this->status, [
+            Order::STATUS_PENDING,
+            Order::STATUS_CONFIRMED,
+            Order::STATUS_PROCESSING,
+            Order::STATUS_SELLER_REVIEW,
+            Order::STATUS_MANAGER_REVIEW,
+        ], true);
+
+        return [
+            'can_add_internal_note' => true,
+            'can_confirm' => $allLocationsAssigned
+                && $isOnlineOrder
+                && $this->status === Order::STATUS_PENDING
+                && !$hasOpenIssues,
+            'can_cancel' => $allLocationsAssigned
+                && $isOnlineOrder
+                && $this->paid_at === null
+                && $cancellableStatus
+                && !$hasStartedFulfillment,
+        ];
+    }
+
+    private function orderGraph(): Collection
+    {
+        $orders = collect([$this->resource]);
+
+        if ($this->relationLoaded('partialOrders')) {
+            $orders = $orders->concat($this->partialOrders);
+        }
+
+        return $orders;
+    }
+
+    private function requiredWarehouseIds(Collection $orders): Collection
+    {
+        return $orders
+            ->flatMap(fn (Order $order): array => [
+                $order->warehouse_id,
+                $order->destination_warehouse_id,
+            ])
+            ->filter(fn ($id): bool => $id !== null)
+            ->map(fn ($id): int => (int) $id)
+            ->unique()
+            ->values();
     }
 
     private function allFulfillmentIssues(): Collection

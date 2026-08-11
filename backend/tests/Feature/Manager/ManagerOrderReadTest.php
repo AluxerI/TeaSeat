@@ -136,7 +136,7 @@ class ManagerOrderReadTest extends TestCase
             ->assertJsonPath('data.fulfillment_summary.parts_count', 2)
             ->assertJsonPath('data.fulfillment_summary.open_issues_count', 2)
             ->assertJsonPath('data.manager_access.full_order_visible', true)
-            ->assertJsonPath('data.manager_access.read_only_contract', true)
+            ->assertJsonPath('data.manager_access.read_only_contract', false)
             ->assertJsonPath(
                 'data.manager_access.assigned_fulfillment_order_ids.0',
                 $assignedPart->id

@@ -342,9 +342,27 @@ class Order extends Model
             return $statusAllowsCancellation;
         }
 
+        return !$this->hasStartedPhysicalFulfillment();
+    }
+
+    public function canBeCancelledByManager(): bool
+    {
+        if ($this->status !== self::STATUS_MANAGER_REVIEW) {
+            return $this->canBeCancelled();
+        }
+
+        if ($this->parent_order_id) {
+            return true;
+        }
+
+        return !$this->hasStartedPhysicalFulfillment();
+    }
+
+    private function hasStartedPhysicalFulfillment(): bool
+    {
         // После начала физической сборки отмена требует отдельного решения
         // менеджера: часть товара уже может быть упакована или перемещаться.
-        return !$this->partialOrders()
+        return $this->partialOrders()
             ->where(function ($query): void {
                 $query->whereNotNull('stock_committed_at')
                     ->orWhereIn('status', [

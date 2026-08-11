@@ -337,12 +337,21 @@ class CheckoutService
             $notes = 'Отменён менеджером ID: ' . $managerId .
                 '. Причина: ' . ($reason ?? 'не указана');
 
-            return $this->cancelLockedOrder($order, $managerId, $notes);
+            return $this->cancelLockedOrder(
+                $order,
+                $managerId,
+                $notes,
+                true
+            );
         });
     }
 
-    private function cancelLockedOrder(Order $order, int $actorId, string $notes): Order
-    {
+    private function cancelLockedOrder(
+        Order $order,
+        int $actorId,
+        string $notes,
+        bool $managerCancellation = false
+    ): Order {
         if ($order->status === Order::STATUS_CANCELLED) {
             return $order->fresh([
                 'items.product',
@@ -354,7 +363,10 @@ class CheckoutService
             ]);
         }
 
-        if (!$order->canBeCancelled()) {
+        $canBeCancelled = $managerCancellation
+            ? $order->canBeCancelledByManager()
+            : $order->canBeCancelled();
+        if (!$canBeCancelled) {
             throw new DomainException('Невозможно отменить заказ в текущем статусе');
         }
 

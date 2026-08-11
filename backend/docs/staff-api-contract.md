@@ -224,6 +224,9 @@ Frontend не должен вычислять доступность коман�
 | --- | --- | --- | --- |
 | `GET /manager/orders` | `manager.orders.index` | `view manager orders` | `status`, `sales_channel`, `warehouse_id`, `has_issue`, `date_from`, `date_to`, `search`, `per_page` |
 | `GET /manager/orders/{order}` | `manager.orders.show` | `view manager orders` | — |
+| `POST /manager/orders/{order}/internal-notes` | `manager.orders.internal-notes` | `manage manager orders` | `comment` |
+| `POST /manager/orders/{order}/confirm` | `manager.orders.confirm` | `manage manager orders` | пустое тело |
+| `POST /manager/orders/{order}/cancel` | `manager.orders.cancel` | `manage manager orders` | `reason` |
 | `GET /manager/fulfillment-issues` | `manager.fulfillment-issues.index` | `view fulfillment issues` | `status`, `warehouse_id`, `product_id`, `reason`, `mine`, `per_page` |
 | `GET /manager/fulfillment-issues/{issue}` | `manager.fulfillment-issues.show` | `view fulfillment issues` | — |
 | `GET /manager/fulfillment-issues/{issue}/affected-orders` | `manager.fulfillment-issues.affected-orders` | `view fulfillment issues` | `per_page` |
@@ -242,7 +245,9 @@ Frontend не должен вычислять доступность коман�
 точками менеджера. Если хотя бы одна складская часть доступна, карточка
 показывает весь многоскладской заказ, а
 `manager_access.assigned_fulfillment_order_ids` отмечает части текущего
-менеджера. Контракт пока только для чтения.
+менеджера. Заметка доступна при доступе хотя бы к одной точке. Подтверждение и
+отмена требуют назначения на все точки заказа; оплаченный заказ нельзя отменить
+без отдельного возврата оплаты.
 
 ### Администратор: глобальное управление заказами
 

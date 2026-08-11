@@ -25,6 +25,7 @@ use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmen
 use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDeliveryAssignmentController;
 use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
 use App\Http\Controllers\Manager\OrderController as ManagerOrderController;
+use App\Http\Controllers\Manager\OrderCommandController as ManagerOrderCommandController;
 use App\Http\Controllers\Picker\OrderController as PickerOrderController;
 use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftController;
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
@@ -257,6 +258,18 @@ Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
         ->whereNumber('order')
         ->middleware('permission:view manager orders')
         ->name('manager.orders.show');
+    Route::post('/orders/{order}/internal-notes', [ManagerOrderCommandController::class, 'internalNote'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.internal-notes');
+    Route::post('/orders/{order}/confirm', [ManagerOrderCommandController::class, 'confirm'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.confirm');
+    Route::post('/orders/{order}/cancel', [ManagerOrderCommandController::class, 'cancel'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.cancel');
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
         ->middleware('permission:manage orders')

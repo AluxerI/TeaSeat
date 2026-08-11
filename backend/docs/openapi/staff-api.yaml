@@ -699,8 +699,9 @@ paths:
       summary: Полная многоскладская карточка заказа
       description: >-
         Permission: view manager orders. Недоступный заказ возвращает 404.
-        Контракт только для чтения; назначенные части перечислены в
-        manager_access.assigned_fulfillment_order_ids.
+        Назначенные части перечислены в
+        manager_access.assigned_fulfillment_order_ids, а доступность команд —
+        в actions и manager_access.all_locations_assigned.
       operationId: managerOrdersShow
       x-laravel-route-name: manager.orders.show
       parameters:
@@ -714,6 +715,95 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
+
+  /manager/orders/{order}/internal-notes:
+    post:
+      tags: [Manager]
+      summary: Добавить внутреннюю заметку к заказу
+      description: >-
+        Permission: manage manager orders. Заметка дописывается с автором и
+        временем; существующие заметки не перезаписываются.
+      operationId: managerOrdersInternalNotes
+      x-laravel-route-name: manager.orders.internal-notes
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comment]
+              properties:
+                comment: {type: string, minLength: 1, maxLength: 2000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/confirm:
+    post:
+      tags: [Manager]
+      summary: Подтвердить ожидающий интернет-заказ
+      description: >-
+        Permission: manage manager orders. Требует назначения менеджера на все
+        точки заказа и отсутствия открытых fulfillment issues.
+      operationId: managerOrdersConfirm
+      x-laravel-route-name: manager.orders.confirm
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /manager/orders/{order}/cancel:
+    post:
+      tags: [Manager]
+      summary: Отменить неоплаченный интернет-заказ
+      description: >-
+        Permission: manage manager orders. Требует назначения менеджера на все
+        точки и освобождает нескоммиченные складские резервы идемпотентно.
+      operationId: managerOrdersCancel
+      x-laravel-route-name: manager.orders.cancel
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 1000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /manager/fulfillment-issues:
     get:
@@ -1851,7 +1941,7 @@ components:
           $ref: '#/components/schemas/PaginationMeta'
     ManagerOrder:
       type: object
-      required: [id, order_number, status, sales_channel, totals, fulfillment_summary, manager_access]
+      required: [id, order_number, status, sales_channel, totals, fulfillment_summary, actions, manager_access]
       properties:
         id: {type: integer}
         order_number: {type: string}
@@ -1875,15 +1965,26 @@ components:
             parts_count: {type: [integer, 'null']}
             issues_count: {type: integer}
             open_issues_count: {type: integer}
+        actions:
+          type: object
+          required: [can_add_internal_note, can_confirm, can_cancel]
+          properties:
+            can_add_internal_note: {type: boolean}
+            can_confirm: {type: boolean}
+            can_cancel: {type: boolean}
         manager_access:
           type: object
-          required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids]
+          required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids, required_warehouse_ids, all_locations_assigned]
           properties:
             full_order_visible: {type: boolean, const: true}
-            read_only_contract: {type: boolean, const: true}
+            read_only_contract: {type: boolean, const: false}
             assigned_fulfillment_order_ids:
               type: array
               items: {type: integer}
+            required_warehouse_ids:
+              type: array
+              items: {type: integer}
+            all_locations_assigned: {type: boolean}
         items:
           type: array
           items: {type: object, additionalProperties: true}
