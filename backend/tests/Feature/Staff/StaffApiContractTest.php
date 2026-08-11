@@ -98,6 +98,9 @@ class StaffApiContractTest extends TestCase
         return [
             'user.show' => ['GET', 'api/user', null],
             'checkout.delivery-slots' => ['GET', 'api/checkout/delivery-slots/{addressId}/{deliveryMethodId}', null],
+            'orders.requests.index' => ['GET', 'api/orders/{order}/requests', null],
+            'orders.requests.store' => ['POST', 'api/orders/{order}/requests', null],
+            'order-requests.withdraw' => ['POST', 'api/order-requests/{orderRequest}/withdraw', null],
 
             'seller.devices.register' => ['POST', 'api/seller/devices/register', 'create seller orders'],
             'seller.bootstrap' => ['GET', 'api/seller/bootstrap', 'create seller orders'],
@@ -128,6 +131,12 @@ class StaffApiContractTest extends TestCase
             'courier.deliveries.deliver' => ['POST', 'api/courier/deliveries/{order}/deliver', 'update assigned deliveries'],
 
             'manager.orders.reschedule' => ['POST', 'api/manager/orders/{order}/reschedule', 'manage manager orders'],
+            'manager.order-requests.index' => ['GET', 'api/manager/order-requests', 'view manager orders'],
+            'manager.order-requests.show' => ['GET', 'api/manager/order-requests/{orderRequest}', 'view manager orders'],
+            'manager.order-requests.take' => ['POST', 'api/manager/order-requests/{orderRequest}/take', 'manage manager orders'],
+            'manager.order-requests.release' => ['POST', 'api/manager/order-requests/{orderRequest}/release', 'manage manager orders'],
+            'manager.order-requests.resolve' => ['POST', 'api/manager/order-requests/{orderRequest}/resolve', 'manage manager orders'],
+            'manager.order-requests.reject' => ['POST', 'api/manager/order-requests/{orderRequest}/reject', 'manage manager orders'],
             'manager.orders.return-to-stock' => ['POST', 'api/manager/orders/{order}/return-to-stock', 'manage orders'],
             'manager.orders.index' => ['GET', 'api/manager/orders', 'view manager orders'],
             'manager.orders.show' => ['GET', 'api/manager/orders/{order}', 'view manager orders'],

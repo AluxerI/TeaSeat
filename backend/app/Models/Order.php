@@ -161,6 +161,11 @@ class Order extends Model
         return $this->hasOne(OrderFeedback::class);
     }
 
+    public function requests()
+    {
+        return $this->hasMany(OrderRequest::class)->latest('id');
+    }
+
     public function managerAdjustments()
     {
         return $this->hasMany(ManagerOrderAdjustment::class)->latest('id');

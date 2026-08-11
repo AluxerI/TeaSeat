@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TeaSeat Staff API
-  version: 1.1.0
+  version: 1.2.0
   description: >-
     Контракт backend для PWA продавца, сборщика, менеджера и курьера.
     Подробные бизнес-правила находятся в docs/staff-api-contract.md.
@@ -17,6 +17,128 @@ tags:
   - name: Order management
 
 paths:
+  /orders/{order}/requests:
+    get:
+      tags: [Manager]
+      summary: История обращений клиента по своему заказу
+      operationId: customerOrderRequests
+      x-laravel-route-name: orders.requests.index
+      parameters:
+        - {name: order, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '401': {$ref: '#/components/responses/Unauthorized'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [Manager]
+      summary: Создать обращение по своему заказу
+      operationId: createCustomerOrderRequest
+      x-laravel-route-name: orders.requests.store
+      parameters:
+        - {name: order, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/CreateOrderRequest'}
+      responses:
+        '201': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+
+  /order-requests/{orderRequest}/withdraw:
+    post:
+      tags: [Manager]
+      summary: Отозвать ожидающее обращение клиента
+      operationId: withdrawCustomerOrderRequest
+      x-laravel-route-name: order-requests.withdraw
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '404': {$ref: '#/components/responses/NotFound'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests:
+    get:
+      tags: [Manager]
+      summary: Очередь обращений доступных менеджеру складов
+      operationId: managerOrderRequests
+      x-laravel-route-name: manager.order-requests.index
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '403': {$ref: '#/components/responses/Forbidden'}
+
+  /manager/order-requests/{orderRequest}:
+    get:
+      tags: [Manager]
+      summary: Карточка обращения клиента
+      operationId: managerOrderRequest
+      x-laravel-route-name: manager.order-requests.show
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '404': {$ref: '#/components/responses/NotFound'}
+
+  /manager/order-requests/{orderRequest}/take:
+    post:
+      tags: [Manager]
+      summary: Взять обращение в работу
+      operationId: takeManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.take
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/release:
+    post:
+      tags: [Manager]
+      summary: Вернуть своё обращение в очередь
+      operationId: releaseManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.release
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/resolve:
+    post:
+      tags: [Manager]
+      summary: Завершить обращение с ответом клиенту
+      operationId: resolveManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.resolve
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagerOrderRequestComment'}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
+  /manager/order-requests/{orderRequest}/reject:
+    post:
+      tags: [Manager]
+      summary: Отклонить обращение с объяснением
+      operationId: rejectManagerOrderRequest
+      x-laravel-route-name: manager.order-requests.reject
+      parameters:
+        - {name: orderRequest, in: path, required: true, schema: {type: integer}}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: '#/components/schemas/ManagerOrderRequestComment'}
+      responses:
+        '200': {$ref: '#/components/responses/GenericData'}
+        '409': {$ref: '#/components/responses/Conflict'}
+
   /auth/login:
     post:
       tags: [Auth]
@@ -1833,6 +1955,22 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
+    CreateOrderRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [change_delivery, cancel_order, order_problem, other]
+        message:
+          type: [string, 'null']
+          maxLength: 5000
+          description: Обязательно для order_problem и other.
+    ManagerOrderRequestComment:
+      type: object
+      required: [manager_comment]
+      properties:
+        manager_comment: {type: string, minLength: 1, maxLength: 5000}
     DeliveryAvailability:
       type: object
       required: [delivery_method, booking_horizon_days, dates]
