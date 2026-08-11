@@ -12,10 +12,48 @@ import {
   saveDraft,
   upsertItem,
 } from "./orders";
-import type { LocalOrderItem } from "./types";
+import type { LocalOrderItem, LocalProduct } from "./types";
 
 beforeEach(async () => {
   await resetSellerDatabase();
+});
+
+describe("db.products (составной ключ [warehouse_id+id])", () => {
+  it("bulkPut товара с полем id не падает с DataError", async () => {
+    const product: LocalProduct = {
+      id: 1,
+      name: "Улун",
+      stock_unit: "gram",
+      sale_step: 10,
+      price_unit_quantity: 100,
+      pricing: {
+        unit_price: 250,
+        issued_at: "2026-01-01T00:00:00Z",
+        expires_at: "2026-02-01T00:00:00Z",
+        automatic_promotions: [],
+      },
+      pricing_token: "tok",
+      stock: {
+        quantity: 100,
+        reserved_online_quantity: 0,
+        reserved_seller_quantity: 0,
+        available_quantity: 100,
+        shortage_quantity: 0,
+      },
+      warehouse_id: 1,
+      image: null,
+    };
+
+    await expect(
+      db.products.bulkPut([product, { ...product, id: 2 }])
+    ).resolves.toEqual([1, 2]);
+
+    const cached = await db.products
+      .where("warehouse_id")
+      .equals(1)
+      .toArray();
+    expect(cached.map((p) => p.id).sort()).toEqual([1, 2]);
+  });
 });
 
 function line(overrides: Partial<LocalOrderItem> = {}): LocalOrderItem {

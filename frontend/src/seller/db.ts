@@ -24,9 +24,25 @@ export class SellerDatabase extends Dexie {
     // v1 — прежнее самописное хранилище (products/cart/orders в базе SellerDB).
     // Здесь новая база с другим именем, поэтому миграция не нужна: старая
     // корзина не переносится, её содержимое не было заказом.
+    //
+    // v2/v3 — составной ключ товара по реальному полю `id`: в типе LocalProduct
+    // (наследник ApiBootstrapProduct) поле называется `id`, а не `product_id`,
+    // поэтому прежний keyPath `[warehouse_id+product_id]` ломал bulkPut с
+    // DataError. Dexie не умеет менять первичный ключ в апгрейде (UpgradeError),
+    // поэтому сломанную таблицу сначала удаляем (v2), а в v3 создаём заново.
+    // В v1 записей в products всё равно не было — bulkPut падал, терять нечего.
     this.version(1).stores({
       meta: "&key",
       products: "[warehouse_id+product_id], warehouse_id, name",
+      orders: "&client_order_id, status, server_id, warehouse_id, created_at",
+      outbox: "&event_id, client_order_id, state, created_at",
+    });
+    this.version(2).stores({
+      products: null,
+    });
+    this.version(3).stores({
+      meta: "&key",
+      products: "[warehouse_id+id], warehouse_id, name",
       orders: "&client_order_id, status, server_id, warehouse_id, created_at",
       outbox: "&event_id, client_order_id, state, created_at",
     });
@@ -78,4 +94,37 @@ export async function resetSellerDatabase(): Promise<void> {
     await db.orders.clear();
     await db.outbox.clear();
   });
+}
+
+/** Человекочитаемые русские сообщения для ошибок IndexedDB/Dexie.
+ *  Возвращает `null`, если ошибка не из хранилища — такой случай обрабатывает
+ *  вызывающий код (своя обёртка API и т.п.). */
+const STORAGE_ERROR_RU: Record<string, string> = {
+  DataError:
+    "Данные не подходят для локального хранилища (DataError). Обновите страницу или очистите данные сайта.",
+  UpgradeError:
+    "Не удалось обновить локальное хранилище (UpgradeError). Очистите данные сайта и войдите заново.",
+  ConstraintError:
+    "Конфликт записей в локальном хранилище (ConstraintError).",
+  QuotaExceededError:
+    "Локальное хранилище переполнено (QuotaExceededError). Освободите место в браузере.",
+  AbortError:
+    "Операция с локальным хранилищем прервана (AbortError). Повторите попытку.",
+  InvalidStateError:
+    "Недопустимое состояние локального хранилища (InvalidStateError). Обновите приложение.",
+  NotFoundError:
+    "Запись не найдена в локальном хранилище (NotFoundError).",
+  ReadOnlyError:
+    "Локальное хранилище доступно только для чтения (ReadOnlyError).",
+  TransactionInactiveError:
+    "Транзакция хранилища завершилась (TransactionInactiveError). Повторите попытку.",
+  UnknownError:
+    "Неизвестная ошибка локального хранилища (UnknownError).",
+  VersionError:
+    "Версия хранилища устарела (VersionError). Очистите данные сайта и войдите заново.",
+};
+
+export function toStorageErrorMessage(err: unknown): string | null {
+  if (!(err instanceof Error) || !STORAGE_ERROR_RU[err.name]) return null;
+  return STORAGE_ERROR_RU[err.name];
 }

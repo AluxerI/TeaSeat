@@ -63,7 +63,7 @@ services:
       - app
 
   pgsql:
-    image: postgres:13
+    image: postgres:15
     restart: always
     container_name: pgsql
     environment:

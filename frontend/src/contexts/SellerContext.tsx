@@ -8,7 +8,12 @@ import {
   type ReactNode,
 } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { db, readSession, resetSellerDatabase } from "../seller/db";
+import {
+  db,
+  readSession,
+  resetSellerDatabase,
+  toStorageErrorMessage,
+} from "../seller/db";
 import {
   bootstrapWarehouse,
   cachedProducts,
@@ -122,8 +127,13 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const applyError = useCallback((err: unknown): string => {
+    // Ошибки IndexedDB/Dexie (DataError, UpgradeError и т.п.) показываем
+    // русским текстом — сырые `DataError: Data provided to...` непонятны
+    // продавцу на кассе. Остальное — как есть или общая фраза.
+    const storageMessage = toStorageErrorMessage(err);
     const message =
-      err instanceof Error ? err.message : "Неизвестная ошибка";
+      storageMessage ??
+      (err instanceof Error ? err.message : "Неизвестная ошибка");
     setError(message);
     return message;
   }, []);
