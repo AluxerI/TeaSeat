@@ -24,6 +24,7 @@ use App\Http\Controllers\Seller\SyncController as SellerSyncController;
 use App\Http\Controllers\Manager\FulfillmentIssueController as ManagerFulfillmentIssueController;
 use App\Http\Controllers\Manager\DeliveryAssignmentController as ManagerDeliveryAssignmentController;
 use App\Http\Controllers\Manager\PackedOrderController as ManagerPackedOrderController;
+use App\Http\Controllers\Manager\OrderController as ManagerOrderController;
 use App\Http\Controllers\Picker\OrderController as PickerOrderController;
 use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftController;
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
@@ -249,6 +250,13 @@ Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
 // Отдельный API менеджера. В отличие от Filament, для менеджера здесь
 // обязательно применяется ограничение по назначенным активным складам.
 Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
+    Route::get('/orders', [ManagerOrderController::class, 'index'])
+        ->middleware('permission:view manager orders')
+        ->name('manager.orders.index');
+    Route::get('/orders/{order}', [ManagerOrderController::class, 'show'])
+        ->whereNumber('order')
+        ->middleware('permission:view manager orders')
+        ->name('manager.orders.show');
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
         ->middleware('permission:manage orders')
@@ -304,8 +312,13 @@ Route::group(['namespace' => 'App\Http\Controllers\User'], function() {
         ->middleware(['auth:sanctum', 'can:delete users']);
 });
 
-//Управление заказов для менеджеров или админов
-Route::prefix('admin')->middleware(['auth:sanctum', 'permission:manage orders'])->group(function () {
+// Глобальное управление заказами остаётся только у администратора.
+// Менеджер работает через /manager/orders с ограничением по активным точкам.
+Route::prefix('admin')->middleware([
+    'auth:sanctum',
+    'role:admin',
+    'permission:manage orders',
+])->group(function () {
     
     // Управление заказами
     Route::prefix('orders')->group(function () {

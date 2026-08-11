@@ -51,6 +51,13 @@ class StaffApiContractTest extends TestCase
                     "Изменилось право маршрута {$name}"
                 );
             }
+            if (str_starts_with($name, 'management.')) {
+                $this->assertContains(
+                    'role:admin',
+                    $middleware,
+                    "Глобальный маршрут {$name} больше не ограничен ролью admin"
+                );
+            }
 
             $this->assertSame(
                 1,
@@ -120,6 +127,8 @@ class StaffApiContractTest extends TestCase
             'courier.deliveries.deliver' => ['POST', 'api/courier/deliveries/{order}/deliver', 'update assigned deliveries'],
 
             'manager.orders.return-to-stock' => ['POST', 'api/manager/orders/{order}/return-to-stock', 'manage orders'],
+            'manager.orders.index' => ['GET', 'api/manager/orders', 'view manager orders'],
+            'manager.orders.show' => ['GET', 'api/manager/orders/{order}', 'view manager orders'],
             'manager.deliveries.assign-courier' => ['POST', 'api/manager/deliveries/{order}/assign-courier', 'assign couriers'],
             'manager.fulfillment-issues.index' => ['GET', 'api/manager/fulfillment-issues', 'view fulfillment issues'],
             'manager.fulfillment-issues.show' => ['GET', 'api/manager/fulfillment-issues/{issue}', 'view fulfillment issues'],

@@ -42,6 +42,7 @@ class RolePermissionSeeder extends Seeder
             'view assigned deliveries',
             'update assigned deliveries',
             'assign couriers',
+            'view manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
         ];
@@ -90,6 +91,7 @@ class RolePermissionSeeder extends Seeder
             'view inventory',
             'adjust inventory',
             'assign couriers',
+            'view manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
         ]);

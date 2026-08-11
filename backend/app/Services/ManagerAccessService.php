@@ -52,6 +52,28 @@ class ManagerAccessService
         );
     }
 
+    public function scopeOrders(Builder $query, User $user): Builder
+    {
+        $this->assertManager($user);
+
+        if ($this->isAdmin($user)) {
+            return $query;
+        }
+
+        $warehouseIds = $this->activeWarehouseIds($user)->all();
+
+        return $query->where(function (Builder $orders) use ($warehouseIds): void {
+            $orders
+                ->whereIn('warehouse_id', $warehouseIds)
+                ->orWhereIn('destination_warehouse_id', $warehouseIds)
+                ->orWhereHas('partialOrders', function (Builder $parts) use ($warehouseIds): void {
+                    $parts
+                        ->whereIn('warehouse_id', $warehouseIds)
+                        ->orWhereIn('destination_warehouse_id', $warehouseIds);
+                });
+        });
+    }
+
     public function assertIssueAccess(User $user, FulfillmentIssue $issue): void
     {
         $this->assertManager($user);

@@ -222,6 +222,8 @@ Frontend не должен вычислять доступность коман�
 
 | Метод и путь | Имя маршрута | Право | Тело / фильтры |
 | --- | --- | --- | --- |
+| `GET /manager/orders` | `manager.orders.index` | `view manager orders` | `status`, `sales_channel`, `warehouse_id`, `has_issue`, `date_from`, `date_to`, `search`, `per_page` |
+| `GET /manager/orders/{order}` | `manager.orders.show` | `view manager orders` | — |
 | `GET /manager/fulfillment-issues` | `manager.fulfillment-issues.index` | `view fulfillment issues` | `status`, `warehouse_id`, `product_id`, `reason`, `mine`, `per_page` |
 | `GET /manager/fulfillment-issues/{issue}` | `manager.fulfillment-issues.show` | `view fulfillment issues` | — |
 | `GET /manager/fulfillment-issues/{issue}/affected-orders` | `manager.fulfillment-issues.affected-orders` | `view fulfillment issues` | `per_page` |
@@ -236,12 +238,17 @@ Frontend не должен вычислять доступность коман�
 `affected-orders` динамический: backend не назначает пострадавший заказ и не
 изменяет его.
 
-### Менеджер и администратор: общее управление заказами
+Список `/manager/orders` содержит только основные заказы и ограничен активными
+точками менеджера. Если хотя бы одна складская часть доступна, карточка
+показывает весь многоскладской заказ, а
+`manager_access.assigned_fulfillment_order_ids` отмечает части текущего
+менеджера. Контракт пока только для чтения.
 
-Префикс исторически называется `/admin`, но доступ определяется правом
-`manage orders`, которое есть у `manager` и `admin`. В отличие от
-специализированного `/manager` API, этот список сейчас глобальный и не
-ограничивается назначенными точками.
+### Администратор: глобальное управление заказами
+
+Префикс `/admin` требует одновременно роль `admin` и право `manage orders`.
+Менеджеру эти маршруты недоступны: он использует складской scope
+`/manager/orders`.
 
 | Метод и путь | Имя маршрута | Тело / фильтры |
 | --- | --- | --- |

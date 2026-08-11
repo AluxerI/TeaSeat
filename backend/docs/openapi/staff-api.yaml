@@ -648,6 +648,73 @@ paths:
         '409':
           $ref: '#/components/responses/Conflict'
 
+  /manager/orders:
+    get:
+      tags: [Manager]
+      summary: Основные заказы активных точек менеджера
+      description: >-
+        Permission: view manager orders. Возвращает только основные заказы;
+        доступ определяется собственным складом заказа и его складскими частями.
+      operationId: managerOrdersIndex
+      x-laravel-route-name: manager.orders.index
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, processing, ready_for_delivery, shipped, awaiting_receipt, delivered, cancelled, seller_review, manager_review, completed]
+        - name: sales_channel
+          in: query
+          schema:
+            type: string
+            enum: [online, seller, internal]
+        - $ref: '#/components/parameters/WarehouseId'
+        - name: has_issue
+          in: query
+          description: Есть открытая проблема у заказа или его складской части
+          schema: {type: boolean}
+        - name: date_from
+          in: query
+          schema: {type: string, format: date}
+        - name: date_to
+          in: query
+          schema: {type: string, format: date}
+        - name: search
+          in: query
+          schema: {type: string, maxLength: 120}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}:
+    get:
+      tags: [Manager]
+      summary: Полная многоскладская карточка заказа
+      description: >-
+        Permission: view manager orders. Недоступный заказ возвращает 404.
+        Контракт только для чтения; назначенные части перечислены в
+        manager_access.assigned_fulfillment_order_ids.
+      operationId: managerOrdersShow
+      x-laravel-route-name: manager.orders.show
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /manager/fulfillment-issues:
     get:
       tags: [Manager]
@@ -853,8 +920,8 @@ paths:
   /admin/orders:
     get:
       tags: [Order management]
-      summary: Глобальный список заказов менеджера или администратора
-      description: 'Permission: manage orders. Назначенные точки пока не ограничивают список.'
+      summary: Глобальный список заказов администратора
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersIndex
       x-laravel-route-name: management.orders.index
       parameters:
@@ -888,7 +955,7 @@ paths:
     get:
       tags: [Order management]
       summary: Статистика заказов
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersStats
       x-laravel-route-name: management.orders.stats
       parameters:
@@ -910,7 +977,7 @@ paths:
     get:
       tags: [Order management]
       summary: Детали заказа
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersShow
       x-laravel-route-name: management.orders.show
       parameters:
@@ -929,7 +996,7 @@ paths:
     put:
       tags: [Order management]
       summary: Изменить разрешённый статус заказа
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateStatus
       x-laravel-route-name: management.orders.update-status
       parameters:
@@ -958,7 +1025,7 @@ paths:
     put:
       tags: [Order management]
       summary: Обновить трек-номер
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateTracking
       x-laravel-route-name: management.orders.update-tracking
       parameters:
@@ -987,7 +1054,7 @@ paths:
     put:
       tags: [Order management]
       summary: Обновить внутренний комментарий
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateInternalNotes
       x-laravel-route-name: management.orders.update-internal-notes
       parameters:
@@ -1015,7 +1082,7 @@ paths:
     put:
       tags: [Order management]
       summary: Отменить заказ менеджером
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersCancel
       x-laravel-route-name: management.orders.cancel
       parameters:
@@ -1044,7 +1111,7 @@ paths:
     put:
       tags: [Order management]
       summary: Подтвердить заказ
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersConfirm
       x-laravel-route-name: management.orders.confirm
       parameters:
@@ -1065,7 +1132,7 @@ paths:
     put:
       tags: [Order management]
       summary: Передать внешний заказ в доставку
-      description: 'Permission: manage orders. Внутреннего курьера запускает courier API.'
+      description: 'Role: admin. Permission: manage orders. Внутреннего курьера запускает courier API.'
       operationId: managementOrdersShip
       x-laravel-route-name: management.orders.ship
       parameters:
@@ -1086,7 +1153,7 @@ paths:
     put:
       tags: [Order management]
       summary: Завершить выдачу или внешнюю доставку
-      description: 'Permission: manage orders. Внутреннюю доставку завершает courier API.'
+      description: 'Role: admin. Permission: manage orders. Внутреннюю доставку завершает courier API.'
       operationId: managementOrdersDeliver
       x-laravel-route-name: management.orders.deliver
       parameters:
@@ -1107,7 +1174,7 @@ paths:
     put:
       tags: [Order management]
       summary: Изменить способ и стоимость доставки
-      description: 'Permission: manage orders.'
+      description: 'Role: admin. Permission: manage orders.'
       operationId: managementOrdersUpdateDeliveryMethod
       x-laravel-route-name: management.orders.update-delivery-method
       parameters:
@@ -1313,6 +1380,22 @@ components:
         application/json:
           schema:
             $ref: '#/components/schemas/AffectedOrderListResponse'
+    ManagerOrderData:
+      description: Полная карточка заказа в области доступа менеджера
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [data]
+            properties:
+              data:
+                $ref: '#/components/schemas/ManagerOrder'
+    ManagerOrderList:
+      description: Страница основных заказов менеджера
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ManagerOrderListResponse'
     AdminOrderData:
       description: Управленческое представление заказа
       content:
@@ -1764,6 +1847,73 @@ components:
             candidate_orders_count: {type: integer}
             reserved_quantity_total: {type: integer}
             shortage_quantity: {type: integer}
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
+    ManagerOrder:
+      type: object
+      required: [id, order_number, status, sales_channel, totals, fulfillment_summary, manager_access]
+      properties:
+        id: {type: integer}
+        order_number: {type: string}
+        status: {type: string}
+        status_name: {type: string}
+        sales_channel:
+          type: string
+          enum: [online, seller, internal]
+        order_type:
+          type: string
+          enum: [regular, supplier]
+        customer: {type: [object, 'null'], additionalProperties: true}
+        totals: {type: object, additionalProperties: true}
+        payment: {type: object, additionalProperties: true}
+        delivery: {type: object, additionalProperties: true}
+        staff: {type: object, additionalProperties: true}
+        fulfillment_summary:
+          type: object
+          required: [parts_count, issues_count, open_issues_count]
+          properties:
+            parts_count: {type: [integer, 'null']}
+            issues_count: {type: integer}
+            open_issues_count: {type: integer}
+        manager_access:
+          type: object
+          required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids]
+          properties:
+            full_order_visible: {type: boolean, const: true}
+            read_only_contract: {type: boolean, const: true}
+            assigned_fulfillment_order_ids:
+              type: array
+              items: {type: integer}
+        items:
+          type: array
+          items: {type: object, additionalProperties: true}
+        gifts:
+          type: array
+          items: {type: object, additionalProperties: true}
+        partial_orders:
+          type: array
+          items: {type: object, additionalProperties: true}
+        fulfillment_issues:
+          type: array
+          items: {type: object, additionalProperties: true}
+        inventory_movements:
+          type: array
+          items: {type: object, additionalProperties: true}
+        status_history:
+          type: array
+          items: {type: object, additionalProperties: true}
+        notes: {type: object, additionalProperties: true}
+        stock: {type: object, additionalProperties: true}
+        timestamps: {type: object, additionalProperties: true}
+      additionalProperties: true
+    ManagerOrderListResponse:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ManagerOrder'
         meta:
           $ref: '#/components/schemas/PaginationMeta'
     AdminOrder:
