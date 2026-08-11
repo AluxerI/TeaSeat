@@ -79,6 +79,11 @@ class OrderProduct extends Model
         return $this->belongsTo(Discount::class, 'selected_discount_id');
     }
 
+    public function review()
+    {
+        return $this->hasOne(Review::class);
+    }
+
     // Автоматический расчет при сохранении
     public static function boot()
     {

@@ -195,6 +195,17 @@ class Product extends Model
             ->withTimestamps();
     }
 
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+
+    public function publishedReviews()
+    {
+        return $this->hasMany(Review::class)
+            ->where('status', Review::STATUS_PUBLISHED);
+    }
+
     public function fulfillmentIssues()
     {
         return $this->hasMany(FulfillmentIssue::class);

@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: TeaSeat Reviews API
+  version: 1.0.0
+  description: Отзывы о товарах, оценки исполнения заказов и модерация.
+servers:
+  - url: /api
+tags:
+  - name: Public reviews
+  - name: Customer reviews
+  - name: Manager moderation
+paths:
+  /products/{product}/reviews:
+    parameters:
+      - $ref: '#/components/parameters/ProductId'
+    get:
+      tags: [Public reviews]
+      operationId: listProductReviews
+      x-laravel-route-name: product.reviews.index
+      parameters:
+        - in: query
+          name: rating
+          schema: {type: integer, minimum: 1, maximum: 5}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200':
+          description: Опубликованные отзывы и рейтинг товара
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ReviewPage'
+                  - type: object
+                    properties:
+                      summary: {$ref: '#/components/schemas/ProductRatingSummary'}
+    post:
+      tags: [Customer reviews]
+      operationId: createProductReview
+      x-laravel-route-name: product.reviews.store
+      security: [{sanctum: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order_product_id, rating]
+              properties:
+                order_product_id: {type: integer}
+                rating: {type: integer, minimum: 1, maximum: 5}
+                comment: {type: string, nullable: true, maxLength: 5000}
+      responses:
+        '201': {$ref: '#/components/responses/ReviewResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+        '422': {$ref: '#/components/responses/ValidationError'}
+  /reviews/mine:
+    get:
+      tags: [Customer reviews]
+      operationId: listOwnReviews
+      x-laravel-route-name: reviews.mine
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/PerPage'}]
+      responses:
+        '200':
+          description: Собственные отзывы, включая скрытые
+          content:
+            application/json:
+              schema: {$ref: '#/components/schemas/ReviewPage'}
+  /reviews/{review}:
+    put:
+      tags: [Customer reviews]
+      operationId: updateOwnReview
+      x-laravel-route-name: reviews.update
+      security: [{sanctum: []}]
+      parameters:
+        - $ref: '#/components/parameters/ReviewId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: {type: integer, minimum: 1, maximum: 5}
+                comment: {type: string, nullable: true, maxLength: 5000}
+      responses:
+        '200': {$ref: '#/components/responses/ReviewResponse'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /orders/{order}/feedback:
+    parameters:
+      - $ref: '#/components/parameters/OrderId'
+    get:
+      tags: [Customer reviews]
+      operationId: showOwnOrderFeedback
+      x-laravel-route-name: orders.feedback.show
+      security: [{sanctum: []}]
+      responses:
+        '200': {$ref: '#/components/responses/FeedbackResponse'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    post:
+      tags: [Customer reviews]
+      operationId: createOrderFeedback
+      x-laravel-route-name: orders.feedback.store
+      security: [{sanctum: []}]
+      requestBody: {$ref: '#/components/requestBodies/FeedbackInput'}
+      responses:
+        '201': {$ref: '#/components/responses/FeedbackResponse'}
+        '409': {$ref: '#/components/responses/Conflict'}
+  /order-feedback/{feedback}:
+    put:
+      tags: [Customer reviews]
+      operationId: updateOwnOrderFeedback
+      x-laravel-route-name: order-feedback.update
+      security: [{sanctum: []}]
+      parameters:
+        - $ref: '#/components/parameters/FeedbackId'
+      requestBody: {$ref: '#/components/requestBodies/FeedbackInput'}
+      responses:
+        '200': {$ref: '#/components/responses/FeedbackResponse'}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /manager/reviews:
+    get:
+      tags: [Manager moderation]
+      operationId: listReviewsForModeration
+      x-laravel-route-name: manager.reviews.index
+      security: [{sanctum: []}]
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [published, hidden, all]}
+        - in: query
+          name: rating
+          schema: {type: integer, minimum: 1, maximum: 5}
+        - in: query
+          name: product_id
+          schema: {type: integer}
+        - in: query
+          name: search
+          schema: {type: string, maxLength: 200}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200': {description: Список отзывов для менеджера}
+        '403': {$ref: '#/components/responses/Forbidden'}
+  /manager/reviews/{review}:
+    get:
+      tags: [Manager moderation]
+      operationId: showReviewForModeration
+      x-laravel-route-name: manager.reviews.show
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/ReviewId'}]
+      responses:
+        '200': {description: Отзыв с журналом модерации}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /manager/reviews/{review}/hide:
+    post:
+      tags: [Manager moderation]
+      operationId: hideReview
+      x-laravel-route-name: manager.reviews.hide
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/ReviewId'}]
+      requestBody: {$ref: '#/components/requestBodies/HideInput'}
+      responses:
+        '200': {description: Отзыв скрыт либо уже был скрыт}
+  /manager/reviews/{review}/restore:
+    post:
+      tags: [Manager moderation]
+      operationId: restoreReview
+      x-laravel-route-name: manager.reviews.restore
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/ReviewId'}]
+      requestBody: {$ref: '#/components/requestBodies/RestoreInput'}
+      responses:
+        '200': {description: Отзыв восстановлен либо уже был опубликован}
+  /manager/reviews/{review}/reply:
+    put:
+      tags: [Manager moderation]
+      operationId: upsertCompanyReply
+      x-laravel-route-name: manager.reviews.reply
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/ReviewId'}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body]
+              properties:
+                body: {type: string, maxLength: 5000}
+      responses:
+        '200': {description: Единственный ответ компании создан или изменён}
+  /manager/order-feedback:
+    get:
+      tags: [Manager moderation]
+      operationId: listOrderFeedbackForModeration
+      x-laravel-route-name: manager.order-feedback.index
+      security: [{sanctum: []}]
+      parameters:
+        - in: query
+          name: status
+          schema: {type: string, enum: [published, hidden, all]}
+        - in: query
+          name: search
+          schema: {type: string, maxLength: 200}
+        - $ref: '#/components/parameters/PerPage'
+      responses:
+        '200': {description: Оценки заказов и независимые средние по категориям}
+  /manager/order-feedback/{feedback}:
+    get:
+      tags: [Manager moderation]
+      operationId: showOrderFeedbackForModeration
+      x-laravel-route-name: manager.order-feedback.show
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/FeedbackId'}]
+      responses:
+        '200': {description: Оценка заказа с журналом}
+  /manager/order-feedback/{feedback}/hide:
+    post:
+      tags: [Manager moderation]
+      operationId: hideOrderFeedback
+      x-laravel-route-name: manager.order-feedback.hide
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/FeedbackId'}]
+      requestBody: {$ref: '#/components/requestBodies/HideInput'}
+      responses:
+        '200': {description: Оценка скрыта}
+  /manager/order-feedback/{feedback}/restore:
+    post:
+      tags: [Manager moderation]
+      operationId: restoreOrderFeedback
+      x-laravel-route-name: manager.order-feedback.restore
+      security: [{sanctum: []}]
+      parameters: [{$ref: '#/components/parameters/FeedbackId'}]
+      requestBody: {$ref: '#/components/requestBodies/RestoreInput'}
+      responses:
+        '200': {description: Оценка восстановлена}
+components:
+  securitySchemes:
+    sanctum:
+      type: http
+      scheme: bearer
+  parameters:
+    ProductId:
+      in: path
+      name: product
+      required: true
+      schema: {type: integer}
+    ReviewId:
+      in: path
+      name: review
+      required: true
+      schema: {type: integer}
+    OrderId:
+      in: path
+      name: order
+      required: true
+      schema: {type: integer}
+    FeedbackId:
+      in: path
+      name: feedback
+      required: true
+      schema: {type: integer}
+    PerPage:
+      in: query
+      name: per_page
+      schema: {type: integer, minimum: 1, maximum: 100, default: 20}
+  requestBodies:
+    FeedbackInput:
+      required: true
+      description: Требуется хотя бы одна оценка.
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              delivery_rating: {type: integer, nullable: true, minimum: 1, maximum: 5}
+              packing_rating: {type: integer, nullable: true, minimum: 1, maximum: 5}
+              service_rating: {type: integer, nullable: true, minimum: 1, maximum: 5}
+              comment: {type: string, nullable: true, maxLength: 5000}
+    HideInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [reason_code, comment]
+            properties:
+              reason_code:
+                type: string
+                enum: [spam, abuse, personal_data, off_topic, fraud, other]
+              comment: {type: string, maxLength: 2000}
+    RestoreInput:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [comment]
+            properties:
+              comment: {type: string, maxLength: 2000}
+  responses:
+    ReviewResponse:
+      description: Отзыв
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: {$ref: '#/components/schemas/Review'}
+    FeedbackResponse:
+      description: Оценка заказа
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              data: {$ref: '#/components/schemas/OrderFeedback'}
+    Conflict:
+      description: Бизнес-правило не позволяет выполнить действие
+    ValidationError:
+      description: Ошибка валидации
+    NotFound:
+      description: Ресурс не найден или не принадлежит пользователю
+    Forbidden:
+      description: Нет активной роли или права менеджера
+  schemas:
+    Review:
+      type: object
+      required: [id, rating, status, verified_purchase]
+      properties:
+        id: {type: integer}
+        product:
+          type: object
+          nullable: true
+          properties:
+            id: {type: integer}
+            name: {type: string}
+        author:
+          type: object
+          nullable: true
+          properties:
+            id: {type: integer}
+            name: {type: string}
+        rating: {type: integer, minimum: 1, maximum: 5}
+        comment: {type: string, nullable: true}
+        status: {type: string, enum: [published, hidden]}
+        verified_purchase: {type: boolean}
+        company_reply:
+          type: object
+          nullable: true
+          properties:
+            author_name: {type: string}
+            body: {type: string}
+            created_at: {type: string, format: date-time}
+            edited_at: {type: string, format: date-time, nullable: true}
+        customer_edited_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    OrderFeedback:
+      type: object
+      required: [id, order_id, ratings, status]
+      properties:
+        id: {type: integer}
+        order_id: {type: integer}
+        ratings:
+          type: object
+          properties:
+            delivery: {type: integer, nullable: true, minimum: 1, maximum: 5}
+            packing: {type: integer, nullable: true, minimum: 1, maximum: 5}
+            service: {type: integer, nullable: true, minimum: 1, maximum: 5}
+        comment: {type: string, nullable: true}
+        status: {type: string, enum: [published, hidden]}
+    ProductRatingSummary:
+      type: object
+      required: [average, count, distribution]
+      properties:
+        average: {type: number, format: float, nullable: true}
+        count: {type: integer}
+        distribution:
+          type: object
+          additionalProperties: {type: integer}
+    PageMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page: {type: integer}
+        last_page: {type: integer}
+        per_page: {type: integer}
+        total: {type: integer}
+    ReviewPage:
+      type: object
+      required: [data, meta]
+      properties:
+        data:
+          type: array
+          items: {$ref: '#/components/schemas/Review'}
+        meta: {$ref: '#/components/schemas/PageMeta'}

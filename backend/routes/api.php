@@ -31,7 +31,15 @@ use App\Http\Controllers\Picker\AssembledGiftController as PickerAssembledGiftCo
 use App\Http\Controllers\Courier\DeliveryController as CourierDeliveryController;
 use App\Http\Controllers\Gift\GiftConstructorController;
 use App\Http\Controllers\Cart\GiftController as CartGiftController;
+use App\Http\Controllers\Review\ProductReviewController;
+use App\Http\Controllers\Review\CustomerReviewController;
+use App\Http\Controllers\Review\OrderFeedbackController;
+use App\Http\Controllers\Manager\ReviewModerationController;
+use App\Http\Controllers\Manager\OrderFeedbackModerationController;
 
+Route::get('/products/{product}/reviews', [ProductReviewController::class, 'index'])
+    ->whereNumber('product')
+    ->name('product.reviews.index');
 
 Route::prefix('auth')->group(function () {
     // Основные эндпоинты
@@ -66,6 +74,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/auth/sessions', [SessionController::class, '__invoke']);
     Route::get('/user', [ShowCurrentUserController::class, '__invoke'])->name('user.show');
     Route::get('/user/discounts', 'App\Http\Controllers\User\UserDiscountsController')->name('user.discounts');
+
+    Route::get('/reviews/mine', [CustomerReviewController::class, 'mine'])
+        ->name('reviews.mine');
+    Route::post('/products/{product}/reviews', [CustomerReviewController::class, 'store'])
+        ->whereNumber('product')
+        ->name('product.reviews.store');
+    Route::put('/reviews/{review}', [CustomerReviewController::class, 'update'])
+        ->whereNumber('review')
+        ->name('reviews.update');
+    Route::get('/orders/{order}/feedback', [OrderFeedbackController::class, 'show'])
+        ->whereNumber('order')
+        ->name('orders.feedback.show');
+    Route::post('/orders/{order}/feedback', [OrderFeedbackController::class, 'store'])
+        ->whereNumber('order')
+        ->name('orders.feedback.store');
+    Route::put('/order-feedback/{feedback}', [OrderFeedbackController::class, 'update'])
+        ->whereNumber('feedback')
+        ->name('order-feedback.update');
 
     Route::prefix('gift-constructor')->group(function () {
         Route::get('/boxes/{box}/products', [GiftConstructorController::class, 'boxProducts'])
@@ -258,6 +284,46 @@ Route::prefix('courier')->middleware('auth:sanctum')->group(function () {
 // Отдельный API менеджера. В отличие от Filament, для менеджера здесь
 // обязательно применяется ограничение по назначенным активным складам.
 Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
+    Route::prefix('reviews')->group(function () {
+        Route::get('/', [ReviewModerationController::class, 'index'])
+            ->middleware('permission:view reviews')
+            ->name('manager.reviews.index');
+        Route::get('/{review}', [ReviewModerationController::class, 'show'])
+            ->whereNumber('review')
+            ->middleware('permission:view reviews')
+            ->name('manager.reviews.show');
+        Route::post('/{review}/hide', [ReviewModerationController::class, 'hide'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.hide');
+        Route::post('/{review}/restore', [ReviewModerationController::class, 'restore'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.restore');
+        Route::put('/{review}/reply', [ReviewModerationController::class, 'reply'])
+            ->whereNumber('review')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.reviews.reply');
+    });
+
+    Route::prefix('order-feedback')->group(function () {
+        Route::get('/', [OrderFeedbackModerationController::class, 'index'])
+            ->middleware('permission:view reviews')
+            ->name('manager.order-feedback.index');
+        Route::get('/{feedback}', [OrderFeedbackModerationController::class, 'show'])
+            ->whereNumber('feedback')
+            ->middleware('permission:view reviews')
+            ->name('manager.order-feedback.show');
+        Route::post('/{feedback}/hide', [OrderFeedbackModerationController::class, 'hide'])
+            ->whereNumber('feedback')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.order-feedback.hide');
+        Route::post('/{feedback}/restore', [OrderFeedbackModerationController::class, 'restore'])
+            ->whereNumber('feedback')
+            ->middleware('permission:moderate reviews')
+            ->name('manager.order-feedback.restore');
+    });
+
     Route::get('/orders', [ManagerOrderController::class, 'index'])
         ->middleware('permission:view manager orders')
         ->name('manager.orders.index');

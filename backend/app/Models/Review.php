@@ -10,29 +10,64 @@ class Review extends Model
 {
     use HasFactory;
 
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_HIDDEN = 'hidden';
+
     protected $table = 'reviews';
-    protected $primaryKey = null;
-    public $incrementing = false;
 
     protected $fillable = [
         'user_id',
         'product_id',
+        'order_product_id',
         'rating',
-        'comment'
+        'comment',
+        'status',
+        'customer_edited_at',
     ];
 
     protected $casts = [
         'rating' => 'integer',
+        'customer_edited_at' => 'datetime',
     ];
 
     public function user()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(User::class)->withTrashed();
     }
 
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function orderProduct()
+    {
+        return $this->belongsTo(OrderProduct::class);
+    }
+
+    public function reply()
+    {
+        return $this->hasOne(ReviewReply::class);
+    }
+
+    public function moderationLogs()
+    {
+        return $this->hasMany(ContentModerationLog::class)
+            ->latest('created_at')
+            ->latest('id');
+    }
+
+    public function latestModeration()
+    {
+        return $this->hasOne(ContentModerationLog::class)
+            ->latestOfMany(['created_at', 'id']);
+    }
+
+    public function scopePublished($query)
+    {
+        return $query
+            ->where('status', self::STATUS_PUBLISHED)
+            ->whereNotNull('order_product_id');
     }
 
     /**
@@ -52,19 +87,11 @@ class Review extends Model
                 'rating' => $this->rating,
                 'rating_stars' => $this->rating_stars,
                 'comment' => $this->comment,
+                'status' => $this->status,
+                'verified_purchase' => $this->order_product_id !== null,
                 'created_at' => $this->created_at?->format('d.m.Y H:i'),
             ];
         });
-    }
-
-    public function getReviewKeyAttribute(): string
-    {
-        return $this->product_id . '-' . $this->user_id;
-    }
-
-    public function getRouteKeyName()
-    {
-        return 'review_key';
     }
 
     public function getRatingStarsAttribute(): string

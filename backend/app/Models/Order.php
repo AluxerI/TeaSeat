@@ -155,6 +155,11 @@ class Order extends Model
         return $this->hasMany(InventoryMovement::class);
     }
 
+    public function feedback()
+    {
+        return $this->hasOne(OrderFeedback::class);
+    }
+
     public function sellerDevice()
     {
         return $this->belongsTo(StaffDevice::class, 'seller_device_id');

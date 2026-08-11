@@ -47,6 +47,8 @@ class RolePermissionSeeder extends Seeder
             'view fulfillment issues',
             'manage fulfillment issues',
             'manage delivery schedules',
+            'view reviews',
+            'moderate reviews',
         ];
 
         foreach ($permissions as $permission) {
@@ -98,6 +100,8 @@ class RolePermissionSeeder extends Seeder
             'view fulfillment issues',
             'manage fulfillment issues',
             'manage delivery schedules',
+            'view reviews',
+            'moderate reviews',
         ]);
 
         $sellerRole->syncPermissions([
