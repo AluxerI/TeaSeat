@@ -15,7 +15,8 @@ class DeliveryWorkflowService
 {
     public function __construct(
         protected CourierAccessService $accessService,
-        protected ManagerAccessService $managerAccessService
+        protected ManagerAccessService $managerAccessService,
+        protected DeliveryScheduleService $deliveryScheduleService
     ) {
     }
 
@@ -31,6 +32,8 @@ class DeliveryWorkflowService
                 $builder->where(function (Builder $available): void {
                     $available->where('orders.status', Order::STATUS_READY_FOR_DELIVERY)
                         ->whereNull('orders.courier_id');
+                    $this->deliveryScheduleService
+                        ->applyCourierClaimWindow($available);
                 })->orWhere('orders.courier_id', $courier->id);
             });
         }
@@ -59,6 +62,9 @@ class DeliveryWorkflowService
         return $query
             ->orderByRaw('CASE WHEN orders.courier_id = ? THEN 0 ELSE 1 END', [$courier->id])
             ->orderByRaw("CASE orders.status WHEN 'shipped' THEN 0 ELSE 1 END")
+            ->orderByRaw('CASE WHEN orders.scheduled_delivery_date IS NULL THEN 1 ELSE 0 END')
+            ->orderBy('orders.scheduled_delivery_date')
+            ->orderBy('orders.delivery_time_from')
             ->orderBy('orders.ready_for_delivery_at')
             ->orderBy('orders.id')
             ->paginate(min(100, max(1, (int) ($filters['per_page'] ?? 20))));
@@ -72,8 +78,13 @@ class DeliveryWorkflowService
         );
         if (!$this->accessService->isAdmin($courier)) {
             $query->where(function (Builder $builder) use ($courier): void {
-                $builder->whereNull('orders.courier_id')
-                    ->orWhere('orders.courier_id', $courier->id);
+                $builder->where(function (Builder $available): void {
+                    $available
+                        ->where('orders.status', Order::STATUS_READY_FOR_DELIVERY)
+                        ->whereNull('orders.courier_id');
+                    $this->deliveryScheduleService
+                        ->applyCourierClaimWindow($available);
+                })->orWhere('orders.courier_id', $courier->id);
             });
         }
 
@@ -85,6 +96,14 @@ class DeliveryWorkflowService
         return $this->transition($courier, $orderId, function (Order $order) use ($courier): void {
             if ($order->status !== Order::STATUS_READY_FOR_DELIVERY) {
                 throw new DomainException('Доставка ещё не готова к назначению');
+            }
+            if (!$this->deliveryScheduleService->courierClaimWindowIsOpen($order)) {
+                throw new DomainException(
+                    sprintf(
+                        'Заказ станет доступен курьерам за %d часов до интервала доставки',
+                        $this->deliveryScheduleService->courierClaimLeadHours()
+                    )
+                );
             }
             if ($order->courier_id !== null) {
                 if ((int) $order->courier_id === (int) $courier->id) {
@@ -101,9 +120,9 @@ class DeliveryWorkflowService
         });
     }
 
-    public function release(User $courier, int $orderId): Order
+    public function release(User $courier, int $orderId, string $reason): Order
     {
-        return $this->transition($courier, $orderId, function (Order $order) use ($courier): void {
+        return $this->transition($courier, $orderId, function (Order $order) use ($courier, $reason): void {
             if ($order->status !== Order::STATUS_READY_FOR_DELIVERY) {
                 throw new DomainException(
                     'После начала доставки отказаться от неё может только менеджер'
@@ -113,9 +132,20 @@ class DeliveryWorkflowService
                 return;
             }
             $this->assertCourierOwner($courier, $order);
+            $entry = sprintf(
+                '[%s] Курьер #%d %s вернул доставку в очередь. Причина: %s',
+                now()->toIso8601String(),
+                $courier->id,
+                trim((string) $courier->name),
+                trim($reason)
+            );
             $order->update([
                 'courier_id' => null,
                 'courier_assigned_at' => null,
+                'internal_notes' => trim(
+                    ($order->internal_notes ? $order->internal_notes . "\n" : '')
+                    . $entry
+                ),
             ]);
         });
     }
@@ -203,6 +233,11 @@ class DeliveryWorkflowService
             if ($order->status !== Order::STATUS_READY_FOR_DELIVERY) {
                 throw new DomainException(
                     'Назначать курьера можно только на готовую доставку'
+                );
+            }
+            if (!$this->deliveryScheduleService->courierClaimWindowIsOpen($order)) {
+                throw new DomainException(
+                    'Окно назначения курьера ещё не открыто'
                 );
             }
             if (!$courier->is_active || !$courier->hasRole(User::ROLE_COURIER)) {

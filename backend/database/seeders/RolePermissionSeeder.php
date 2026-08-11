@@ -46,6 +46,7 @@ class RolePermissionSeeder extends Seeder
             'manage manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
+            'manage delivery schedules',
         ];
 
         foreach ($permissions as $permission) {
@@ -96,6 +97,7 @@ class RolePermissionSeeder extends Seeder
             'manage manager orders',
             'view fulfillment issues',
             'manage fulfillment issues',
+            'manage delivery schedules',
         ]);
 
         $sellerRole->syncPermissions([

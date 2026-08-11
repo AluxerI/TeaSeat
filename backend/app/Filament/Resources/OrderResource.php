@@ -265,6 +265,19 @@ class OrderResource extends Resource
                                         'online' => 'Онлайн',
                                     ])
                                     ->required(),
+
+                                Placeholder::make('scheduled_delivery_window')
+                                    ->label('Обещанный интервал')
+                                    ->content(fn ($record): string =>
+                                        $record?->scheduled_delivery_date
+                                            ? sprintf(
+                                                '%s, %s–%s',
+                                                $record->scheduled_delivery_date->format('d.m.Y'),
+                                                substr((string) $record->delivery_time_from, 0, 5),
+                                                substr((string) $record->delivery_time_to, 0, 5)
+                                            )
+                                            : 'Не выбран')
+                                    ->visible(fn ($record): bool => $record !== null),
                             ]),
                     ]),
 
@@ -656,6 +669,20 @@ class OrderResource extends Resource
                     ->label('Дата')
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
+
+                TextColumn::make('scheduled_delivery_date')
+                    ->label('Доставка')
+                    ->state(fn (Order $record): string =>
+                        $record->scheduled_delivery_date
+                            ? sprintf(
+                                '%s %s–%s',
+                                $record->scheduled_delivery_date->format('d.m.Y'),
+                                substr((string) $record->delivery_time_from, 0, 5),
+                                substr((string) $record->delivery_time_to, 0, 5)
+                            )
+                            : '—')
+                    ->sortable()
+                    ->toggleable(),
                 
                 TextColumn::make('items_count')
                     ->label('Товаров')

@@ -97,6 +97,7 @@ class StaffApiContractTest extends TestCase
     {
         return [
             'user.show' => ['GET', 'api/user', null],
+            'checkout.delivery-slots' => ['GET', 'api/checkout/delivery-slots/{addressId}/{deliveryMethodId}', null],
 
             'seller.devices.register' => ['POST', 'api/seller/devices/register', 'create seller orders'],
             'seller.bootstrap' => ['GET', 'api/seller/bootstrap', 'create seller orders'],
@@ -126,6 +127,7 @@ class StaffApiContractTest extends TestCase
             'courier.deliveries.start' => ['POST', 'api/courier/deliveries/{order}/start', 'update assigned deliveries'],
             'courier.deliveries.deliver' => ['POST', 'api/courier/deliveries/{order}/deliver', 'update assigned deliveries'],
 
+            'manager.orders.reschedule' => ['POST', 'api/manager/orders/{order}/reschedule', 'manage manager orders'],
             'manager.orders.return-to-stock' => ['POST', 'api/manager/orders/{order}/return-to-stock', 'manage orders'],
             'manager.orders.index' => ['GET', 'api/manager/orders', 'view manager orders'],
             'manager.orders.show' => ['GET', 'api/manager/orders/{order}', 'view manager orders'],

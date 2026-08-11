@@ -73,7 +73,20 @@ class DeliveryController extends Controller
 
     public function release(Request $request, int $order): JsonResponse
     {
-        return $this->transition($request, $order, 'release', 'Доставка возвращена в очередь');
+        $request->merge([
+            'reason' => trim((string) $request->input('reason')),
+        ]);
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        return $this->transition(
+            $request,
+            $order,
+            'release',
+            'Доставка возвращена в очередь',
+            [$validated['reason']]
+        );
     }
 
     public function start(Request $request, int $order): JsonResponse
@@ -90,12 +103,14 @@ class DeliveryController extends Controller
         Request $request,
         int $order,
         string $action,
-        string $message
+        string $message,
+        array $arguments = []
     ): JsonResponse {
         try {
             $item = $this->deliveryService->{$action}(
                 $request->user(),
-                $order
+                $order,
+                ...$arguments
             );
         } catch (AuthorizationException $exception) {
             return $this->forbidden($exception);

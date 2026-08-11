@@ -120,6 +120,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::prefix('checkout')->group(function () {
         Route::post('/', [CheckoutController::class, '__invoke']);
         Route::get('/delivery-methods/{addressId}', [CheckoutController::class, 'getDeliveryMethods']);
+        Route::get(
+            '/delivery-slots/{addressId}/{deliveryMethodId}',
+            [CheckoutController::class, 'getDeliverySlots']
+        )
+            ->whereNumber('addressId')
+            ->whereNumber('deliveryMethodId')
+            ->name('checkout.delivery-slots');
     });
     
     // Управление заказами
@@ -270,6 +277,10 @@ Route::prefix('manager')->middleware('auth:sanctum')->group(function () {
         ->whereNumber('order')
         ->middleware('permission:manage manager orders')
         ->name('manager.orders.cancel');
+    Route::post('/orders/{order}/reschedule', [ManagerOrderCommandController::class, 'reschedule'])
+        ->whereNumber('order')
+        ->middleware('permission:manage manager orders')
+        ->name('manager.orders.reschedule');
     Route::post('/orders/{order}/return-to-stock', [ManagerPackedOrderController::class, 'returnToStock'])
         ->whereNumber('order')
         ->middleware('permission:manage orders')

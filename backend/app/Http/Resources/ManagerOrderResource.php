@@ -50,6 +50,7 @@ class ManagerOrderResource extends JsonResource
             ),
             'delivery' => [
                 'method' => $this->deliveryMethodData(),
+                'scheduled_window' => $this->scheduledWindowData(),
                 'address' => $this->shippingAddressData(),
                 'tracking_number' => $this->tracking_number,
                 'warehouse' => $this->warehouseData($this->warehouse),
@@ -234,6 +235,22 @@ class ManagerOrderResource extends JsonResource
         ];
     }
 
+    private function scheduledWindowData(): ?array
+    {
+        if ($this->scheduled_delivery_date === null) {
+            return null;
+        }
+
+        return [
+            'date' => $this->scheduled_delivery_date->toDateString(),
+            'time_from' => substr((string) $this->delivery_time_from, 0, 5),
+            'time_to' => substr((string) $this->delivery_time_to, 0, 5),
+            'slot_id' => $this->delivery_time_slot_id
+                ? (int) $this->delivery_time_slot_id
+                : null,
+        ];
+    }
+
     private function warehouseData($warehouse): ?array
     {
         if (!$warehouse) {
@@ -405,6 +422,17 @@ class ManagerOrderResource extends JsonResource
                 && $this->paid_at === null
                 && $cancellableStatus
                 && !$hasStartedFulfillment,
+            'can_reschedule' => $allLocationsAssigned
+                && $isOnlineOrder
+                && $this->deliveryMethod?->requiresScheduling()
+                && $this->courier_id === null
+                && !in_array($this->status, [
+                    Order::STATUS_SHIPPED,
+                    Order::STATUS_AWAITING_RECEIPT,
+                    Order::STATUS_DELIVERED,
+                    Order::STATUS_CANCELLED,
+                    Order::STATUS_COMPLETED,
+                ], true),
         ];
     }
 

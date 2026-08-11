@@ -40,6 +40,21 @@ class DeliveryMethod extends Model
         return $this->hasMany(Order::class);
     }
 
+    public function timeSlots()
+    {
+        return $this->hasMany(DeliveryTimeSlot::class)
+            ->orderBy('weekday')
+            ->orderBy('time_from');
+    }
+
+    public function requiresScheduling(): bool
+    {
+        return in_array($this->type, [
+            self::TYPE_COURIER,
+            self::TYPE_EXPRESS,
+        ], true);
+    }
+
     /**
      * Scope для активных методов доставки
      */

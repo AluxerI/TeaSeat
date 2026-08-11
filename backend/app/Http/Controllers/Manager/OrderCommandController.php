@@ -66,6 +66,34 @@ class OrderCommandController extends ManagerController
         );
     }
 
+    public function reschedule(Request $request, int $order): JsonResponse
+    {
+        $request->merge([
+            'reason' => trim((string) $request->input('reason')),
+        ]);
+        $validated = $request->validate([
+            'scheduled_delivery_date' => ['required', 'date_format:Y-m-d'],
+            'delivery_time_slot_id' => [
+                'required',
+                'integer',
+                'exists:delivery_time_slots,id',
+            ],
+            'reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        return $this->execute(
+            $request,
+            fn () => $this->commandService->reschedule(
+                $request->user(),
+                $order,
+                $validated['scheduled_delivery_date'],
+                (int) $validated['delivery_time_slot_id'],
+                $validated['reason']
+            ),
+            'Дата и интервал доставки изменены'
+        );
+    }
+
     private function execute(
         Request $request,
         callable $command,

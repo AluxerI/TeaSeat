@@ -21,7 +21,8 @@ class CheckoutService
         protected WarehouseService $warehouseService,
         protected LocationService $locationService,
         protected SupplierOrderService $supplierOrderService,
-        protected GiftAvailabilityService $giftAvailabilityService
+        protected GiftAvailabilityService $giftAvailabilityService,
+        protected DeliveryScheduleService $deliveryScheduleService
     ) {}
 
     /**
@@ -35,7 +36,9 @@ class CheckoutService
         ?string $customerNotes = null,
         bool $isSupplierOrder = false,
         string $idempotencyKey = '',
-        ?array $discountSelection = null
+        ?array $discountSelection = null,
+        ?string $scheduledDeliveryDate = null,
+        ?int $deliveryTimeSlotId = null
     ): Order {
         return DB::transaction(function () use (
             $userId,
@@ -45,7 +48,9 @@ class CheckoutService
             $customerNotes,
             $isSupplierOrder,
             $idempotencyKey,
-            $discountSelection
+            $discountSelection,
+            $scheduledDeliveryDate,
+            $deliveryTimeSlotId
         ) {
             if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
                 return $existingOrder;
@@ -86,6 +91,15 @@ class CheckoutService
                 throw new DomainException("Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}");
             }
 
+            // Строка расписания блокируется до конца checkout. Поэтому два
+            // параллельных заказа не смогут занять последнее место интервала.
+            $deliverySelection = $this->deliveryScheduleService->reserveSelection(
+                $deliveryMethod,
+                $scheduledDeliveryDate,
+                $deliveryTimeSlotId,
+                $cart->id
+            );
+
             // Цена и лимиты скидок проверяются в той же транзакции, что и остатки.
             // Поэтому checkout никогда не доверяет цене, сохранённой в корзине ранее.
             $user = User::findOrFail($userId);
@@ -106,7 +120,8 @@ class CheckoutService
                     $deliveryMethod,
                     $paymentMethod,
                     $customerNotes,
-                    $idempotencyKey
+                    $idempotencyKey,
+                    $deliverySelection
                 );
             }
 
@@ -128,7 +143,7 @@ class CheckoutService
                 'checkout_idempotency_key' => $idempotencyKey,
                 'warehouse_id' => null,
                 'confirmed_at' => now(),
-            ]);
+            ] + $deliverySelection);
 
             // Создаем частичные заказы по складам
             $partialOrders = $this->warehouseService->createPartialOrders(
@@ -198,7 +213,8 @@ class CheckoutService
         DeliveryMethod $deliveryMethod,
         string $paymentMethod,
         ?string $customerNotes,
-        string $idempotencyKey
+        string $idempotencyKey,
+        array $deliverySelection
     ): Order {
         // Проверяем доступность товаров у поставщиков
         $supplierAllocations = [];
@@ -239,7 +255,7 @@ class CheckoutService
             'checkout_idempotency_key' => $idempotencyKey,
             'internal_notes' => 'ЗАКАЗ У ПОСТАВЩИКА - требуется ручная обработка',
             'confirmed_at' => now(),
-        ]);
+        ] + $deliverySelection);
         
         // Создаем заказы поставщикам
         foreach ($supplierAllocations as $supplierId => $items) {
@@ -290,10 +306,49 @@ class CheckoutService
                         'type' => $method->type,
                         'provider_code' => $method->provider_code,
                         'estimated_days' => $method->getEstimatedDaysFormatted(),
+                        'requires_scheduling' => $method->requiresScheduling(),
+                        'booking_horizon_days' => $method->requiresScheduling()
+                            ? max(1, (int) config('delivery.booking_horizon_days', 30))
+                            : null,
                     ];
                 })
                 ->toArray();
         });
+    }
+
+    public function getAvailableDeliverySlots(
+        int $userId,
+        int $shippingAddressId,
+        int $deliveryMethodId
+    ): array {
+        $shippingAddress = AddressClient::where('user_id', $userId)
+            ->findOrFail($shippingAddressId);
+        $deliveryMethod = DeliveryMethod::active()->findOrFail($deliveryMethodId);
+
+        if (!$deliveryMethod->isAvailableInCity($shippingAddress->city)) {
+            throw new DomainException(
+                "Способ доставки '{$deliveryMethod->name}' недоступен в городе {$shippingAddress->city}"
+            );
+        }
+        if (!$deliveryMethod->requiresScheduling()) {
+            throw new DomainException(
+                'Для этого способа доставки календарь интервалов не используется'
+            );
+        }
+
+        return [
+            'delivery_method' => [
+                'id' => (int) $deliveryMethod->id,
+                'name' => $deliveryMethod->name,
+                'type' => $deliveryMethod->type,
+            ],
+            'booking_horizon_days' => max(
+                1,
+                (int) config('delivery.booking_horizon_days', 30)
+            ),
+            'dates' => $this->deliveryScheduleService
+                ->availableDates($deliveryMethod),
+        ];
     }
 
     /**

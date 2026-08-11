@@ -38,6 +38,10 @@ class Order extends Model
         'discount_id',
         'applied_promotion_code',
         'delivery_method_id',
+        'delivery_time_slot_id',
+        'scheduled_delivery_date',
+        'delivery_time_from',
+        'delivery_time_to',
         'payment_method',
         'tracking_number',
         'customer_notes',
@@ -82,6 +86,7 @@ class Order extends Model
         'shipping_discount' => 'decimal:2',
         'final_total' => 'decimal:2',
         'pricing_snapshot' => 'array',
+        'scheduled_delivery_date' => 'date',
         'confirmed_at' => 'datetime',
         'paid_at' => 'datetime',
         'shipped_at' => 'datetime',
@@ -183,6 +188,11 @@ class Order extends Model
     public function deliveryMethod()
     {
         return $this->belongsTo(DeliveryMethod::class, 'delivery_method_id'); 
+    }
+
+    public function deliveryTimeSlot()
+    {
+        return $this->belongsTo(DeliveryTimeSlot::class);
     }
     /**
      * Получить данные заказа для отображения

@@ -14,7 +14,8 @@ class ManagerOrderCommandService
     public function __construct(
         protected ManagerAccessService $accessService,
         protected ManagerOrderService $orderService,
-        protected OrderManagementService $managementService
+        protected OrderManagementService $managementService,
+        protected DeliveryScheduleService $deliveryScheduleService
     ) {
     }
 
@@ -97,6 +98,91 @@ class ManagerOrderCommandService
         return $this->orderService->findAccessible($manager, $orderId);
     }
 
+    public function reschedule(
+        User $manager,
+        int $orderId,
+        string $scheduledDeliveryDate,
+        int $deliveryTimeSlotId,
+        string $reason
+    ): Order {
+        DB::transaction(function () use (
+            $manager,
+            $orderId,
+            $scheduledDeliveryDate,
+            $deliveryTimeSlotId,
+            $reason
+        ): void {
+            $order = $this->lockAccessibleRoot($manager, $orderId);
+            $this->accessService->assertAllOrderLocations($manager, $order);
+            $this->assertOnlineOrder($order);
+
+            if (in_array($order->status, [
+                Order::STATUS_SHIPPED,
+                Order::STATUS_AWAITING_RECEIPT,
+                Order::STATUS_DELIVERED,
+                Order::STATUS_CANCELLED,
+                Order::STATUS_COMPLETED,
+            ], true)) {
+                throw new DomainException(
+                    'Дату нельзя изменить после отправки или завершения заказа'
+                );
+            }
+            if ($order->courier_id !== null) {
+                throw new DomainException(
+                    'Перед переносом назначенный курьер должен вернуть заказ в очередь'
+                );
+            }
+
+            $order->loadMissing('deliveryMethod');
+            $method = $order->deliveryMethod;
+            if (!$method || !$method->is_active || !$method->requiresScheduling()) {
+                throw new DomainException(
+                    'Текущий способ доставки не поддерживает перенос по интервалам'
+                );
+            }
+
+            $sameSelection = (int) $order->delivery_time_slot_id
+                    === $deliveryTimeSlotId
+                && $order->scheduled_delivery_date?->toDateString()
+                    === $scheduledDeliveryDate;
+            if ($sameSelection) {
+                return;
+            }
+
+            $selection = $this->deliveryScheduleService->reserveSelection(
+                $method,
+                $scheduledDeliveryDate,
+                $deliveryTimeSlotId,
+                $order->id
+            );
+            $oldWindow = $this->deliveryWindowLabel($order);
+            $newWindow = sprintf(
+                '%s %s–%s',
+                $selection['scheduled_delivery_date'],
+                $selection['delivery_time_from'],
+                $selection['delivery_time_to']
+            );
+            $entry = sprintf(
+                '[%s] Менеджер #%d %s перенёс доставку: %s → %s. Причина: %s',
+                now()->toIso8601String(),
+                $manager->id,
+                trim((string) $manager->name),
+                $oldWindow,
+                $newWindow,
+                trim($reason)
+            );
+
+            $order->update($selection + [
+                'internal_notes' => trim(
+                    ($order->internal_notes ? $order->internal_notes . "\n" : '')
+                    . $entry
+                ),
+            ]);
+        });
+
+        return $this->orderService->findAccessible($manager, $orderId);
+    }
+
     /** @return array<int, int> */
     public function activeWarehouseIds(User $manager): array
     {
@@ -152,5 +238,19 @@ class ManagerOrderCommandService
                 'Эта команда доступна только для интернет-заказов покупателей'
             );
         }
+    }
+
+    private function deliveryWindowLabel(Order $order): string
+    {
+        if ($order->scheduled_delivery_date === null) {
+            return 'не назначено';
+        }
+
+        return sprintf(
+            '%s %s–%s',
+            $order->scheduled_delivery_date->toDateString(),
+            substr((string) $order->delivery_time_from, 0, 5),
+            substr((string) $order->delivery_time_to, 0, 5)
+        );
     }
 }

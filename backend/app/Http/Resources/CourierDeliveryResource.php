@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Order;
+use App\Services\DeliveryScheduleService;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class CourierDeliveryResource extends JsonResource
@@ -20,6 +21,11 @@ class CourierDeliveryResource extends JsonResource
             && $customerOrder->payment_method === Order::PAYMENT_CASH
                 ? (float) $customerOrder->final_total
                 : 0.0;
+        $scheduleService = app(DeliveryScheduleService::class);
+        $claimWindowOpen = $scheduleService
+            ->courierClaimWindowIsOpen($this->resource);
+        $claimOpensAt = $scheduleService
+            ->courierClaimOpensAt($customerOrder);
 
         return [
             'id' => $this->id,
@@ -63,6 +69,14 @@ class CourierDeliveryResource extends JsonResource
                 'type' => $customerOrder->deliveryMethod->type,
                 'provider_code' => $customerOrder->deliveryMethod->provider_code,
             ] : null,
+            'scheduled_window' => !$isTransfer
+                && $customerOrder->scheduled_delivery_date !== null ? [
+                    'date' => $customerOrder->scheduled_delivery_date->toDateString(),
+                    'time_from' => substr((string) $customerOrder->delivery_time_from, 0, 5),
+                    'time_to' => substr((string) $customerOrder->delivery_time_to, 0, 5),
+                    'slot_id' => (int) $customerOrder->delivery_time_slot_id,
+                    'claim_opens_at' => $claimOpensAt?->toIso8601String(),
+                ] : null,
             'payment' => $isTransfer ? null : [
                 'method' => $customerOrder->payment_method,
                 'order_total' => (float) $customerOrder->final_total,
@@ -83,7 +97,8 @@ class CourierDeliveryResource extends JsonResource
             ],
             'actions' => [
                 'can_claim' => $this->status === Order::STATUS_READY_FOR_DELIVERY
-                    && $this->courier_id === null,
+                    && $this->courier_id === null
+                    && $claimWindowOpen,
                 'can_release' => $this->status === Order::STATUS_READY_FOR_DELIVERY
                     && $canOperate,
                 'can_start' => $this->status === Order::STATUS_READY_FOR_DELIVERY

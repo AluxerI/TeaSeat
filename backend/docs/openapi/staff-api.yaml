@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: TeaSeat Staff API
-  version: 1.0.0
+  version: 1.1.0
   description: >-
     Контракт backend для PWA продавца, сборщика, менеджера и курьера.
     Подробные бизнес-правила находятся в docs/staff-api-contract.md.
@@ -9,6 +9,7 @@ servers:
   - url: /api
 tags:
   - name: Auth
+  - name: Delivery
   - name: Seller
   - name: Picker
   - name: Courier
@@ -50,6 +51,40 @@ paths:
           $ref: '#/components/responses/Message'
         '401':
           $ref: '#/components/responses/Unauthorized'
+
+  /checkout/delivery-slots/{addressId}/{deliveryMethodId}:
+    get:
+      tags: [Delivery]
+      summary: Доступные даты и интервалы доставки для адреса покупателя
+      description: >-
+        Возвращает только интервалы с оставшейся вместимостью в пределах
+        горизонта бронирования. Адрес должен принадлежать текущему пользователю.
+      operationId: checkoutDeliverySlots
+      x-laravel-route-name: checkout.delivery-slots
+      parameters:
+        - name: addressId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+        - name: deliveryMethodId
+          in: path
+          required: true
+          schema: {type: integer, minimum: 1}
+      responses:
+        '200':
+          description: Календарь доступных интервалов
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    $ref: '#/components/schemas/DeliveryAvailability'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /user:
     get:
@@ -594,6 +629,15 @@ paths:
       x-laravel-route-name: courier.deliveries.release
       parameters:
         - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason: {type: string, minLength: 1, maxLength: 1000}
       responses:
         '200':
           $ref: '#/components/responses/CourierDeliveryData'
@@ -605,6 +649,8 @@ paths:
           $ref: '#/components/responses/NotFound'
         '409':
           $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
 
   /courier/deliveries/{order}/start:
     post:
@@ -790,6 +836,43 @@ paths:
               type: object
               required: [reason]
               properties:
+                reason: {type: string, minLength: 1, maxLength: 1000}
+      responses:
+        '200':
+          $ref: '#/components/responses/ManagerOrderData'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /manager/orders/{order}/reschedule:
+    post:
+      tags: [Manager]
+      summary: Изменить обещанный клиенту интервал доставки
+      description: >-
+        Permission: manage manager orders. Требует доступа ко всем точкам
+        заказа. После назначения курьера сначала требуется вернуть заказ в
+        свободную очередь.
+      operationId: managerOrdersReschedule
+      x-laravel-route-name: manager.orders.reschedule
+      parameters:
+        - $ref: '#/components/parameters/OrderId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [scheduled_delivery_date, delivery_time_slot_id, reason]
+              properties:
+                scheduled_delivery_date: {type: string, format: date}
+                delivery_time_slot_id: {type: integer, minimum: 1}
                 reason: {type: string, minLength: 1, maxLength: 1000}
       responses:
         '200':
@@ -1546,6 +1629,49 @@ components:
             $ref: '#/components/schemas/Error'
 
   schemas:
+    DeliveryAvailability:
+      type: object
+      required: [delivery_method, booking_horizon_days, dates]
+      properties:
+        delivery_method:
+          type: object
+          required: [id, name, type]
+          properties:
+            id: {type: integer}
+            name: {type: string}
+            type: {type: string, enum: [courier, express]}
+        booking_horizon_days: {type: integer, minimum: 1}
+        dates:
+          type: array
+          items:
+            type: object
+            required: [date, weekday, slots]
+            properties:
+              date: {type: string, format: date}
+              weekday: {type: integer, minimum: 1, maximum: 7}
+              slots:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeliveryAvailabilitySlot'
+    DeliveryAvailabilitySlot:
+      type: object
+      required: [id, time_from, time_to, capacity, booked, remaining_capacity]
+      properties:
+        id: {type: integer}
+        time_from: {type: string, pattern: '^\d{2}:\d{2}$'}
+        time_to: {type: string, pattern: '^\d{2}:\d{2}$'}
+        capacity: {type: integer, minimum: 1}
+        booked: {type: integer, minimum: 0}
+        remaining_capacity: {type: integer, minimum: 1}
+    ScheduledDeliveryWindow:
+      type: object
+      required: [date, time_from, time_to, slot_id]
+      properties:
+        date: {type: string, format: date}
+        time_from: {type: string, pattern: '^\d{2}:\d{2}$'}
+        time_to: {type: string, pattern: '^\d{2}:\d{2}$'}
+        slot_id: {type: integer}
+        claim_opens_at: {type: [string, 'null'], format: date-time}
     LoginRequest:
       type: object
       required: [email, password]
@@ -1843,6 +1969,10 @@ components:
         customer: {type: [object, 'null'], additionalProperties: true}
         delivery_address: {type: [object, 'null'], additionalProperties: true}
         delivery_method: {type: [object, 'null'], additionalProperties: true}
+        scheduled_window:
+          oneOf:
+            - type: 'null'
+            - $ref: '#/components/schemas/ScheduledDeliveryWindow'
         payment:
           oneOf:
             - type: 'null'
@@ -1967,11 +2097,12 @@ components:
             open_issues_count: {type: integer}
         actions:
           type: object
-          required: [can_add_internal_note, can_confirm, can_cancel]
+          required: [can_add_internal_note, can_confirm, can_cancel, can_reschedule]
           properties:
             can_add_internal_note: {type: boolean}
             can_confirm: {type: boolean}
             can_cancel: {type: boolean}
+            can_reschedule: {type: boolean}
         manager_access:
           type: object
           required: [full_order_visible, read_only_contract, assigned_fulfillment_order_ids, required_warehouse_ids, all_locations_assigned]

@@ -53,6 +53,12 @@ class OrderResource extends JsonResource
             // Информация о доставке
             'delivery' => [
                 'method' => new DeliveryMethodResource($this->whenLoaded('deliveryMethod')),
+                'scheduled_window' => $this->scheduled_delivery_date ? [
+                    'date' => $this->scheduled_delivery_date->toDateString(),
+                    'time_from' => substr((string) $this->delivery_time_from, 0, 5),
+                    'time_to' => substr((string) $this->delivery_time_to, 0, 5),
+                    'slot_id' => (int) $this->delivery_time_slot_id,
+                ] : null,
                 'address' => new AddressClientResource($this->whenLoaded('shippingAddress')),
                 'warehouse' => $this->whenLoaded('warehouse', function() {
                     return [

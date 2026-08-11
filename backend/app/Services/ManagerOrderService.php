@@ -186,6 +186,7 @@ class ManagerOrderService
         return [
             'user',
             'deliveryMethod',
+            'deliveryTimeSlot',
             'shippingAddress',
             'warehouse',
             'destinationWarehouse',

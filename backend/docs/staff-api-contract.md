@@ -207,13 +207,17 @@ Frontend не должен вычислять доступность коман�
 | `GET /courier/deliveries` | `courier.deliveries.index` | `view assigned deliveries` | `status`, `warehouse_id`, `delivery_kind`, `mine`, `per_page` |
 | `GET /courier/deliveries/{order}` | `courier.deliveries.show` | `view assigned deliveries` | — |
 | `POST /courier/deliveries/{order}/claim` | `courier.deliveries.claim` | `update assigned deliveries` | пустое тело |
-| `POST /courier/deliveries/{order}/release` | `courier.deliveries.release` | `update assigned deliveries` | пустое тело |
+| `POST /courier/deliveries/{order}/release` | `courier.deliveries.release` | `update assigned deliveries` | `reason` (обязательно, до 1000) |
 | `POST /courier/deliveries/{order}/start` | `courier.deliveries.start` | `update assigned deliveries` | пустое тело |
 | `POST /courier/deliveries/{order}/deliver` | `courier.deliveries.deliver` | `update assigned deliveries` | пустое тело |
 
 `delivery_kind=customer` — доставка покупателю; `transfer` — межскладское
 перемещение. Ресурс клиентской доставки содержит контакт, адрес,
 `payment.method`, `payment.order_total` и `payment.amount_to_collect`.
+Заказ с выбранным интервалом появляется в свободной очереди за 24 часа до
+начала интервала. Это не предварительная бронь курьера. Отказ до начала
+доставки очищает назначение, возвращает заказ в общую очередь и дописывает
+причину во внутренний журнал заказа.
 
 ### Менеджер: проблемы, упаковки и назначения
 
@@ -227,6 +231,7 @@ Frontend не должен вычислять доступность коман�
 | `POST /manager/orders/{order}/internal-notes` | `manager.orders.internal-notes` | `manage manager orders` | `comment` |
 | `POST /manager/orders/{order}/confirm` | `manager.orders.confirm` | `manage manager orders` | пустое тело |
 | `POST /manager/orders/{order}/cancel` | `manager.orders.cancel` | `manage manager orders` | `reason` |
+| `POST /manager/orders/{order}/reschedule` | `manager.orders.reschedule` | `manage manager orders` | `scheduled_delivery_date`, `delivery_time_slot_id`, `reason` |
 | `GET /manager/fulfillment-issues` | `manager.fulfillment-issues.index` | `view fulfillment issues` | `status`, `warehouse_id`, `product_id`, `reason`, `mine`, `per_page` |
 | `GET /manager/fulfillment-issues/{issue}` | `manager.fulfillment-issues.show` | `view fulfillment issues` | — |
 | `GET /manager/fulfillment-issues/{issue}/affected-orders` | `manager.fulfillment-issues.affected-orders` | `view fulfillment issues` | `per_page` |
@@ -248,6 +253,10 @@ Frontend не должен вычислять доступность коман�
 менеджера. Заметка доступна при доступе хотя бы к одной точке. Подтверждение и
 отмена требуют назначения на все точки заказа; оплаченный заказ нельзя отменить
 без отдельного возврата оплаты.
+
+Перенос доставки также требует доступа ко всем точкам. Он проверяет актуальное
+расписание и вместимость интервала и сохраняет причину в журнале. Если курьер
+уже назначен, сначала курьер должен вернуть заказ в очередь.
 
 ### Администратор: глобальное управление заказами
 
