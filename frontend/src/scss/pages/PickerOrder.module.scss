@@ -1,0 +1,258 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-bg-page: #faf5ee;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-matcha: #87a617;
+$color-matcha-bg: #f4f8e4;
+$color-warning-bg: #fdf6e8;
+$color-warning-border: #f0d9a8;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  padding: spacing(md);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+  flex-wrap: wrap;
+}
+
+.backBtn {
+  color: $color-accent !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+}
+
+.pageTitle {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+  margin: 0 !important;
+  flex: 1;
+  min-width: 120px;
+}
+
+.statusChip {
+  font-weight: 700 !important;
+}
+
+.centerWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(md);
+  min-height: 60vh;
+  padding: spacing(lg);
+  text-align: center;
+}
+
+.emptyText {
+  color: $color-text-secondary;
+  font-size: 15px !important;
+}
+
+.errorText {
+  color: #c9564e;
+  font-size: 13px !important;
+}
+
+.infoCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  padding: spacing(md) spacing(lg);
+  border-radius: 16px;
+  border: 1px solid $color-border;
+}
+
+.customerOrder {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+}
+
+.route {
+  display: flex;
+  align-items: center;
+  gap: spacing(xs);
+}
+
+.routeText {
+  font-size: 13px !important;
+  color: $color-text-secondary;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.metaText {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.noteCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+  padding: spacing(md) spacing(lg);
+  border-radius: 16px;
+  background: $color-warning-bg !important;
+  border: 1px solid $color-warning-border !important;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.sectionTitle {
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: $color-text-primary;
+}
+
+.noteText {
+  font-size: 13px !important;
+  color: $color-text-primary;
+  white-space: pre-wrap;
+}
+
+.itemsCard {
+  display: flex;
+  flex-direction: column;
+  border-radius: 16px;
+  border: 1px solid $color-border;
+  overflow: hidden;
+}
+
+.itemLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(md);
+  padding: spacing(md) spacing(lg);
+  border-bottom: 1px solid $color-border;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.itemName {
+  font-weight: 600 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+}
+
+.itemMeta {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.giftCard {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  padding: spacing(md) spacing(lg);
+  border-radius: 16px;
+  background: $color-matcha-bg !important;
+}
+
+.giftHeader {
+  display: flex;
+  align-items: center;
+  gap: spacing(sm);
+}
+
+.giftIcon {
+  color: $color-matcha;
+}
+
+.giftName {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+  flex: 1;
+}
+
+.giftBody {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.recipe {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+}
+
+.recipeLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(sm);
+}
+
+.recipeName {
+  font-size: 13px !important;
+  color: $color-text-primary;
+}
+
+.recipeQty {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  color: $color-accent;
+}
+
+.layoutWrap {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+}
+
+.layoutHint {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.layoutGrid {
+  display: grid;
+  gap: 2px;
+  max-width: 220px;
+}
+
+.layoutCell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: #fff;
+  border: 1px solid $color-border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px !important;
+}
+
+.layoutCellFilled {
+  background: $color-matcha;
+  border-color: $color-matcha;
+  color: #fff;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  padding-top: spacing(xs);
+  padding-bottom: spacing(md);
+}

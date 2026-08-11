@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  Badge,
   Box,
   Button,
   Chip,
@@ -14,59 +13,73 @@ import {
   Paper,
   Typography,
 } from "@mui/material";
-import DashboardIcon from "@mui/icons-material/Dashboard";
-import ReceiptIcon from "@mui/icons-material/Receipt";
-import AddCircleIcon from "@mui/icons-material/AddCircle";
-import SyncIcon from "@mui/icons-material/Sync";
+import QueueIcon from "@mui/icons-material/Queue";
+import WorkIcon from "@mui/icons-material/Work";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import WifiIcon from "@mui/icons-material/Wifi";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
-import { useSeller } from "../contexts/SellerContext";
-import styles from "../scss/pages/SellerLayout.module.scss";
+import { usePicker } from "../picker/PickerContext";
+import styles from "../scss/pages/PickerLayout.module.scss";
 
+// Пункты меню. `end: true` — пункт активен только если путь совпадает
+// точно (иначе «Очередь» светилась бы и на других страницах).
 const NAV = [
-  { path: "/seller/dashboard", label: "Дашборд", icon: <DashboardIcon /> },
-  { path: "/seller/order/new", label: "Новый заказ", icon: <AddCircleIcon /> },
-  { path: "/seller/orders", label: "Заказы", icon: <ReceiptIcon /> },
+  { path: "/picker", label: "Очередь", icon: <QueueIcon />, end: true },
+  { path: "/picker/mine", label: "Моя работа", icon: <WorkIcon />, end: true },
+  { path: "/picker/transfers", label: "Трансферы", icon: <SwapHorizIcon />, end: true },
 ];
 
-export default function LayoutSeller() {
+/** Каркас приложения сборщика (app-shell).
+ *  Оборачивает ВСЕ страницы /picker. Тут:
+ *  - при старте вызывается init() (загрузка складов),
+ *  - пока грузимся или не выбран склад — показываем свои экраны вместо страниц,
+ *  - когда всё готово — шапка + боковое меню + содержимое страницы. */
+export default function LayoutPicker() {
   const { pathname } = useLocation();
   const {
     init,
     ready,
     loading,
-    session,
+    warehouseName,
     workLocations,
     selectWarehouse,
     online,
-    pendingCount,
-    syncAll,
     error,
-  } = useSeller();
+  } = usePicker();
 
+  // При открытии приложения один раз запускаем загрузку данных.
   useEffect(() => {
     init();
   }, [init]);
 
-  const navValue = NAV.find((n) => pathname.startsWith(n.path))?.path ?? "/seller/dashboard";
+  // Какой пункт меню подсветить, по текущему URL.
+  const navValue = NAV.find((n) =>
+    n.end ? pathname === n.path : pathname.startsWith(n.path)
+  )?.path ?? "/picker";
 
+  // 1) Идёт загрузка — просто крутилка.
   if (loading) {
     return (
       <Box className={styles.centerWrap}>
         <CircularProgress />
-        <Typography className={styles.loadingText}>Загрузка рабочей точки...</Typography>
+        <Typography className={styles.loadingText}>Загрузка очереди...</Typography>
       </Box>
     );
   }
 
+  // 2) Склад ещё не выбран — экран выбора склада.
+  //    Собирать можно только на «своих» складах из work_locations.
   if (!ready) {
     return (
       <Box className={styles.centerWrap}>
         <Paper className={styles.pickerCard} elevation={0}>
           <StorefrontIcon className={styles.pickerIcon} />
           <Typography component="h1" className={styles.pickerTitle}>
-            Выберите рабочую точку
+            Выберите склад
+          </Typography>
+          <Typography className={styles.pickerHint}>
+            Сборщик работает только с назначенными точками
           </Typography>
           {error && <Typography className={styles.pickerError}>{error}</Typography>}
           <Box className={styles.pickerList}>
@@ -96,7 +109,7 @@ export default function LayoutSeller() {
   const sidebar = (
     <Box component="aside" className={styles.sidebar}>
       <Typography component="h2" className={styles.sidebarTitle}>
-        Продажи
+        Сборка
       </Typography>
 
       <List className={styles.menuList} disablePadding>
@@ -110,15 +123,7 @@ export default function LayoutSeller() {
             classes={{ selected: styles.menuItemActive }}
             disableRipple
           >
-            <ListItemIcon className={styles.menuIcon}>
-              {item.path === "/seller/orders" && pendingCount > 0 ? (
-                <Badge badgeContent={pendingCount} color="error">
-                  {item.icon}
-                </Badge>
-              ) : (
-                item.icon
-              )}
-            </ListItemIcon>
+            <ListItemIcon className={styles.menuIcon}>{item.icon}</ListItemIcon>
             <ListItemText
               primary={item.label}
               primaryTypographyProps={{ className: styles.menuLabel }}
@@ -133,31 +138,21 @@ export default function LayoutSeller() {
         <Chip
           size="small"
           icon={<StorefrontIcon />}
-          label={session?.warehouse_name ?? "—"}
+          label={warehouseName ?? "—"}
           className={styles.warehouseChip}
           variant="outlined"
         />
-        {pendingCount > 0 && (
-          <Button
-            size="small"
-            variant="contained"
-            className={styles.syncBtn}
-            startIcon={<SyncIcon />}
-            onClick={() => syncAll()}
-          >
-            {pendingCount}
-          </Button>
-        )}
       </Box>
     </Box>
   );
 
+  // 3) Всё готово — основной экран: шапка + меню + страница.
   return (
     <Box className={styles.app}>
       {/* Шапка: название приложения + статус сети */}
       <Box className={styles.header}>
         <Box className={styles.headerBrand}>
-          <Typography className={styles.brand}>Продажи</Typography>
+          <Typography className={styles.brand}>Сборка</Typography>
         </Box>
         <Box className={styles.headerRight}>
           <Chip

@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import Images from "../utils/Images";
-import zIndex from "@mui/material/styles/zIndex";
 import { Picture } from "../types/utils";
 
 

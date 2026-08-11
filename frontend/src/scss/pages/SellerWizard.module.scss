@@ -1,0 +1,416 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-bg-page: #faf5ee;
+$color-border: #ece2d4;
+$color-text-primary: #3a2c22;
+$color-text-secondary: #8a7d6f;
+$color-accent: #4a3428;
+$color-matcha: #87a617;
+$color-matcha-soft: #f4f9e6;
+$color-mellow-bg: #f5ead9;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.stagesHeader {
+  padding: spacing(md) spacing(md) spacing(sm);
+  background: $color-bg-page;
+}
+
+.stageBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: spacing(xs) spacing(md) spacing(md);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(md);
+  padding: spacing(sm) spacing(md);
+  background: #fff;
+  border-top: 1px solid $color-border;
+}
+
+.footerTotal {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 0;
+}
+
+.totalLabel {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+  font-weight: 600;
+}
+
+.totalValue {
+  font-weight: 800 !important;
+  font-size: 20px !important;
+  color: $color-accent;
+}
+
+.nextBtn {
+  white-space: nowrap;
+}
+
+.centerWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(md);
+  min-height: 40vh;
+  padding: spacing(lg);
+  text-align: center;
+}
+
+.pageTitle {
+  font-size: 24px !important;
+  font-weight: 700 !important;
+  color: $color-text-primary;
+}
+
+.emptyText {
+  text-align: center;
+  color: $color-text-secondary;
+  padding: spacing(lg);
+  font-size: 14px !important;
+}
+
+// ——— Степпер ———
+.stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: spacing(xs);
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(xs);
+  flex: 1;
+  min-width: 0;
+}
+
+.stepDot {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border: 2px solid $color-border;
+  color: $color-text-secondary;
+  font-weight: 700;
+  font-size: 13px;
+  line-height: 1;
+}
+
+.stepDotActive {
+  border-color: $color-matcha;
+  color: $color-matcha;
+  background: $color-matcha-soft;
+}
+
+.stepDotDone {
+  background: $color-matcha;
+  border-color: $color-matcha;
+  color: #fff;
+}
+
+.stepCheck {
+  font-size: 16px !important;
+  color: #fff;
+}
+
+.stepLabel {
+  font-size: 11px !important;
+  color: $color-text-secondary;
+  text-align: center;
+}
+
+// ——— Каталог ———
+.searchField {
+  margin-bottom: spacing(md) !important;
+}
+
+.searchIcon {
+  color: $color-text-secondary;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: spacing(md);
+}
+
+.productCard {
+  border-radius: 16px;
+  border: 1px solid $color-border;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.productImage {
+  height: 96px;
+  background-size: cover;
+  background-position: center;
+  background-color: #f0e8dc;
+}
+
+.productBody {
+  padding: spacing(sm) spacing(md) spacing(md);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.productName {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.productPrice {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: $color-matcha;
+}
+
+.productStock {
+  font-size: 11px !important;
+  color: $color-text-secondary;
+}
+
+.productActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(xs);
+  flex-wrap: wrap;
+  margin-top: auto;
+  padding-top: spacing(xs);
+}
+
+.addBtn {
+  background-color: $color-matcha !important;
+  color: #fff !important;
+  border-radius: 8px !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+  font-size: 12px !important;
+
+  &:disabled {
+    background-color: #ccc !important;
+    color: #888 !important;
+  }
+}
+
+.inOrderChip {
+  font-size: 11px !important;
+  color: $color-accent;
+  font-weight: 600;
+}
+
+// ——— Состав ———
+.itemList {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.itemCard {
+  display: flex;
+  align-items: center;
+  gap: spacing(md);
+  padding: spacing(md);
+  border-radius: 16px;
+  border: 1px solid $color-border;
+  flex-wrap: wrap;
+}
+
+.itemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  color: $color-text-primary;
+}
+
+.itemPrice {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+.qtyControls {
+  display: flex;
+  align-items: center;
+  gap: spacing(xs);
+}
+
+.qtyBtn {
+  min-width: 36px !important;
+  width: 36px !important;
+  height: 36px !important;
+  padding: 0 !important;
+  border-radius: 10px !important;
+  background: $color-mellow-bg !important;
+  color: $color-accent !important;
+
+  &:disabled {
+    background: #f3ede4 !important;
+    color: #ccc !important;
+  }
+}
+
+.qtyValue {
+  font-weight: 700 !important;
+  min-width: 48px;
+  text-align: center;
+  font-size: 14px !important;
+}
+
+.itemTotal {
+  font-weight: 700 !important;
+  min-width: 76px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.removeBtn {
+  color: $color-text-secondary !important;
+}
+
+.clearBtn {
+  margin-top: spacing(md) !important;
+}
+
+// ——— Оплата ———
+.paymentWrap {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(lg);
+}
+
+.paymentMethods {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: spacing(md);
+}
+
+.paymentCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(xs);
+  padding: spacing(lg);
+  cursor: pointer;
+  border-radius: 16px;
+  border: 2px solid $color-border;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.paymentCardActive {
+  border-color: $color-matcha;
+  background: $color-matcha-soft;
+}
+
+.paymentIcon {
+  display: flex;
+  font-size: 40px;
+  color: $color-accent;
+}
+
+.paymentLabel {
+  font-weight: 700 !important;
+}
+
+.paymentHint {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}
+
+// ——— Оформление ———
+.reviewWrap {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.reviewCard {
+  padding: spacing(lg);
+  border-radius: 16px;
+  border: 1px solid $color-border;
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.reviewRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(sm);
+}
+
+.reviewIcon {
+  color: $color-matcha;
+}
+
+.reviewTitle {
+  font-weight: 700 !important;
+  font-size: 15px !important;
+}
+
+.reviewLine {
+  display: flex;
+  justify-content: space-between;
+  gap: spacing(sm);
+  font-size: 14px;
+}
+
+.reviewName {
+  color: $color-text-primary;
+}
+
+.reviewAmount {
+  font-weight: 600 !important;
+  white-space: nowrap;
+}
+
+.reviewDivider {
+  border-top: 1px dashed $color-border;
+  margin: spacing(xs) 0;
+}
+
+.reviewMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.reviewMetaLine {
+  font-size: 12px !important;
+  color: $color-text-secondary;
+}

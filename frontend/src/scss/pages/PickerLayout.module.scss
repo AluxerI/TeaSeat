@@ -166,13 +166,6 @@ $color-danger: #c9564e;
   max-width: 200px;
 }
 
-.syncBtn {
-  min-width: 44px !important;
-  padding: 4px 12px !important;
-  border-radius: 10px !important;
-  background-color: $color-matcha !important;
-}
-
 // ── Контент в белой карточке ────────────────────────────────────────────────
 
 .content {
@@ -191,7 +184,7 @@ $color-danger: #c9564e;
   }
 }
 
-// ── Экраны загрузки / выбора точки ──────────────────────────────────────────
+// ── Экраны загрузки / выбора склада ─────────────────────────────────────────
 
 .centerWrap {
   flex: 1;

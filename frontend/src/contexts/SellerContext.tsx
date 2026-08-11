@@ -1,255 +1,435 @@
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from "react";
-import { api } from "../api/api";
-import type { Product } from "../interfaces/catalog";
-
-function stripOrigin(url: string): string {
-  return url.replace(/^https?:\/\/[^\/]+/, "");
-}
-
-// ── Types ────────────────────────────────────────────────────────────────────
-
-export interface OfflineProduct {
-  id: number;
-  name: string;
-  price: number;
-  image: string | null;
-  weight_grams: number;
-  in_stock: number;
-}
-
-export interface OfflineCartItem {
-  product_id: number;
-  quantity: number;
-  unit_price: number;
-}
-
-export interface OfflineOrder {
-  id: string;
-  items: OfflineCartItem[];
-  total: number;
-  customer_name?: string;
-  customer_phone?: string;
-  created_at: string;
-  synced: boolean;
-}
-
-// ── Context shape ────────────────────────────────────────────────────────────
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+import {
+  db,
+  readSession,
+  resetSellerDatabase,
+  toStorageErrorMessage,
+} from "../seller/db";
+import {
+  bootstrapWarehouse,
+  cachedProducts,
+  fetchWorkLocations,
+} from "../seller/bootstrap";
+import {
+  commitOrder,
+  createDraft,
+  deleteDraft,
+  enqueueCommand,
+  enqueueDayClosing,
+  getOrder,
+  reopenForEdit,
+  removeItem as removeItemFromItems,
+  saveDraft,
+  upsertItem,
+} from "../seller/orders";
+import { drainOnce, type DrainSummary } from "../seller/sync";
+import { normalizeQuantity, previewOrderTotal } from "../seller/quantity";
+import type {
+  LocalOrder,
+  LocalOrderItem,
+  LocalProduct,
+  OutboxAction,
+  PaymentMethod,
+  SellerSession,
+  WorkLocation,
+} from "../seller/types";
 
 export interface SellerContextValue {
-  products: OfflineProduct[];
-  loadProducts: () => Promise<void>;
-  searchProducts: (query: string) => OfflineProduct[];
+  // ── Сессия и рабочая точка ─────────────────────────────────────────────
+  session: SellerSession | null;
+  workLocations: WorkLocation[];
+  products: LocalProduct[];
+  warehouseId: number | null;
+  ready: boolean;
+  loading: boolean;
+  error: string | null;
+  online: boolean;
+  snapshotExpired: boolean;
 
-  cartItems: OfflineCartItem[];
-  addToCart: (product: OfflineProduct, quantity?: number) => void;
-  updateQty: (productId: number, qty: number) => void;
-  removeFromCart: (productId: number) => void;
-  clearCart: () => void;
+  init(): Promise<void>;
+  selectWarehouse(id: number): Promise<void>;
+  refreshCatalog(): Promise<void>;
+  resetSession(): Promise<void>;
 
-  unsyncedOrders: OfflineOrder[];
-  createOfflineOrder: (customerName?: string, customerPhone?: string) => OfflineOrder;
-  syncOrder: (orderId: string) => Promise<void>;
-  syncAll: () => Promise<void>;
+  // ── Визард оформления ───────────────────────────────────────────────────
+  draft: LocalOrder | null;
+  startDraft(): Promise<LocalOrder>;
+  openDraft(clientOrderId: string): Promise<void>;
+  closeDraft(): void;
+  updateDraft(
+    patch: Partial<Pick<LocalOrder, "payment_method" | "customer_note">>
+  ): Promise<void>;
+  addItem(product: LocalProduct, quantity?: number): Promise<void>;
+  updateItemQuantity(productId: number, quantity: number): Promise<void>;
+  removeItem(productId: number): Promise<void>;
+  clearItems(): Promise<void>;
+  commitDraft(): Promise<void>;
+
+  // ── Заказы и синхронизация ─────────────────────────────────────────────
+  orders: LocalOrder[];
+  pendingCount: number;
+  syncing: Set<string>;
+  syncOrder(clientOrderId: string): Promise<DrainSummary>;
+  syncAll(): Promise<DrainSummary>;
+  enqueue(
+    clientOrderId: string,
+    action: Exclude<OutboxAction, "upsert">
+  ): Promise<void>;
+  completeDay(): Promise<number>;
+  deleteOrder(clientOrderId: string): Promise<void>;
+  reopen(clientOrderId: string): Promise<LocalOrder>;
 }
 
 export const SellerContext = createContext<SellerContextValue | null>(null);
 
-// ── IndexedDB helpers ─────────────────────────────────────────────────────────
-
-const DB_NAME = "SellerDB";
-const DB_VERSION = 1;
-
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
-    req.onupgradeneeded = () => {
-      const db = req.result;
-      if (!db.objectStoreNames.contains("products"))
-        db.createObjectStore("products", { keyPath: "id" });
-      if (!db.objectStoreNames.contains("cart"))
-        db.createObjectStore("cart", { keyPath: "product_id" });
-      if (!db.objectStoreNames.contains("orders"))
-        db.createObjectStore("orders", { keyPath: "id" });
-    };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function getAllFromStore<T>(storeName: string): Promise<T[]> {
-  return openDB().then((db) => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, "readonly");
-      const store = tx.objectStore(storeName);
-      const req = store.getAll();
-      req.onsuccess = () => { db.close(); resolve(req.result); };
-      req.onerror = () => { db.close(); reject(req.error); };
-    });
-  });
-}
-
-function putInStore(storeName: string, data: any): Promise<void> {
-  return openDB().then((db) => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      store.put(data);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    });
-  });
-}
-
-function deleteFromStore(storeName: string, key: IDBValidKey): Promise<void> {
-  return openDB().then((db) => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      store.delete(key);
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    });
-  });
-}
-
-function clearStore(storeName: string): Promise<void> {
-  return openDB().then((db) => {
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(storeName, "readwrite");
-      const store = tx.objectStore(storeName);
-      store.clear();
-      tx.oncomplete = () => { db.close(); resolve(); };
-      tx.onerror = () => { db.close(); reject(tx.error); };
-    });
-  });
-}
-
-// ── Provider ──────────────────────────────────────────────────────────────────
-
 export function SellerProvider({ children }: { children: ReactNode }) {
-  const [products, setProducts] = useState<OfflineProduct[]>([]);
-  const [cartItems, setCartItems] = useState<OfflineCartItem[]>([]);
-  const [unsyncedOrders, setUnsyncedOrders] = useState<OfflineOrder[]>([]);
+  const [session, setSession] = useState<SellerSession | null>(null);
+  const [workLocations, setWorkLocations] = useState<WorkLocation[]>([]);
+  const [products, setProducts] = useState<LocalProduct[]>([]);
+  const [warehouseId, setWarehouseId] = useState<number | null>(null);
+  const [ready, setReady] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean>(navigator.onLine);
+  const [draft, setDraft] = useState<LocalOrder | null>(null);
+  const [syncing, setSyncing] = useState<Set<string>>(new Set());
 
-  // Загрузить продукты: сначала API, при ошибке — IndexedDB
-  const loadProducts = useCallback(async () => {
-    try {
-      const res = await api.get<{ data: { products: Product[] } }>("/api/catalog");
-      const list: OfflineProduct[] = (res.data.data.products ?? []).map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.final_price ?? p.original_price,
-        image: p.main_image ? stripOrigin(p.main_image) : null,
-        weight_grams: p.weight_grams,
-        in_stock: p.total_quantity,
-      }));
-      setProducts(list);
-      // сохраняем в IndexedDB на случай офлайна
-      for (const p of list) await putInStore("products", p);
-    } catch {
-      const cached = await getAllFromStore<OfflineProduct>("products");
-      setProducts(cached);
-    }
-  }, []);
+  // Заказы и очередь — реактивно из IndexedDB.
+  const orders =
+    useLiveQuery(
+      () => db.orders.orderBy("created_at").reverse().toArray(),
+      []
+    ) ?? [];
+  const pendingCount =
+    useLiveQuery(
+      () => db.outbox.where("state").equals("pending").count(),
+      []
+    ) ?? 0;
 
-  const searchProducts = useCallback((query: string): OfflineProduct[] => {
-    const q = query.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        String(p.price).includes(q)
-    );
-  }, [products]);
-
-  // Корзина — всегда в IndexedDB
-  const refreshCart = useCallback(async () => {
-    const items = await getAllFromStore<OfflineCartItem>("cart");
-    setCartItems(items);
-  }, []);
-
-  const addToCart = useCallback(async (product: OfflineProduct, quantity = 1) => {
-    const existing = cartItems.find((i) => i.product_id === product.id);
-    const newQty = existing ? existing.quantity + quantity : quantity;
-    await putInStore("cart", { product_id: product.id, quantity: newQty, unit_price: product.price });
-    await refreshCart();
-  }, [cartItems, refreshCart]);
-
-  const updateQty = useCallback(async (productId: number, qty: number) => {
-    if (qty <= 0) {
-      await deleteFromStore("cart", productId);
-    } else {
-      const item = cartItems.find((i) => i.product_id === productId);
-      if (item) await putInStore("cart", { ...item, quantity: qty });
-    }
-    await refreshCart();
-  }, [cartItems, refreshCart]);
-
-  const removeFromCart = useCallback(async (productId: number) => {
-    await deleteFromStore("cart", productId);
-    await refreshCart();
-  }, [refreshCart]);
-
-  const clearCart = useCallback(async () => {
-    await clearStore("cart");
-    setCartItems([]);
-  }, []);
-
-  // Оффлайн-заказы
-  const refreshOrders = useCallback(async () => {
-    const orders = await getAllFromStore<OfflineOrder>("orders");
-    setUnsyncedOrders(orders.filter((o) => !o.synced));
-  }, []);
-
-  const createOfflineOrder = useCallback((customerName?: string, customerPhone?: string): OfflineOrder => {
-    const order: OfflineOrder = {
-      id: crypto.randomUUID(),
-      items: [...cartItems],
-      total: cartItems.reduce((sum, i) => sum + i.quantity * i.unit_price, 0),
-      customer_name: customerName,
-      customer_phone: customerPhone,
-      created_at: new Date().toISOString(),
-      synced: false,
+  useEffect(() => {
+    const on = () => setOnline(true);
+    const off = () => setOnline(false);
+    window.addEventListener("online", on);
+    window.addEventListener("offline", off);
+    return () => {
+      window.removeEventListener("online", on);
+      window.removeEventListener("offline", off);
     };
-    putInStore("orders", order).then(() => refreshOrders());
-    clearCart();
-    return order;
-  }, [cartItems, clearCart, refreshOrders]);
+  }, []);
 
-  const syncOrder = useCallback(async (orderId: string) => {
-    const orders = await getAllFromStore<OfflineOrder>("orders");
-    const order = orders.find((o) => o.id === orderId);
-    if (!order) return;
+  const applyError = useCallback((err: unknown): string => {
+    // Ошибки IndexedDB/Dexie (DataError, UpgradeError и т.п.) показываем
+    // русским текстом — сырые `DataError: Data provided to...` непонятны
+    // продавцу на кассе. Остальное — как есть или общая фраза.
+    const storageMessage = toStorageErrorMessage(err);
+    const message =
+      storageMessage ??
+      (err instanceof Error ? err.message : "Неизвестная ошибка");
+    setError(message);
+    return message;
+  }, []);
+
+  // ── Инициализация ───────────────────────────────────────────────────────
+
+  const init = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      await api.post("/api/checkout", {
-        items: order.items,
-        total: order.total,
-        customer_name: order.customer_name,
-        customer_phone: order.customer_phone,
-      });
-      order.synced = true;
-      await putInStore("orders", order);
-      await refreshOrders();
-    } catch {
-      console.error("Sync failed for order", orderId);
+      const s = await readSession();
+      setSession(s);
+
+      if (s.warehouse_id !== null) {
+        setWarehouseId(s.warehouse_id);
+        setProducts(await cachedProducts(s.warehouse_id));
+        setReady(true);
+        // Фоном обновляем каталог, если есть сеть; при неудаче остаёмся на кэше.
+        try {
+          const fresh = await bootstrapWarehouse(
+            s.warehouse_id,
+            s.device_name || "Касса"
+          );
+          setProducts(fresh);
+          setSession(await readSession());
+        } catch {
+          /* offline — кэш достаточно свежий */
+        }
+      } else {
+        setWorkLocations(await fetchWorkLocations());
+      }
+    } catch (err) {
+      applyError(err);
+    } finally {
+      setLoading(false);
     }
-  }, [refreshOrders]);
+  }, [applyError]);
 
-  const syncAll = useCallback(async () => {
-    for (const o of unsyncedOrders) await syncOrder(o.id);
-  }, [unsyncedOrders, syncOrder]);
+  const selectWarehouse = useCallback(
+    async (id: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const name = session?.device_name || "Касса";
+        const fresh = await bootstrapWarehouse(id, name);
+        setProducts(fresh);
+        setWarehouseId(id);
+        setReady(true);
+        setSession(await readSession());
+      } catch (err) {
+        applyError(err);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [session, applyError]
+  );
 
-  useEffect(() => { loadProducts(); refreshCart(); refreshOrders(); }, [loadProducts, refreshCart, refreshOrders]);
+  const refreshCatalog = useCallback(async () => {
+    if (!warehouseId) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const s = await readSession();
+      const fresh = await bootstrapWarehouse(
+        warehouseId,
+        s.device_name || "Касса"
+      );
+      setProducts(fresh);
+      setSession(await readSession());
+    } catch (err) {
+      applyError(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [warehouseId, applyError]);
+
+  const resetSession = useCallback(async () => {
+    await resetSellerDatabase();
+    setSession(null);
+    setWarehouseId(null);
+    setProducts([]);
+    setReady(false);
+    setDraft(null);
+    setError(null);
+  }, []);
+
+  const snapshotExpired = useMemo(() => {
+    if (!session?.snapshot_expires_at) return false;
+    return Date.now() > Date.parse(session.snapshot_expires_at);
+  }, [session]);
+
+  // ── Визард ──────────────────────────────────────────────────────────────
+
+  const startDraft = useCallback(async (): Promise<LocalOrder> => {
+    if (warehouseId === null) throw new Error("Не выбрана рабочая точка");
+    if (snapshotExpired)
+      throw new Error("Снимок цен устарел — обновите каталог");
+    const d = await createDraft(warehouseId);
+    setDraft(d);
+    return d;
+  }, [warehouseId, snapshotExpired]);
+
+  const openDraft = useCallback(async (clientOrderId: string) => {
+    const d = await getOrder(clientOrderId);
+    setDraft(d ?? null);
+  }, []);
+
+  const closeDraft = useCallback(() => setDraft(null), []);
+
+  const updateDraft = useCallback(
+    async (patch: Partial<Pick<LocalOrder, "payment_method" | "customer_note">>) => {
+      if (!draft) return;
+      const next = await saveDraft(draft.client_order_id, patch);
+      setDraft(next);
+    },
+    [draft]
+  );
+
+  const addItem = useCallback(
+    async (product: LocalProduct, quantity?: number) => {
+      const base = draft ?? (await startDraft());
+      const existing = base.items.find((i) => i.product_id === product.id);
+      const delta = quantity ?? product.sale_step;
+      const nextQty = normalizeQuantity(
+        (existing?.quantity ?? 0) + delta,
+        product.sale_step
+      );
+      const item: LocalOrderItem = {
+        product_id: product.id,
+        quantity: nextQty,
+        pricing_token: product.pricing_token,
+        name: product.name,
+        unit_price: product.pricing.unit_price,
+        price_unit_quantity: product.price_unit_quantity,
+        stock_unit: product.stock_unit,
+        sale_step: product.sale_step,
+      };
+      const next = await saveDraft(base.client_order_id, {
+        items: upsertItem(base.items, item),
+      });
+      setDraft(next);
+    },
+    [draft, startDraft]
+  );
+
+  const updateItemQuantity = useCallback(
+    async (productId: number, quantity: number) => {
+      if (!draft) return;
+      const item = draft.items.find((i) => i.product_id === productId);
+      if (!item) return;
+      let items = draft.items;
+      if (quantity <= 0) {
+        items = removeItemFromItems(draft.items, productId);
+      } else {
+        items = upsertItem(draft.items, {
+          ...item,
+          quantity: normalizeQuantity(quantity, item.sale_step),
+        });
+      }
+      const next = await saveDraft(draft.client_order_id, { items });
+      setDraft(next);
+    },
+    [draft]
+  );
+
+  const removeItem = useCallback(
+    async (productId: number) => {
+      if (!draft) return;
+      const next = await saveDraft(draft.client_order_id, {
+        items: removeItemFromItems(draft.items, productId),
+      });
+      setDraft(next);
+    },
+    [draft]
+  );
+
+  const clearItems = useCallback(async () => {
+    if (!draft) return;
+    const next = await saveDraft(draft.client_order_id, { items: [] });
+    setDraft(next);
+  }, [draft]);
+
+  const commitDraft = useCallback(async () => {
+    if (!draft) return;
+    const committed = await commitOrder(draft.client_order_id);
+    setDraft(null);
+    // Если есть сеть — сразу уводим заказ на сервер.
+    if (navigator.onLine) {
+      try {
+        await drainOnce(committed.client_order_id);
+      } catch {
+        /* остаётся в очереди, синхронизируем вручную */
+      }
+    }
+  }, [draft]);
+
+  // ── Заказы и синхронизация ──────────────────────────────────────────────
+
+  const syncOrder = useCallback(
+    async (clientOrderId: string): Promise<DrainSummary> => {
+      setSyncing((prev) => new Set(prev).add(clientOrderId));
+      try {
+        return await drainOnce(clientOrderId);
+      } finally {
+        setSyncing((prev) => {
+          const next = new Set(prev);
+          next.delete(clientOrderId);
+          return next;
+        });
+      }
+    },
+    []
+  );
+
+  const syncAll = useCallback(async (): Promise<DrainSummary> => {
+    return drainOnce();
+  }, []);
+
+  const enqueue = useCallback(
+    async (clientOrderId: string, action: Exclude<OutboxAction, "upsert">) => {
+      await enqueueCommand(clientOrderId, action);
+      if (navigator.onLine) {
+        try {
+          await drainOnce(clientOrderId);
+        } catch {
+          /* остаётся в очереди */
+        }
+      }
+    },
+    []
+  );
+
+  const completeDay = useCallback(async (): Promise<number> => {
+    const count = await enqueueDayClosing();
+    if (count > 0 && navigator.onLine) {
+      try {
+        await drainOnce();
+      } catch {
+        /* остаётся в очереди */
+      }
+    }
+    return count;
+  }, []);
+
+  const deleteOrder = useCallback(async (clientOrderId: string) => {
+    await deleteDraft(clientOrderId);
+  }, []);
+
+  const reopen = useCallback(
+    async (clientOrderId: string): Promise<LocalOrder> => {
+      const order = await reopenForEdit(clientOrderId);
+      setDraft(order);
+      return order;
+    },
+    []
+  );
+
+  const value: SellerContextValue = {
+    session,
+    workLocations,
+    products,
+    warehouseId,
+    ready,
+    loading,
+    error,
+    online,
+    snapshotExpired,
+    init,
+    selectWarehouse,
+    refreshCatalog,
+    resetSession,
+    draft,
+    startDraft,
+    openDraft,
+    closeDraft,
+    updateDraft,
+    addItem,
+    updateItemQuantity,
+    removeItem,
+    clearItems,
+    commitDraft,
+    orders,
+    pendingCount,
+    syncing,
+    syncOrder,
+    syncAll,
+    enqueue,
+    completeDay,
+    deleteOrder,
+    reopen,
+  };
 
   return (
-    <SellerContext.Provider
-      value={{
-        products, loadProducts, searchProducts,
-        cartItems, addToCart, updateQty, removeFromCart, clearCart,
-        unsyncedOrders, createOfflineOrder, syncOrder, syncAll,
-      }}
-    >
-      {children}
-    </SellerContext.Provider>
+    <SellerContext.Provider value={value}>{children}</SellerContext.Provider>
   );
 }
 

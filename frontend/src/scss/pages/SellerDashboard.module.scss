@@ -1,54 +1,139 @@
 @import "../abstracts/variable";
 @import "../abstracts/functions";
 
+$color-border: #ece2d4;
 $color-text-primary: #3a2c22;
 $color-text-secondary: #8a7d6f;
 $color-accent: #4a3428;
-$color-accent-hover: #5c4033;
+$color-matcha: #87a617;
+$color-matcha-dark: #6b8f2f;
+$color-warning: #c98a2d;
+$color-warning-bg: #fdf6e8;
+$color-warning-border: #f0d9a8;
 
-.pageTitle {
-  font-size: 28px !important;
-  font-weight: 700 !important;
-  color: $color-text-primary;
-  margin-bottom: spacing(lg) !important;
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  padding: spacing(md);
 }
 
-.card {
+.hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(md);
   padding: spacing(lg);
-  border: 1px solid #ece2d4;
-  border-radius: 12px;
+  background: linear-gradient(135deg, $color-matcha, $color-matcha-dark);
+  border: none;
+  border-radius: 20px;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.heroText {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.heroTitle {
+  color: #fff !important;
+  font-size: 22px !important;
+  font-weight: 700 !important;
+}
+
+.heroSubtitle {
+  color: rgba(255, 255, 255, 0.88) !important;
+  font-size: 13px !important;
+}
+
+.onlineChip {
+  background: rgba(255, 255, 255, 0.18) !important;
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  font-weight: 700 !important;
+}
+
+.statsRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: spacing(sm);
+}
+
+.statCard {
+  padding: spacing(md);
+  border-radius: 16px;
+  border: 1px solid $color-border;
   text-align: center;
 }
 
-.cardValue {
-  font-size: 32px !important;
-  font-weight: 700 !important;
+.statValue {
+  font-size: 22px !important;
+  font-weight: 800 !important;
   color: $color-accent;
-  margin-bottom: spacing(xs) !important;
 }
 
-.cardLabel {
-  font-size: font-size(caption) !important;
+.statLabel {
+  font-size: 12px !important;
   color: $color-text-secondary;
 }
 
 .actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: spacing(sm);
+}
+
+.bigAction {
+  padding: spacing(lg) !important;
+  border-radius: 16px !important;
+  font-size: 15px !important;
+}
+
+.warningCard {
   display: flex;
-  gap: spacing(md);
-  margin-top: spacing(lg);
+  flex-direction: column;
+  gap: spacing(sm);
+  padding: spacing(md) spacing(lg);
+  background: $color-warning-bg !important;
+  border: 1px solid $color-warning-border !important;
+  border-radius: 16px;
+}
+
+.warningText {
+  color: $color-warning;
+  font-weight: 600;
+  font-size: 14px !important;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.settingsTitle {
+  font-weight: 700 !important;
+  font-size: 15px !important;
+  color: $color-text-primary;
+}
+
+.warehouseChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(xs);
+}
+
+.settingsActions {
+  display: flex;
+  gap: spacing(sm);
   flex-wrap: wrap;
 }
 
-.actionBtn {
-  background-color: $color-accent !important;
-  color: #fff !important;
-  text-transform: none !important;
-  font-weight: 600 !important;
-  font-size: font-size(body-sm) !important;
-  padding: 10px 22px !important;
-  border-radius: 10px !important;
-
-  &:hover {
-    background-color: $color-accent-hover !important;
+@media (max-width: 640px) {
+  .actions {
+    grid-template-columns: 1fr;
   }
 }
