@@ -70,6 +70,7 @@ $color-danger-border: #ecc7c3;
 .summaryCard {
   padding: spacing(md);
   border-radius: 16px;
+  border: 1px solid $color-border;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -143,6 +144,7 @@ $color-danger-border: #ecc7c3;
 .itemsCard {
   padding: spacing(md) spacing(lg);
   border-radius: 16px;
+  border: 1px solid $color-border;
   display: flex;
   flex-direction: column;
   gap: spacing(sm);

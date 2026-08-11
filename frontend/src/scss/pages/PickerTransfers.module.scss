@@ -64,6 +64,7 @@ $color-matcha-dark: #6b8f2f;
 .orderCard {
   padding: spacing(md);
   border-radius: 16px;
+  border: 1px solid $color-border;
   display: flex;
   flex-direction: column;
   gap: spacing(sm);

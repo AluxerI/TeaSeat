@@ -1,12 +1,15 @@
 import { useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
-  BottomNavigation,
-  BottomNavigationAction,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Divider,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Paper,
   Typography,
 } from "@mui/material";
@@ -19,8 +22,8 @@ import WifiOffIcon from "@mui/icons-material/WifiOff";
 import { usePicker } from "../picker/PickerContext";
 import styles from "../scss/pages/PickerLayout.module.scss";
 
-// Пункты нижней навигации. `end: true` — пункт активен только если путь
-// совпадает точно (иначе «Очередь» светилась бы и на других страницах).
+// Пункты меню. `end: true` — пункт активен только если путь совпадает
+// точно (иначе «Очередь» светилась бы и на других страницах).
 const NAV = [
   { path: "/picker", label: "Очередь", icon: <QueueIcon />, end: true },
   { path: "/picker/mine", label: "Моя работа", icon: <WorkIcon />, end: true },
@@ -31,7 +34,7 @@ const NAV = [
  *  Оборачивает ВСЕ страницы /picker. Тут:
  *  - при старте вызывается init() (загрузка складов),
  *  - пока грузимся или не выбран склад — показываем свои экраны вместо страниц,
- *  - когда всё готово — шапка + содержимое страницы + нижнее меню. */
+ *  - когда всё готово — шапка + боковое меню + содержимое страницы. */
 export default function LayoutPicker() {
   const { pathname } = useLocation();
   const {
@@ -102,20 +105,54 @@ export default function LayoutPicker() {
     );
   }
 
-  // 3) Всё готово — основной экран: шапка + страница + нижнее меню.
+  // Боковое меню в стиле личного кабинета: слева, sticky, белая карточка.
+  const sidebar = (
+    <Box component="aside" className={styles.sidebar}>
+      <Typography component="h2" className={styles.sidebarTitle}>
+        Сборка
+      </Typography>
+
+      <List className={styles.menuList} disablePadding>
+        {NAV.map((item) => (
+          <ListItemButton
+            key={item.path}
+            component={Link}
+            to={item.path}
+            selected={navValue === item.path}
+            className={styles.menuItem}
+            classes={{ selected: styles.menuItemActive }}
+            disableRipple
+          >
+            <ListItemIcon className={styles.menuIcon}>{item.icon}</ListItemIcon>
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{ className: styles.menuLabel }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+
+      <Divider className={styles.sidebarDivider} />
+
+      <Box className={styles.sidebarMeta}>
+        <Chip
+          size="small"
+          icon={<StorefrontIcon />}
+          label={warehouseName ?? "—"}
+          className={styles.warehouseChip}
+          variant="outlined"
+        />
+      </Box>
+    </Box>
+  );
+
+  // 3) Всё готово — основной экран: шапка + меню + страница.
   return (
     <Box className={styles.app}>
-      {/* Шапка: название приложения, текущий склад, статус сети */}
+      {/* Шапка: название приложения + статус сети */}
       <Box className={styles.header}>
         <Box className={styles.headerBrand}>
           <Typography className={styles.brand}>Сборка</Typography>
-          <Chip
-            size="small"
-            icon={<StorefrontIcon />}
-            label={warehouseName ?? "—"}
-            className={styles.warehouseChip}
-            variant="outlined"
-          />
         </Box>
         <Box className={styles.headerRight}>
           <Chip
@@ -129,26 +166,14 @@ export default function LayoutPicker() {
         </Box>
       </Box>
 
-      {/* Сюда React Router подставляет текущую страницу (/picker, mine, transfers...) */}
-      <Box component="main" className={styles.outlet}>
-        <Outlet />
-      </Box>
+      {/* Каркас кабинета: меню слева + контент в белой карточке */}
+      <Box className={styles.cabinet}>
+        {sidebar}
 
-      {/* Нижняя навигация: переключение между разделами */}
-      <Paper className={styles.bottomNavWrap} elevation={0}>
-        <BottomNavigation value={navValue} className={styles.bottomNav} showLabels>
-          {NAV.map((n) => (
-            <BottomNavigationAction
-              key={n.path}
-              value={n.path}
-              label={n.label}
-              icon={n.icon}
-              component={Link}
-              to={n.path}
-            />
-          ))}
-        </BottomNavigation>
-      </Paper>
+        <Box component="section" className={styles.content}>
+          <Outlet />
+        </Box>
+      </Box>
     </Box>
   );
 }

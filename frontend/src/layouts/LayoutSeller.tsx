@@ -2,12 +2,15 @@ import { useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Badge,
-  BottomNavigation,
-  BottomNavigationAction,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Divider,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
   Paper,
   Typography,
 } from "@mui/material";
@@ -23,7 +26,7 @@ import styles from "../scss/pages/SellerLayout.module.scss";
 
 const NAV = [
   { path: "/seller/dashboard", label: "Дашборд", icon: <DashboardIcon /> },
-  { path: "/seller/order/new", label: "Новый заказ", icon: <AddCircleIcon />, center: true },
+  { path: "/seller/order/new", label: "Новый заказ", icon: <AddCircleIcon /> },
   { path: "/seller/orders", label: "Заказы", icon: <ReceiptIcon /> },
 ];
 
@@ -89,18 +92,72 @@ export default function LayoutSeller() {
     );
   }
 
+  // Боковое меню в стиле личного кабинета: слева, sticky, белая карточка.
+  const sidebar = (
+    <Box component="aside" className={styles.sidebar}>
+      <Typography component="h2" className={styles.sidebarTitle}>
+        Продажи
+      </Typography>
+
+      <List className={styles.menuList} disablePadding>
+        {NAV.map((item) => (
+          <ListItemButton
+            key={item.path}
+            component={Link}
+            to={item.path}
+            selected={navValue === item.path}
+            className={styles.menuItem}
+            classes={{ selected: styles.menuItemActive }}
+            disableRipple
+          >
+            <ListItemIcon className={styles.menuIcon}>
+              {item.path === "/seller/orders" && pendingCount > 0 ? (
+                <Badge badgeContent={pendingCount} color="error">
+                  {item.icon}
+                </Badge>
+              ) : (
+                item.icon
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={item.label}
+              primaryTypographyProps={{ className: styles.menuLabel }}
+            />
+          </ListItemButton>
+        ))}
+      </List>
+
+      <Divider className={styles.sidebarDivider} />
+
+      <Box className={styles.sidebarMeta}>
+        <Chip
+          size="small"
+          icon={<StorefrontIcon />}
+          label={session?.warehouse_name ?? "—"}
+          className={styles.warehouseChip}
+          variant="outlined"
+        />
+        {pendingCount > 0 && (
+          <Button
+            size="small"
+            variant="contained"
+            className={styles.syncBtn}
+            startIcon={<SyncIcon />}
+            onClick={() => syncAll()}
+          >
+            {pendingCount}
+          </Button>
+        )}
+      </Box>
+    </Box>
+  );
+
   return (
     <Box className={styles.app}>
+      {/* Шапка: название приложения + статус сети */}
       <Box className={styles.header}>
         <Box className={styles.headerBrand}>
           <Typography className={styles.brand}>Продажи</Typography>
-          <Chip
-            size="small"
-            icon={<StorefrontIcon />}
-            label={session?.warehouse_name ?? "—"}
-            className={styles.warehouseChip}
-            variant="outlined"
-          />
         </Box>
         <Box className={styles.headerRight}>
           <Chip
@@ -111,46 +168,17 @@ export default function LayoutSeller() {
             variant="outlined"
             className={styles.onlineChip}
           />
-          {pendingCount > 0 && (
-            <Button
-              size="small"
-              variant="contained"
-              className={styles.syncBtn}
-              startIcon={<SyncIcon />}
-              onClick={() => syncAll()}
-            >
-              {pendingCount}
-            </Button>
-          )}
         </Box>
       </Box>
 
-      <Box component="main" className={styles.outlet}>
-        <Outlet />
-      </Box>
+      {/* Каркас кабинета: меню слева + контент в белой карточке */}
+      <Box className={styles.cabinet}>
+        {sidebar}
 
-      <Paper className={styles.bottomNavWrap} elevation={0}>
-        <BottomNavigation value={navValue} className={styles.bottomNav} showLabels>
-          {NAV.map((n) => (
-            <BottomNavigationAction
-              key={n.path}
-              value={n.path}
-              label={n.label}
-              icon={
-                n.path === "/seller/orders" ? (
-                  <Badge badgeContent={pendingCount} color="error">
-                    {n.icon}
-                  </Badge>
-                ) : (
-                  n.icon
-                )
-              }
-              component={Link}
-              to={n.path}
-            />
-          ))}
-        </BottomNavigation>
-      </Paper>
+        <Box component="section" className={styles.content}>
+          <Outlet />
+        </Box>
+      </Box>
     </Box>
   );
 }

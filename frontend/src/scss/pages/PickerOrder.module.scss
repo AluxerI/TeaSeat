@@ -71,6 +71,7 @@ $color-warning-border: #f0d9a8;
   gap: spacing(sm);
   padding: spacing(md) spacing(lg);
   border-radius: 16px;
+  border: 1px solid $color-border;
 }
 
 .customerOrder {
@@ -130,6 +131,7 @@ $color-warning-border: #f0d9a8;
   display: flex;
   flex-direction: column;
   border-radius: 16px;
+  border: 1px solid $color-border;
   overflow: hidden;
 }
 

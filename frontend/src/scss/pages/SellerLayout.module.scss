@@ -1,13 +1,19 @@
 @import "../abstracts/variable";
 @import "../abstracts/functions";
 
+// ── Палитра (как в личном кабинете) ─────────────────────────────────────────
 $color-bg-page: #faf5ee;
+$color-surface: #ffffff;
 $color-border: #ece2d4;
 $color-text-primary: #3a2c22;
 $color-text-secondary: #8a7d6f;
 $color-accent: #4a3428;
+$color-menu-active-bg: #f5ead9;
+$color-menu-active-text: #4a3428;
 $color-matcha: #87a617;
 $color-danger: #c9564e;
+
+// ── Приложение ──────────────────────────────────────────────────────────────
 
 .app {
   display: flex;
@@ -16,12 +22,14 @@ $color-danger: #c9564e;
   background: $color-bg-page;
 }
 
+// ── Шапка ───────────────────────────────────────────────────────────────────
+
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: spacing(sm);
-  padding: spacing(sm) spacing(md);
+  padding: spacing(sm) spacing(xxl);
   background: #fff;
   border-bottom: 1px solid $color-border;
   position: sticky;
@@ -44,10 +52,6 @@ $color-danger: #c9564e;
   white-space: nowrap;
 }
 
-.warehouseChip {
-  max-width: 180px;
-}
-
 .headerRight {
   display: flex;
   align-items: center;
@@ -58,6 +62,110 @@ $color-danger: #c9564e;
   font-weight: 700 !important;
 }
 
+// ── Каркас кабинета (меню + контент) ────────────────────────────────────────
+
+.cabinet {
+  flex: 1;
+  display: flex;
+  gap: spacing(xl);
+  width: 100%;
+  max-width: max-width(full);
+  margin: 0 auto;
+  padding: spacing(xxl);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  color: $color-text-primary;
+  align-items: stretch;
+
+  @media (max-width: 900px) {
+    flex-direction: column;
+    padding: spacing(md);
+    gap: spacing(md);
+  }
+}
+
+// ── Боковое меню ────────────────────────────────────────────────────────────
+
+.sidebar {
+  flex: 0 0 280px;
+  align-self: flex-start;
+  position: sticky;
+  top: spacing(xl);
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: spacing(xl) spacing(sm);
+  display: flex;
+  flex-direction: column;
+
+  @media (max-width: 900px) {
+    flex: 1 1 auto;
+    width: 100%;
+    align-self: auto;
+    position: static;
+  }
+}
+
+.sidebarTitle {
+  font-size: spacing('sm') + 2px !important;
+  font-weight: 700;
+  color: $color-text-primary;
+  padding: 0 spacing(sm) spacing(lg);
+}
+
+.menuList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menuItem {
+  border-radius: 10px !important;
+  padding: 10px spacing(sm) !important;
+  color: $color-text-secondary !important;
+  transition: background-color 0.15s ease, color 0.15s ease;
+
+  &:hover {
+    background-color: #f7f0e6 !important;
+  }
+}
+
+.menuItemActive {
+  background-color: $color-menu-active-bg !important;
+
+  .menuLabel,
+  .menuIcon {
+    color: $color-menu-active-text !important;
+  }
+}
+
+.menuIcon {
+  min-width: 36px !important;
+  color: inherit;
+}
+
+.menuLabel {
+  font-size: font-size(body) - 6px !important;
+  font-weight: 700 !important;
+  color: inherit;
+}
+
+.sidebarDivider {
+  margin: spacing(sm) 4px !important;
+  border-color: $color-border !important;
+}
+
+.sidebarMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: spacing(sm);
+  padding: 0 spacing(sm);
+}
+
+.warehouseChip {
+  max-width: 200px;
+}
+
 .syncBtn {
   min-width: 44px !important;
   padding: 4px 12px !important;
@@ -65,29 +173,25 @@ $color-danger: #c9564e;
   background-color: $color-matcha !important;
 }
 
-.outlet {
-  flex: 1;
+// ── Контент в белой карточке ────────────────────────────────────────────────
+
+.content {
+  flex: 1 1 auto;
+  min-width: 0;
   min-height: 0;
-  overflow-y: auto;
-  padding-bottom: 84px;
-}
-
-.bottomNavWrap {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
   display: flex;
-  justify-content: center;
-  background: #fff !important;
-  border-top: 1px solid $color-border;
-  z-index: 10;
+  flex-direction: column;
+  background: $color-surface;
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  padding: spacing(md);
+
+  @media (max-width: 900px) {
+    padding: spacing(sm);
+  }
 }
 
-.bottomNav {
-  width: 100%;
-  max-width: 640px;
-}
+// ── Экраны загрузки / выбора точки ──────────────────────────────────────────
 
 .centerWrap {
   flex: 1;

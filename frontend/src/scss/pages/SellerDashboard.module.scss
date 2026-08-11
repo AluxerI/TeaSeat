@@ -65,6 +65,7 @@ $color-warning-border: #f0d9a8;
 .statCard {
   padding: spacing(md);
   border-radius: 16px;
+  border: 1px solid $color-border;
   text-align: center;
 }
 
