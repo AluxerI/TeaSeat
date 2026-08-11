@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Order;
+use App\Models\OrderGift;
+use App\Models\OrderProduct;
 use App\Models\DeliveryMethod;
 use App\Models\AddressClient;
 use App\Models\OrderStatusHistory;
@@ -22,7 +24,8 @@ class CheckoutService
         protected LocationService $locationService,
         protected SupplierOrderService $supplierOrderService,
         protected GiftAvailabilityService $giftAvailabilityService,
-        protected DeliveryScheduleService $deliveryScheduleService
+        protected DeliveryScheduleService $deliveryScheduleService,
+        protected CartSelectionService $cartSelectionService
     ) {}
 
     /**
@@ -38,8 +41,14 @@ class CheckoutService
         string $idempotencyKey = '',
         ?array $discountSelection = null,
         ?string $scheduledDeliveryDate = null,
-        ?int $deliveryTimeSlotId = null
+        ?int $deliveryTimeSlotId = null,
+        ?array $cartItemIds = null,
+        ?array $cartGiftIds = null
     ): Order {
+        $selectionHash = $this->cartSelectionService->hash(
+            $cartItemIds,
+            $cartGiftIds
+        );
         return DB::transaction(function () use (
             $userId,
             $shippingAddressId,
@@ -50,9 +59,17 @@ class CheckoutService
             $idempotencyKey,
             $discountSelection,
             $scheduledDeliveryDate,
-            $deliveryTimeSlotId
+            $deliveryTimeSlotId,
+            $cartItemIds,
+            $cartGiftIds,
+            $selectionHash
         ) {
-            if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
+            if ($existingOrder = $this->findExistingCheckout(
+                $userId,
+                $idempotencyKey,
+                $selectionHash,
+                $cartItemIds !== null || $cartGiftIds !== null
+            )) {
                 return $existingOrder;
             }
 
@@ -67,12 +84,40 @@ class CheckoutService
             if (!$cart) {
                 // Повторная проверка нужна для запроса, который ожидал блокировку:
                 // первый запрос уже мог завершить checkout с тем же ключом.
-                if ($existingOrder = $this->findExistingCheckout($userId, $idempotencyKey)) {
+                if ($existingOrder = $this->findExistingCheckout(
+                    $userId,
+                    $idempotencyKey,
+                    $selectionHash,
+                    $cartItemIds !== null || $cartGiftIds !== null
+                )) {
                     return $existingOrder;
                 }
 
                 throw new DomainException('Активная корзина не найдена');
             }
+
+            // При выборочном checkout исходная корзина остаётся активной.
+            // Поэтому ожидавший её блокировку повторный запрос обязан ещё раз
+            // проверить ключ, даже если корзина по-прежнему существует.
+            if ($existingOrder = $this->findExistingCheckout(
+                $userId,
+                $idempotencyKey,
+                $selectionHash,
+                $cartItemIds !== null || $cartGiftIds !== null
+            )) {
+                return $existingOrder;
+            }
+
+            // Изменение количества или удаление выбранной строки не должно
+            // вклиниться между проверкой состава и переносом в заказ.
+            OrderProduct::query()
+                ->where('order_id', $cart->id)
+                ->lockForUpdate()
+                ->get();
+            OrderGift::query()
+                ->where('order_id', $cart->id)
+                ->lockForUpdate()
+                ->get();
 
             $cart->load([
                 'items.product.inventories.warehouse',
@@ -82,6 +127,19 @@ class CheckoutService
             
             if ($cart->items->isEmpty()) {
                 throw new DomainException('Корзина пуста');
+            }
+
+            $sourceCart = $cart;
+            $resolvedSelection = $this->cartSelectionService->resolve(
+                $sourceCart,
+                $cartItemIds,
+                $cartGiftIds
+            );
+            if ($resolvedSelection['explicit']) {
+                $cart = $this->createOrderFromSelection(
+                    $sourceCart,
+                    $resolvedSelection['order']
+                );
             }
 
             $shippingAddress = AddressClient::where('user_id', $userId)->findOrFail($shippingAddressId);
@@ -109,20 +167,30 @@ class CheckoutService
                 (float) $deliveryMethod->cost,
                 $discountSelection
             );
+            $pricingQuote['cart_selection'] = [
+                'explicit' => $resolvedSelection['explicit'],
+                'cart_item_ids' => $resolvedSelection['item_ids'],
+                'cart_gift_ids' => $resolvedSelection['gift_ids'],
+            ];
             $this->pricingService->applyQuoteToOrder($cart, $pricingQuote);
             $this->pricingService->consumeUsage($user, $pricingQuote);
 
             // Если это заказ у поставщика
             if ($isSupplierOrder) {
-                return $this->processSupplierOrder(
+                $supplierOrder = $this->processSupplierOrder(
                     $cart,
                     $shippingAddress,
                     $deliveryMethod,
                     $paymentMethod,
                     $customerNotes,
                     $idempotencyKey,
+                    $selectionHash,
                     $deliverySelection
                 );
+                if ($resolvedSelection['explicit']) {
+                    $this->cartService->refreshAfterPartialCheckout($sourceCart);
+                }
+                return $supplierOrder;
             }
 
             // Обычный заказ - проверяем доступность товаров в городе
@@ -141,6 +209,7 @@ class CheckoutService
                 'shipping_cost' => $deliveryMethod->cost,
                 'customer_notes' => $customerNotes,
                 'checkout_idempotency_key' => $idempotencyKey,
+                'checkout_selection_hash' => $selectionHash,
                 'warehouse_id' => null,
                 'confirmed_at' => now(),
             ] + $deliverySelection);
@@ -162,6 +231,9 @@ class CheckoutService
             
             // Очищаем кеш корзины
             $this->cartService->clearCartCache($userId);
+            if ($resolvedSelection['explicit']) {
+                $this->cartService->refreshAfterPartialCheckout($sourceCart);
+            }
 
             return $cart->fresh([
                 'items.product',
@@ -174,17 +246,37 @@ class CheckoutService
         });
     }
 
-    private function findExistingCheckout(int $userId, string $idempotencyKey): ?Order
+    private function findExistingCheckout(
+        int $userId,
+        string $idempotencyKey,
+        string $selectionHash,
+        bool $explicitSelection
+    ): ?Order
     {
         if ($idempotencyKey === '') {
             return null;
         }
 
-        return Order::where('user_id', $userId)
+        $order = Order::where('user_id', $userId)
             ->where('checkout_idempotency_key', $idempotencyKey)
             ->whereNull('parent_order_id')
-            ->first()
-            ?->load([
+            ->first();
+        if (!$order) {
+            return null;
+        }
+        if ($order->checkout_selection_hash === null && $explicitSelection) {
+            throw new DomainException(
+                'Idempotency-Key уже использован для другого состава заказа'
+            );
+        }
+        if ($order->checkout_selection_hash !== null
+            && !hash_equals($order->checkout_selection_hash, $selectionHash)) {
+            throw new DomainException(
+                'Idempotency-Key уже использован для другого состава заказа'
+            );
+        }
+
+        return $order->load([
                 'items.product',
                 'gifts.items.product',
                 'deliveryMethod',
@@ -192,6 +284,41 @@ class CheckoutService
                 'partialOrders.items.product',
                 'partialOrders.warehouse',
             ]);
+    }
+
+    private function createOrderFromSelection(Order $sourceCart, Order $selection): Order
+    {
+        $checkoutOrder = Order::create([
+            'user_id' => $sourceCart->user_id,
+            'sales_channel' => Order::SALES_CHANNEL_ONLINE,
+            'status' => Order::STATUS_CART,
+            'products_total' => 0,
+            'promotion_discount' => 0,
+            'personal_discount' => 0,
+            'cart_discount' => 0,
+            'shipping_cost' => 0,
+            'shipping_discount' => 0,
+            'final_total' => 0,
+        ]);
+
+        $giftIds = $selection->gifts->pluck('id')->all();
+        $itemIds = $selection->items->pluck('id')->all();
+        if ($giftIds !== []) {
+            OrderGift::query()
+                ->where('order_id', $sourceCart->id)
+                ->whereIn('id', $giftIds)
+                ->update(['order_id' => $checkoutOrder->id]);
+        }
+        OrderProduct::query()
+            ->where('order_id', $sourceCart->id)
+            ->whereIn('id', $itemIds)
+            ->update(['order_id' => $checkoutOrder->id]);
+
+        return $checkoutOrder->fresh([
+            'items.product.inventories.warehouse',
+            'items.product.suppliers',
+            'gifts.items.product',
+        ]);
     }
 
     /**
@@ -214,6 +341,7 @@ class CheckoutService
         string $paymentMethod,
         ?string $customerNotes,
         string $idempotencyKey,
+        string $selectionHash,
         array $deliverySelection
     ): Order {
         // Проверяем доступность товаров у поставщиков
@@ -253,6 +381,7 @@ class CheckoutService
             'customer_notes' => $customerNotes,
             'is_supplier_order' => true,
             'checkout_idempotency_key' => $idempotencyKey,
+            'checkout_selection_hash' => $selectionHash,
             'internal_notes' => 'ЗАКАЗ У ПОСТАВЩИКА - требуется ручная обработка',
             'confirmed_at' => now(),
         ] + $deliverySelection);

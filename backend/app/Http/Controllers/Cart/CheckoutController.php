@@ -41,6 +41,10 @@ class CheckoutController extends Controller
             'discount_selection.type' => 'required_with:discount_selection|in:personal,coupon',
             'discount_selection.discount_id' => 'required_if:discount_selection.type,personal|prohibited_unless:discount_selection.type,personal|integer|exists:discounts,id',
             'discount_selection.code' => 'required_if:discount_selection.type,coupon|prohibited_unless:discount_selection.type,coupon|string|max:100',
+            'cart_item_ids' => 'sometimes|array',
+            'cart_item_ids.*' => 'integer|distinct|min:1',
+            'cart_gift_ids' => 'sometimes|array',
+            'cart_gift_ids.*' => 'integer|distinct|min:1',
             'idempotency_key' => [
                 'required',
                 'string',
@@ -64,6 +68,12 @@ class CheckoutController extends Controller
                 $request->input('discount_selection'),
                 $request->input('scheduled_delivery_date'),
                 $request->integer('delivery_time_slot_id') ?: null,
+                $request->has('cart_item_ids')
+                    ? $request->input('cart_item_ids', [])
+                    : null,
+                $request->has('cart_gift_ids')
+                    ? $request->input('cart_gift_ids', [])
+                    : null,
             );
 
             return new OrderResource($order);

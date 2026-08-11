@@ -64,6 +64,7 @@ class Order extends Model
         'supplier_order_id', // связь с консолидированным заказом
         'is_supplier_order',
         'checkout_idempotency_key',
+        'checkout_selection_hash',
         'client_order_id',
         'seller_revision',
         'last_payload_hash',
