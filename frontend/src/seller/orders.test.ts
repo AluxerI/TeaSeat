@@ -3,6 +3,8 @@ import { db, resetSellerDatabase } from "./db";
 import {
   commitOrder,
   createDraft,
+  createOrResumeDraft,
+  addProductToDraft,
   deleteDraft,
   emptyOrder,
   enqueueCommand,
@@ -70,6 +72,32 @@ function line(overrides: Partial<LocalOrderItem> = {}): LocalOrderItem {
   };
 }
 
+function weightedProduct(available = 100): LocalProduct {
+  return {
+    id: 1,
+    name: "Улун",
+    stock_unit: "gram",
+    sale_step: 10,
+    price_unit_quantity: 100,
+    pricing: {
+      unit_price: 250,
+      issued_at: "2026-01-01T00:00:00Z",
+      expires_at: "2026-02-01T00:00:00Z",
+      automatic_promotions: [],
+    },
+    pricing_token: "tok",
+    stock: {
+      quantity: available,
+      reserved_online_quantity: 0,
+      reserved_seller_quantity: 0,
+      available_quantity: available,
+      shortage_quantity: 0,
+    },
+    warehouse_id: 1,
+    image: null,
+  };
+}
+
 describe("createDraft / emptyOrder", () => {
   it("создаёт черновик в состоянии draft", async () => {
     const draft = await createDraft(1);
@@ -88,6 +116,33 @@ describe("createDraft / emptyOrder", () => {
     const order = emptyOrder(2, "2026-01-02T10:00:00.000Z");
     expect(order.occurred_at).toBe("2026-01-02T10:00:00.000Z");
     expect(order.warehouse_id).toBe(2);
+  });
+
+  it("параллельный запуск возобновляет один черновик", async () => {
+    const [first, second] = await Promise.all([
+      createOrResumeDraft(1),
+      createOrResumeDraft(1),
+    ]);
+    expect(second.client_order_id).toBe(first.client_order_id);
+    expect(await db.orders.where("status").equals("draft").count()).toBe(1);
+  });
+});
+
+describe("addProductToDraft", () => {
+  it("не теряет быстрые клики и не превышает остаток", async () => {
+    const draft = await createDraft(1);
+    const product = weightedProduct(20);
+
+    await Promise.all([
+      addProductToDraft(draft.client_order_id, product),
+      addProductToDraft(draft.client_order_id, product),
+    ]);
+
+    const saved = await db.orders.get(draft.client_order_id);
+    expect(saved?.items[0].quantity).toBe(20);
+    await expect(
+      addProductToDraft(draft.client_order_id, product)
+    ).rejects.toThrow("доступный остаток");
   });
 });
 

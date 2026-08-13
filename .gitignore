@@ -3,4 +3,8 @@
 /.vscode/
 /*.patch
 
+# Local frontend dependencies and generated builds
+/frontend/node_modules/
+/frontend/dist/
+
 /data/

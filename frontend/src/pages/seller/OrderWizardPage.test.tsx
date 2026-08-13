@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter } from "react-router-dom";
+import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { SellerContext, type SellerContextValue } from "../../contexts/SellerContext";
 import type { LocalOrder, LocalOrderItem, LocalProduct } from "../../seller/types";
@@ -130,9 +130,17 @@ function sellerValue(overrides: Partial<SellerContextValue> = {}): SellerContext
 function renderWizard(value: SellerContextValue) {
   return render(
     <MemoryRouter initialEntries={["/seller/order/new"]}>
-      <SellerContext.Provider value={value}>
-        <OrderWizardPage />
-      </SellerContext.Provider>
+      <Routes>
+        <Route
+          path="/seller/order/new"
+          element={
+            <SellerContext.Provider value={value}>
+              <OrderWizardPage />
+            </SellerContext.Provider>
+          }
+        />
+        <Route path="/seller/orders" element={<div>orders-page</div>} />
+      </Routes>
     </MemoryRouter>
   );
 }
@@ -193,6 +201,26 @@ describe("OrderWizardPage", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Оформить продажу" }));
     expect(commitDraft).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText("orders-page")).toBeInTheDocument();
+  });
+
+  it("не позволяет добавить больше доступного остатка", () => {
+    const full = product({
+      stock: {
+        quantity: 10,
+        reserved_online_quantity: 0,
+        reserved_seller_quantity: 0,
+        available_quantity: 10,
+        shortage_quantity: 0,
+      },
+    });
+    renderWizard(
+      sellerValue({
+        products: [full],
+        draft: draft({ items: [line({ quantity: 10 })] }),
+      })
+    );
+    expect(screen.getByRole("button", { name: "+10 г" })).toBeDisabled();
   });
 
   it("выбирает способ оплаты", async () => {

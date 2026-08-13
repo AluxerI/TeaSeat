@@ -1,13 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { PageCategory } from './pages/Category';
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { ItemApi } from './api/productAPI';
-
-import { FormItem, Item } from './interfaces/clients.api'; 
-import { useAsync } from './hooks/useAsync';
-import { catalogApi } from './api/catalogAPI';
-import { ProductList } from './components/productList';
 import { PageCatalog } from './pages/Catalog';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
@@ -26,66 +20,13 @@ import LayoutPicker from './layouts/LayoutPicker';
 import PickerQueuePage from './pages/picker/PickerQueuePage';
 import PickerOrderPage from './pages/picker/PickerOrderPage';
 import PickerTransfersPage from './pages/picker/PickerTransfersPage';
+import RequirePermission from './components/RequirePermission';
 
 // Конструктор тянет за собой three.js и @react-three/* — около 600 КБ.
 // Статический импорт клал бы их в общий бандл, то есть в загрузку каждой
 // страницы, включая офлайн-precache PWA. Грузим только при переходе на роут.
 const ConstructorPage = React.lazy(() => import('./pages/ConstructorPage'));
-
-
-interface Data {
-  id: number;
-  name: string;
-  price: number;
-  description: string;
-  stock: number;
-  warehouses: number[];
-}
-interface ApiResponse {
-  data: Data;
-}
-
-
-var history="";
-function recursiveJsonRead(obj:Record<any,any>,tab:string="",){
-  if(obj !== null && typeof obj === "object")
-    for(const key in obj){
-      history+=(`${tab}${key}:`+'\n')
-      recursiveJsonRead(obj[key],tab+" ")
-      
-    }
-  else {
-        history+=(`${tab}${obj} (${typeof obj})`+ '\n');
-    }
-  
-}
-
-
 const App: React.FC = () => {
-    
-  const check = ItemApi;
-  const catalog_api = catalogApi;
-  const example_body: FormItem = {
-    name:"kek",
-    description:"kjfkj",
-    price:2,
-    user_id:0,
-  }
-  
-  //const data = useAsync(()=>check.getProduct(1),true);
-  //const data = useAsync(()=> check.getAllItem())
-  //const data = useAsync(()=>catalog_api.getProducts());
-  
-
-  
-  
-  //const chec =recursiveJsonRead(str);
-  //console.log(history);
-  //history = ''
-    
-  
-  //console.log(check.getProduct(2));
-  //check.createProduct(example_body);
   return (
     <>
       <BrowserRouter>
@@ -95,14 +36,6 @@ const App: React.FC = () => {
              <Route path='*' element={<Navigate to='/catalog' replace />} />
              <Route path='category' Component={PageCategory}/>
             
-            {/**
-            <Grid>
-                <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
-            
-                
-            </Grid>
-             */}
-
              <Route path='catalog' Component={PageCatalog}/>
              <Route path='register' Component={RegisterPage}/>
              <Route path='login' Component={LoginPage}/>
@@ -117,7 +50,14 @@ const App: React.FC = () => {
                  </React.Suspense>
                }
              />
-               <Route path="/seller" element={<SellerProvider><LayoutSeller /></SellerProvider>}>
+               <Route
+                 path="/seller"
+                 element={
+                   <RequirePermission permission="create seller orders">
+                     <SellerProvider><LayoutSeller /></SellerProvider>
+                   </RequirePermission>
+                 }
+               >
                  <Route index element={<Navigate to="dashboard" replace />} />
                  <Route path="dashboard" element={<SellerDashboardPage />} />
                  <Route path="order/new" element={<SellerOrderWizardPage />} />
@@ -127,7 +67,14 @@ const App: React.FC = () => {
                {/* Секция сборщика (picker PWA): свой каркас + общий контекст.
                    LayoutPicker даёт шапку/меню, PickerProvider — очередь, склад,
                    действия; внутри подставляются страницы по подпути. */}
-               <Route path="/picker" element={<PickerProvider><LayoutPicker /></PickerProvider>}>
+               <Route
+                 path="/picker"
+                 element={
+                   <RequirePermission permission="view picking orders">
+                     <PickerProvider><LayoutPicker /></PickerProvider>
+                   </RequirePermission>
+                 }
+               >
                  <Route index element={<PickerQueuePage mode="queue" />} />
                  <Route path="mine" element={<PickerQueuePage mode="mine" />} />
                  <Route path="transfers" element={<PickerTransfersPage />} />
