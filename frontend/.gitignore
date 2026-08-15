@@ -8,9 +8,12 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store

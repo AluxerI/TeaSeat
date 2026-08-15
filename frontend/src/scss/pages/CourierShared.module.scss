@@ -1,0 +1,320 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-surface: #ffffff;
+$color-border: #ece2d4;
+$color-text: #3a2c22;
+$color-muted: #74685d;
+$color-danger: #c9564e;
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.pageHeader,
+.detailHeader,
+.cardTopline,
+.cardTitleRow,
+.cardMeta,
+.blockTitleRow,
+.itemRow {
+  display: flex;
+  align-items: center;
+}
+
+.pageHeader {
+  justify-content: space-between;
+  gap: spacing(sm);
+}
+
+.pageTitle,
+.detailTitle {
+  margin: 0 !important;
+  color: $color-text;
+  font-family: "Unbounded Variable", Unbounded, sans-serif !important;
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  line-height: 1.3 !important;
+}
+
+.detailTitle {
+  margin-top: spacing(xxs) !important;
+  font-size: 24px !important;
+}
+
+.pageSubtitle {
+  margin-top: spacing(xxs) !important;
+  color: $color-muted;
+  font-size: 13px !important;
+}
+
+.filters {
+  min-height: 44px;
+  padding: spacing(xxs);
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  background: rgba($color-primary-coffee, 0.035);
+
+  :global(.MuiTabs-flexContainer) {
+    gap: spacing(xxs);
+  }
+
+  :global(.MuiTab-root) {
+    min-height: 40px;
+    padding: spacing(xs) spacing(sm);
+    border-radius: 12px;
+    color: $color-muted;
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: none;
+    transition: color 0.18s ease, background-color 0.18s ease;
+  }
+
+  :global(.Mui-selected) {
+    background: rgba($color-primary-tea, 0.14);
+    color: adjust-brightness($color-primary-tea, -18%) !important;
+  }
+
+  :global(.MuiTabs-indicator) {
+    display: none;
+  }
+}
+
+.list,
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+}
+
+.section {
+  gap: spacing(xs);
+}
+
+.sectionTitle,
+.blockTitle {
+  color: $color-text;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.deliveryCard,
+.detailPaper {
+  overflow: hidden;
+  border: 1px solid $color-border !important;
+  border-radius: 18px !important;
+  background: $color-surface !important;
+}
+
+.deliveryCard {
+  @include smooth-transition((box-shadow, transform), 0.18s);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba($color-primary-coffee, 0.08) !important;
+  }
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(sm);
+  padding: spacing(md);
+  cursor: pointer;
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: inset 0 0 0 3px rgba($color-primary-tea, 0.35);
+  }
+}
+
+.cardTopline,
+.cardTitleRow,
+.itemRow {
+  justify-content: space-between;
+  gap: spacing(sm);
+}
+
+.windowLabel {
+  color: $color-primary-coffee;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.orderNumber {
+  color: $color-text;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+.openIcon {
+  flex-shrink: 0;
+  color: $color-muted;
+  font-size: 18px !important;
+}
+
+.destination {
+  color: $color-text;
+  font-size: 16px !important;
+  font-weight: 600 !important;
+  line-height: 1.4 !important;
+}
+
+.cardMeta {
+  flex-wrap: wrap;
+  gap: spacing(xs);
+}
+
+.metaText,
+.routeSecondary {
+  color: $color-muted;
+  font-size: 13px !important;
+}
+
+.cardActions {
+  padding: 0 spacing(md) spacing(md);
+}
+
+.route {
+  display: flex;
+  flex-direction: column;
+}
+
+.routePoint {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: spacing(xs);
+}
+
+.routeIcon {
+  color: $color-primary-tea;
+}
+
+.routeLine {
+  width: 2px;
+  height: spacing(md);
+  margin: spacing(xxs) 0 spacing(xxs) 11px;
+  background: $color-border;
+}
+
+.routeLabel {
+  color: $color-muted;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+}
+
+.routeValue,
+.customerName {
+  color: $color-text;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+}
+
+.navigationButton {
+  align-self: flex-start;
+  margin-top: spacing(md) !important;
+}
+
+.detailHeader {
+  justify-content: space-between;
+  gap: spacing(sm);
+}
+
+.detailPaper {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+  padding: spacing(md);
+}
+
+.blockTitleRow {
+  gap: spacing(xs);
+}
+
+.itemRow {
+  padding: spacing(sm) 0;
+}
+
+.itemQuantity {
+  flex-shrink: 0;
+  color: $color-muted;
+  font-weight: 700 !important;
+}
+
+.stickyActions {
+  position: sticky;
+  bottom: calc(72px + env(safe-area-inset-bottom));
+  z-index: 5;
+  display: flex;
+  justify-content: flex-end;
+  gap: spacing(xs);
+  padding: spacing(sm);
+  border: 1px solid $color-border;
+  border-radius: 16px;
+  background: rgba($color-surface, 0.96);
+  box-shadow: 0 8px 24px rgba($color-primary-coffee, 0.12);
+  backdrop-filter: blur(12px);
+
+  :global(.MuiButton-root) {
+    min-height: 48px;
+  }
+}
+
+.errorText {
+  color: $color-danger;
+  font-size: 14px !important;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: spacing(sm);
+  min-height: 300px;
+  padding: spacing(xl);
+  text-align: center;
+}
+
+.emptyIcon {
+  @include flex-centre;
+  width: 72px;
+  height: 72px;
+  border-radius: 24px;
+  background: rgba($color-primary-tea, 0.12);
+  color: $color-primary-tea;
+  font-size: 42px;
+}
+
+.emptyTitle {
+  color: $color-text;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+.emptyDescription {
+  max-width: 360px;
+  color: $color-muted;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
+@media (max-width: 480px) {
+  .pageHeader {
+    align-items: flex-start;
+  }
+
+  .pageHeader :global(.MuiButton-root) {
+    min-width: 44px;
+  }
+
+  .stickyActions {
+    flex-direction: column-reverse;
+  }
+
+  .stickyActions :global(.MuiButton-root) {
+    width: 100%;
+  }
+}

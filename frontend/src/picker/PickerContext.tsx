@@ -105,16 +105,16 @@ export function PickerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Загрузить обе очереди (все заказы + мои) параллельно — так быстрее.
-  const loadLists = useCallback(async () => {
-    if (warehouseId === null) return;
+  const loadLists = useCallback(async (targetWarehouseId: number | null) => {
+    if (targetWarehouseId === null) return;
     const [all, mine] = await Promise.all([
-      fetchQueue({ warehouse_id: warehouseId }),
-      fetchQueue({ warehouse_id: warehouseId, mine: true }),
+      fetchQueue({ warehouse_id: targetWarehouseId }),
+      fetchQueue({ warehouse_id: targetWarehouseId, mine: true }),
     ]);
     setQueue(all.data);
     setMyOrders(mine.data);
     setMeta(all.meta);
-  }, [warehouseId]);
+  }, []);
 
   // Старт приложения: достаём доступные склады и пробуем восстановить
   // последний выбранный склад из localStorage.
@@ -130,7 +130,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
       if (location) {
         setWarehouseId(location.id);
         setWarehouseName(location.name);
-        await loadLists();
+        await loadLists(location.id);
         setReady(true);
       }
     } catch (err) {
@@ -151,7 +151,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
         localStorage.setItem(WAREHOUSE_KEY, String(id));
         setWarehouseId(id);
         setWarehouseName(location.name);
-        await loadLists();
+        await loadLists(location.id);
         setReady(true);
       } catch (err) {
         applyError(err);
@@ -167,7 +167,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     setError(null);
     try {
-      await loadLists();
+      await loadLists(warehouseId);
     } catch (err) {
       applyError(err);
     }
@@ -227,7 +227,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     async (orderId: number) => {
       const order = await takeOrder(orderId);
       upsertInLists(order);
-      await loadLists();
+      await loadLists(warehouseId);
     },
     [upsertInLists, loadLists]
   );
@@ -236,7 +236,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     async (orderId: number) => {
       const order = await releaseOrder(orderId);
       upsertInLists(order);
-      await loadLists();
+      await loadLists(warehouseId);
     },
     [upsertInLists, loadLists]
   );
@@ -245,7 +245,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     async (orderId: number) => {
       const order = await completeOrder(orderId);
       upsertInLists(order);
-      await loadLists();
+      await loadLists(warehouseId);
     },
     [upsertInLists, loadLists]
   );
@@ -254,7 +254,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     async (orderId: number, comment: string) => {
       const order = await escalateOrder(orderId, comment);
       upsertInLists(order);
-      await loadLists();
+      await loadLists(warehouseId);
     },
     [upsertInLists, loadLists]
   );
@@ -272,7 +272,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     ) => {
       const result = await reportShortageApi(orderId, payload);
       upsertInLists(result.order);
-      await loadLists();
+      await loadLists(warehouseId);
       return result;
     },
     [upsertInLists, loadLists]
@@ -282,7 +282,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
     async (orderId: number) => {
       const order = await receiveTransfer(orderId);
       upsertInLists(order);
-      await loadLists();
+      await loadLists(warehouseId);
     },
     [upsertInLists, loadLists]
   );
@@ -353,4 +353,3 @@ export function usePicker(): PickerContextValue {
 }
 
 export type { PickerQueueFilters };
-

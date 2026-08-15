@@ -57,6 +57,7 @@ export default function OrderWizardPage() {
   } = useSeller();
 
   const [stage, setStage] = useState<Stage>("catalog");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (ready && !draft) {
@@ -98,10 +99,17 @@ export default function OrderWizardPage() {
           ? draft?.payment_method !== null
           : true;
 
-  const goNext = () => {
+  const goNext = async () => {
     if (!canNext) return;
     if (stage === "review") {
-      commitDraft();
+      if (submitting) return;
+      setSubmitting(true);
+      try {
+        await commitDraft();
+        navigate("/seller/orders");
+      } finally {
+        setSubmitting(false);
+      }
       return;
     }
     setStage(STAGES[stageIndex + 1].id);
@@ -156,10 +164,14 @@ export default function OrderWizardPage() {
           variant="contained"
           className={styles.nextBtn}
           onClick={goNext}
-          disabled={!canNext}
+          disabled={!canNext || submitting}
           endIcon={stage === "review" ? <CheckCircleIcon /> : <ArrowForwardIcon />}
         >
-          {stage === "review" ? "Оформить продажу" : "Далее"}
+          {stage === "review"
+            ? submitting
+              ? "Оформление..."
+              : "Оформить продажу"
+            : "Далее"}
         </Button>
       </Box>
     </Box>
@@ -238,7 +250,8 @@ function ProductCard({
   onAdd: () => void;
   qtyInOrder: number;
 }) {
-  const outOfStock = product.stock.available_quantity <= 0;
+  const outOfStock =
+    qtyInOrder + product.sale_step > product.stock.available_quantity;
   const stepLabel = `${product.sale_step} ${unitLabel(product.stock_unit)}`;
   return (
     <Paper className={styles.productCard} elevation={0}>

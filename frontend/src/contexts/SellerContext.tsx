@@ -21,7 +21,8 @@ import {
 } from "../seller/bootstrap";
 import {
   commitOrder,
-  createDraft,
+  createOrResumeDraft,
+  addProductToDraft,
   deleteDraft,
   enqueueCommand,
   enqueueDayClosing,
@@ -35,7 +36,6 @@ import { drainOnce, type DrainSummary } from "../seller/sync";
 import { normalizeQuantity, previewOrderTotal } from "../seller/quantity";
 import type {
   LocalOrder,
-  LocalOrderItem,
   LocalProduct,
   OutboxAction,
   PaymentMethod,
@@ -233,7 +233,7 @@ export function SellerProvider({ children }: { children: ReactNode }) {
     if (warehouseId === null) throw new Error("Не выбрана рабочая точка");
     if (snapshotExpired)
       throw new Error("Снимок цен устарел — обновите каталог");
-    const d = await createDraft(warehouseId);
+    const d = await createOrResumeDraft(warehouseId);
     setDraft(d);
     return d;
   }, [warehouseId, snapshotExpired]);
@@ -257,25 +257,11 @@ export function SellerProvider({ children }: { children: ReactNode }) {
   const addItem = useCallback(
     async (product: LocalProduct, quantity?: number) => {
       const base = draft ?? (await startDraft());
-      const existing = base.items.find((i) => i.product_id === product.id);
-      const delta = quantity ?? product.sale_step;
-      const nextQty = normalizeQuantity(
-        (existing?.quantity ?? 0) + delta,
-        product.sale_step
+      const next = await addProductToDraft(
+        base.client_order_id,
+        product,
+        quantity ?? product.sale_step
       );
-      const item: LocalOrderItem = {
-        product_id: product.id,
-        quantity: nextQty,
-        pricing_token: product.pricing_token,
-        name: product.name,
-        unit_price: product.pricing.unit_price,
-        price_unit_quantity: product.price_unit_quantity,
-        stock_unit: product.stock_unit,
-        sale_step: product.sale_step,
-      };
-      const next = await saveDraft(base.client_order_id, {
-        items: upsertItem(base.items, item),
-      });
       setDraft(next);
     },
     [draft, startDraft]

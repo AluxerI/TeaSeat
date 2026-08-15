@@ -1,6 +1,8 @@
 import { createContext, useState, useEffect, useCallback, type ReactNode } from "react";
+import axios from "axios";
 import { api } from "../api/api";
 import { getAuthToken, setAuthToken, clearAuthToken } from "../api/authAPI";
+import { resetSellerDatabase } from "../seller/db";
 
 export interface User {
   id: number;
@@ -40,9 +42,44 @@ export interface AuthContextValue extends AuthState {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
+const AUTH_USER_CACHE_KEY = "auth_user_cache";
+const PICKER_WAREHOUSE_KEY = "picker_warehouse_id";
+
+function readCachedUser(): User | null {
+  try {
+    const raw = localStorage.getItem(AUTH_USER_CACHE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
+  } catch {
+    return null;
+  }
+}
+
+async function clearUserScopedState(): Promise<void> {
+  await resetSellerDatabase();
+  localStorage.removeItem(PICKER_WAREHOUSE_KEY);
+  localStorage.removeItem(AUTH_USER_CACHE_KEY);
+  if ("caches" in window) {
+    const names = await window.caches.keys();
+    await Promise.all(
+      names
+        .filter((name) => name === "teaseat-api" || name.startsWith("teaseat-api-"))
+        .map((name) => window.caches.delete(name))
+    );
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const acceptUser = useCallback(async (nextUser: User, clearUnknown = false) => {
+    const cached = readCachedUser();
+    if ((cached && cached.id !== nextUser.id) || (!cached && clearUnknown)) {
+      await clearUserScopedState();
+    }
+    localStorage.setItem(AUTH_USER_CACHE_KEY, JSON.stringify(nextUser));
+    setUser(nextUser);
+  }, []);
 
   const fetchUser = useCallback(async () => {
     const token = getAuthToken();
@@ -54,25 +91,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await api.get<{ data: User }>("/api/user");
-      setUser(res.data.data ?? res.data);
-    } catch {
-      clearAuthToken();
-      setUser(null);
+      await acceptUser(res.data.data ?? res.data);
+    } catch (error) {
+      const status = axios.isAxiosError(error) ? error.response?.status : undefined;
+      if (status === 401) {
+        clearAuthToken();
+        setUser(null);
+      } else {
+        // Seller PWA должна открываться после перезагрузки без сети. Права
+        // берём из последней успешной авторизации, сервер всё равно проверит
+        // токен при следующей синхронизации.
+        setUser(readCachedUser());
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [acceptUser]);
 
   useEffect(() => {
     fetchUser();
   }, [fetchUser]);
 
   const login = async (token: string) => {
+    const clearUnknown = !getAuthToken() && !readCachedUser();
     setAuthToken(token);
     setLoading(true);
     try {
       const res = await api.get<{ data: User }>("/api/user");
-      setUser(res.data.data ?? res.data);
+      await acceptUser(res.data.data ?? res.data, clearUnknown);
     } catch {
       clearAuthToken();
       setUser(null);
@@ -87,8 +133,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // ignore
     }
-    clearAuthToken();
-    setUser(null);
+    try {
+      await clearUserScopedState();
+    } finally {
+      clearAuthToken();
+      setUser(null);
+    }
   };
 
   const refreshUser = fetchUser;

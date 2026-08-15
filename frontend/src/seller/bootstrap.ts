@@ -49,7 +49,7 @@ export async function bootstrapWarehouse(
     warehouse_id: warehouseId,
     image: images.get(p.id) ?? null,
   }));
-  await db.products.bulkPut(products);
+  await replaceCachedProducts(warehouseId, products);
 
   const serverMs = Date.parse(data.server_time);
   const ttlHours = data.price_snapshot_ttl_hours ?? 48;
@@ -64,6 +64,19 @@ export async function bootstrapWarehouse(
   });
 
   return products;
+}
+
+/** Полностью заменяет снимок точки. `bulkPut` без очистки оставлял в офлайне
+ * товары, которые сервер уже удалил из каталога. Одна транзакция не даёт
+ * потерять старый снимок, если запись нового завершится ошибкой. */
+export async function replaceCachedProducts(
+  warehouseId: number,
+  products: LocalProduct[]
+): Promise<void> {
+  await db.transaction("rw", db.products, async () => {
+    await db.products.where("warehouse_id").equals(warehouseId).delete();
+    if (products.length > 0) await db.products.bulkPut(products);
+  });
 }
 
 /** Кэш товаров точки для офлайна. */
