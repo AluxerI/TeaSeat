@@ -27,11 +27,25 @@ import CourierPWA from './pages/courier/CourierPWA';
 import CourierMine from './pages/courier/CourierMine';
 import CourierHistory from './pages/courier/CourierHistory';
 import CourierDeliveryPage from './pages/courier/CourierDelivery';
+import { ManagerProvider } from './contexts/ManagerContext'; // контекст кабинета менеджера
 
 // Конструктор тянет за собой three.js и @react-three/* — около 600 КБ.
 // Статический импорт клал бы их в общий бандл, то есть в загрузку каждой
 // страницы, включая офлайн-precache PWA. Грузим только при переходе на роут.
 const ConstructorPage = React.lazy(() => import('./pages/ConstructorPage'));
+// Manager — большой online-only кабинет. Отделяем его страницы от клиентского
+// и offline PWA-бандла; браузер загрузит код только после входа в /manager.
+// Каждая страница кабинета лениво импортируется (React.lazy) отдельно.
+const LayoutManager = React.lazy(() => import('./layouts/LayoutManager')); // каркас кабинета (шапка/сайдбар/навигация)
+const ManagerOrdersPage = React.lazy(() => import('./pages/manager/ManagerOrdersPage')); // список заказов
+const ManagerOrderDetailPage = React.lazy(() => import('./pages/manager/ManagerOrderDetailPage')); // детали заказа
+const ManagerIssuesPage = React.lazy(() => import('./pages/manager/ManagerIssuesPage')); // список проблем комплектации
+const ManagerIssueDetailPage = React.lazy(() => import('./pages/manager/ManagerIssueDetailPage')); // детали проблемы
+const ManagerRequestsPage = React.lazy(() => import('./pages/manager/ManagerRequestsPage')); // список обращений клиентов
+const ManagerRequestDetailPage = React.lazy(() => import('./pages/manager/ManagerRequestDetailPage')); // детали обращения
+const ManagerModerationPage = React.lazy(() => import('./pages/manager/ManagerModerationPage')); // модерация отзывов и оценок
+const ManagerReviewDetailPage = React.lazy(() => import('./pages/manager/ManagerReviewDetailPage')); // детали отзыва на товар
+const ManagerFeedbackDetailPage = React.lazy(() => import('./pages/manager/ManagerFeedbackDetailPage')); // детали оценки заказа
 const App: React.FC = () => {
   return (
     <>
@@ -100,6 +114,32 @@ const App: React.FC = () => {
                  <Route path="mine" element={<CourierMine />} />
                  <Route path="history" element={<CourierHistory />} />
                  <Route path="deliveries/:deliveryId" element={<CourierDeliveryPage />} />
+               </Route>
+               {/* Manager — online-first рабочий кабинет. Provider держит
+                   только общие badges/точку/Snackbar; данные страниц загружают
+                   отдельные hooks, чтобы большие очереди не перерисовывали друг друга. */}
+               <Route
+                 path="/manager" // корень кабинета менеджера
+                 element={
+                   // Доступ только с правом «view manager orders».
+                   <RequirePermission permission="view manager orders">
+                     {/* Пока lazy-страница грузится — ничего не рендерим. */}
+                     <React.Suspense fallback={null}>
+                       <ManagerProvider><LayoutManager /></ManagerProvider> {/* общий контекст + каркас кабинета */}
+                     </React.Suspense>
+                   </RequirePermission>
+                 }
+               >
+                 <Route index element={<Navigate to="orders" replace />} /> {/* корень → список заказов */}
+                 <Route path="orders" element={<ManagerOrdersPage />} /> {/* список заказов */}
+                 <Route path="orders/:orderId" element={<ManagerOrderDetailPage />} /> {/* детали заказа */}
+                 <Route path="issues" element={<ManagerIssuesPage />} /> {/* список проблем */}
+                 <Route path="issues/:issueId" element={<ManagerIssueDetailPage />} /> {/* детали проблемы */}
+                 <Route path="requests" element={<ManagerRequestsPage />} /> {/* список обращений */}
+                 <Route path="requests/:requestId" element={<ManagerRequestDetailPage />} /> {/* детали обращения */}
+                 <Route path="moderation" element={<ManagerModerationPage />} /> {/* модерация */}
+                 <Route path="moderation/reviews/:reviewId" element={<ManagerReviewDetailPage />} /> {/* отзыв на товар */}
+                 <Route path="moderation/feedback/:feedbackId" element={<ManagerFeedbackDetailPage />} /> {/* оценка заказа */}
                </Route>
           </Routes>
         </AuthProvider>

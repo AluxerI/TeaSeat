@@ -16,6 +16,17 @@ export interface User {
   is_active: boolean;
   roles: string[];
   permissions: string[];
+  // Точки (склады/магазины), привязанные к сотруднику. Менеджер выбирает
+  // из них рабочую точку в кабинете.
+  work_locations?: Array<{
+    id: number; // id точки
+    name: string; // название точки
+    city?: string | null; // город точки
+    type: string; // тип точки (магазин/склад)
+    is_online_fulfillment_enabled?: boolean; // обслуживает ли точка онлайн-заказы
+    is_delivery_hub?: boolean; // является ли точка хабом доставки
+  }>;
+  capabilities?: Record<string, boolean>; // произвольные флаги возможностей пользователя
   stats: {
     orders_count: number;
     reviews_count: number;

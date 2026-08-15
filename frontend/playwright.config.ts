@@ -19,7 +19,9 @@ export default defineConfig({
   webServer: {
     // Не используем общий `npm run dev -- --host`: в изолированном CI Vite
     // может не иметь права перечислять сетевые интерфейсы. Loopback достаточен.
-    command: "npx vite --host 127.0.0.1 --port 4173",
+    // Локальный бинарник не обращается к npm registry и одинаково работает
+    // в offline CI и на машине разработчика после npm ci.
+    command: "./node_modules/.bin/vite --host 127.0.0.1 --port 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
   },

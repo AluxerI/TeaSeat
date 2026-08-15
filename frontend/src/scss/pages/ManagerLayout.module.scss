@@ -1,0 +1,143 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$drawer-width: 232px;
+$header-height: 72px;
+$bottom-height: 72px;
+$surface: #ffffff;
+$page: #faf5ee;
+$border: #ece2d4;
+$text: #3a2c22;
+$muted: #74685d;
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: $page;
+  color: $text;
+}
+
+.appBar {
+  z-index: 1300 !important;
+  background: rgba($surface, 0.96) !important;
+  border-bottom: 1px solid $border;
+  color: $text !important;
+  backdrop-filter: blur(12px);
+}
+
+.toolbar {
+  min-height: $header-height !important;
+  gap: spacing(sm);
+  padding: env(safe-area-inset-top) spacing(md) 0 !important;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    padding-left: spacing(lg) !important;
+  }
+}
+
+.brandIcon {
+  @include flex-centre;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 14px;
+  background: opacity-change("rgba", $color-primary-tea, 0.14);
+  color: $color-primary-tea;
+}
+
+.heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  color: $muted;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.05em !important;
+  text-transform: uppercase;
+}
+
+.title {
+  font-family: "Unbounded Variable", Unbounded, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+}
+
+.warehouseSelect {
+  min-width: 190px;
+  background: $surface;
+
+  @media (max-width: 600px) {
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+    overflow: hidden;
+  }
+}
+
+.drawer {
+  width: $drawer-width;
+  flex-shrink: 0;
+}
+
+.drawerPaper {
+  width: $drawer-width;
+  box-sizing: border-box;
+  padding: calc(#{$header-height} + #{spacing(md)}) spacing(sm) spacing(md);
+  border-right: 1px solid $border !important;
+  background: $surface !important;
+}
+
+.navList {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xxs);
+
+  :global(.MuiListItemButton-root) {
+    border-radius: 14px;
+  }
+
+  :global(.Mui-selected) {
+    background: opacity-change("rgba", $color-primary-tea, 0.14) !important;
+    color: adjust-brightness($color-primary-tea, -18%);
+  }
+}
+
+.content {
+  padding-top: $header-height;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    margin-left: $drawer-width;
+  }
+}
+
+.offlineAlert {
+  border-radius: 0 !important;
+}
+
+.main {
+  padding: spacing(md) spacing(md) calc(#{$bottom-height} + #{spacing(lg)}) !important;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    padding: spacing(lg) !important;
+  }
+}
+
+.bottomNav {
+  position: fixed;
+  z-index: 1200;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: $bottom-height !important;
+  padding-bottom: env(safe-area-inset-bottom);
+  border-top: 1px solid $border;
+  background: $surface !important;
+
+  :global(.MuiBottomNavigationAction-root) {
+    min-width: 64px;
+    padding-inline: spacing(xxs);
+    color: $muted;
+  }
+}
