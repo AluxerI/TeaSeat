@@ -300,7 +300,8 @@ class UserResource extends Resource
                                             $html .= '<td class="border p-2">' . $discount->value . '%</td>';
                                             $html .= '<td class="border p-2">' . ($discount->pivot->is_used ? 'Использована' : 'Активна') . '</td>';
                                             $html .= '<td class="border p-2">' . $discount->pivot->used_count . '</td>';
-                                            $html .= '<td class="border p-2">' . $discount->pivot->activated_at->format('d.m.Y H:i') . '</td>';
+                                            $activatedAt = $discount->pivot->activated_at;
+                                            $html .= '<td class="border p-2">' . ($activatedAt ? \Carbon\Carbon::parse($activatedAt)->format('d.m.Y H:i') : '—') . '</td>';
                                             $html .= '</tr>';
                                         }
                                         

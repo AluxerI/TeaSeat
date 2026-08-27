@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useState,
   type ReactNode,
 } from "react";
 import {
@@ -15,7 +16,8 @@ import {
   startCourierDelivery,
 } from "./api";
 import { StaffApiError, toStaffApiError } from "./errors";
-import { courierReducer, createCourierPwaState } from "./reducer";
+import { persistCourierState, restoreCourierState } from "./cache";
+import { courierReducer } from "./reducer";
 import { selectList } from "./selectors";
 import { useOnlineStatus } from "./useOnlineStatus";
 import type {
@@ -31,6 +33,8 @@ export interface CourierContextValue {
   queue: CourierDelivery[];
   mine: CourierDelivery[];
   history: CourierDelivery[];
+  warehouseId: number | null;
+  setWarehouseId(id: number | null): void;
   refreshList(
     key: CourierListKey,
     filters?: CourierDeliveryFilters,
@@ -57,13 +61,20 @@ export function CourierProvider({ children }: { children: ReactNode }) {
   const online = useOnlineStatus();
   const [state, dispatch] = useReducer(
     courierReducer,
-    undefined,
-    () => createCourierPwaState(online),
+    online,
+    restoreCourierState,
   );
+  const [warehouseId, setWarehouseId] = useState<number | null>(null);
 
   useEffect(() => {
     dispatch({ type: "network/changed", online });
   }, [online]);
+
+  // Context переживает переходы между страницами, Web Storage — перезапуск
+  // вкладки. Сохраняется только успешный GET-state, но не команды и ошибки.
+  useEffect(() => {
+    persistCourierState(state);
+  }, [state]);
 
   const refreshList = useCallback(
     async (
@@ -71,10 +82,16 @@ export function CourierProvider({ children }: { children: ReactNode }) {
       filters: CourierDeliveryFilters = {},
       append = false,
     ) => {
+      // В offline не затираем сохранённые карточки сетевой ошибкой. Кнопки POST
+      // всё равно блокируются отдельно, а polling возобновится после online.
+      if (!online) return;
       // Сначала включаем loading, затем заменяем его данными или понятной ошибкой.
       dispatch({ type: "list/requested", key });
       try {
-        const response = await fetchCourierDeliveries(filters);
+        const response = await fetchCourierDeliveries({
+          ...filters,
+          ...(warehouseId !== null ? { warehouse_id: warehouseId } : {}),
+        });
         dispatch({
           type: "list/received",
           key,
@@ -88,7 +105,7 @@ export function CourierProvider({ children }: { children: ReactNode }) {
         dispatch({ type: "list/failed", key, error: apiError });
       }
     },
-    [],
+    [online, warehouseId],
   );
 
   const loadNextPage = useCallback(
@@ -194,6 +211,8 @@ export function CourierProvider({ children }: { children: ReactNode }) {
       queue: selectList(state, "queue"),
       mine: selectList(state, "mine"),
       history: selectList(state, "history"),
+      warehouseId,
+      setWarehouseId,
       refreshList,
       loadNextPage,
       loadDelivery,
@@ -205,6 +224,8 @@ export function CourierProvider({ children }: { children: ReactNode }) {
     }),
     [
       state,
+      warehouseId,
+      setWarehouseId,
       refreshList,
       loadNextPage,
       loadDelivery,

@@ -52,7 +52,7 @@ $muted: #74685d;
 
 .eyebrow {
   color: $muted;
-  font-size: 10px !important;
+  font-size: 9px !important;
   font-weight: 800 !important;
   letter-spacing: 0.05em !important;
   text-transform: uppercase;
@@ -67,6 +67,14 @@ $muted: #74685d;
 .warehouseSelect {
   min-width: 190px;
   background: $surface;
+
+  :global(.MuiSelect-select) {
+    font-size: $font-unit * 1.875 !important;
+  }
+
+  :global(.MuiMenuItem-root) {
+    font-size: $font-unit * 1.875 !important;
+  }
 
   @media (max-width: 600px) {
     width: 42px;
@@ -96,6 +104,10 @@ $muted: #74685d;
 
   :global(.MuiListItemButton-root) {
     border-radius: 14px;
+  }
+
+  :global(.MuiListItemText-root) {
+    font-size: $font-unit * 2 !important;
   }
 
   :global(.Mui-selected) {
@@ -139,5 +151,6 @@ $muted: #74685d;
     min-width: 64px;
     padding-inline: spacing(xxs);
     color: $muted;
+    font-size: $font-unit * 2 !important;
   }
 }

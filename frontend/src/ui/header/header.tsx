@@ -1,5 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
+import { useCustomerCart } from "../../hooks/useCustomerCart";
 import "./../../scss/main.scss";
 
 function MenuIcon({ size = 22 }: { size?: number }) {
@@ -66,9 +68,35 @@ function Logo() {
 }
 
 export default function Header() {
+  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { user, isAuthenticated, isAdmin, loading, logout } = useAuth();
+  const {
+    cart,
+    loading: cartLoading,
+    initialized: cartInitialized,
+    itemCount,
+    refreshCart,
+    openMiniCart,
+  } = useCustomerCart();
+
+  // Шапка загружает корзину один раз, чтобы Badge был правильным и после
+  // обновления страницы. Ошибка появится внутри Drawer при его открытии.
+  useEffect(() => {
+    if (isAuthenticated && !cartInitialized && !cartLoading) {
+      void refreshCart().catch(() => undefined);
+    }
+  }, [cartInitialized, cartLoading, isAuthenticated, refreshCart]);
+
+  const handleCartClick = () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: "/cart" } });
+      return;
+    }
+    openMiniCart();
+    if (!cart && !cartLoading) void refreshCart().catch(() => undefined);
+  };
 
   const leftNav = [
     { label: "Главная",  href: "#" },
@@ -148,8 +176,17 @@ export default function Header() {
             <button className="header__icon-btn" aria-label="Избранное">
               <HeartIcon size={20} />
             </button>
-            <button className="header__icon-btn" aria-label="Корзина" id="constructor-cart-target">
+            {/* id остаётся целью анимации конструктора, но клик теперь открывает
+                общий Drawer без ухода с текущей страницы. */}
+            <button
+              type="button"
+              className="header__icon-btn header__cart-button"
+              aria-label={itemCount ? `Корзина, позиций: ${itemCount}` : "Корзина"}
+              id="constructor-cart-target"
+              onClick={handleCartClick}
+            >
               <CartIcon size={20} />
+              {itemCount > 0 && <span className="header__cart-badge">{itemCount > 99 ? "99+" : itemCount}</span>}
             </button>
 
             {loading ? (
@@ -180,7 +217,7 @@ export default function Header() {
                         <a href="/admin" className="header__user-dropdown-item">Админка</a>
                       )}
                       <a href="/profile" className="header__user-dropdown-item">Профиль</a>
-                      <a href="/orders" className="header__user-dropdown-item">Заказы</a>
+                      <a href="/profile?section=orders" className="header__user-dropdown-item">Заказы</a>
                       <hr className="header__user-dropdown-divider" />
                       <button
                         className="header__user-dropdown-item header__user-dropdown-item--danger"

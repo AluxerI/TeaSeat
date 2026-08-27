@@ -47,13 +47,14 @@ function order(overrides: Partial<PickerOrder> = {}): PickerOrder {
   };
 }
 
-function pickerValue(overrides: Partial<Record<"queue" | "myOrders" | "take" | "loading" | "error" | "refresh", unknown>> = {}) {
+function pickerValue(overrides: Partial<Record<"queue" | "myOrders" | "take" | "loading" | "error" | "refresh" | "online", unknown>> = {}) {
   return {
     queue: [],
     myOrders: [],
     take: vi.fn(),
     loading: false,
     error: null,
+    online: true,
     refresh: vi.fn(),
     ...overrides,
   };
@@ -82,7 +83,8 @@ describe("PickerQueuePage", () => {
 
   it("в mine-режиме показывает пустое состояние моей работы", () => {
     renderQueue("mine", pickerValue());
-    expect(screen.getByText("Вы не взяли ни одного заказа")).toBeInTheDocument();
+    expect(screen.getByText("Активных заданий нет")).toBeInTheDocument();
+    expect(screen.getByText(/после завершения они уходят из списка/)).toBeInTheDocument();
   });
 
   it("рисует карточку заказа и берёт его по кнопке", async () => {

@@ -1,56 +1,49 @@
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Box, Button, Chip, Paper, Typography } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import HandymanIcon from "@mui/icons-material/Handyman";
-import { fetchIncomingTransfers } from "../../picker/api";
+import { usePageVisibility } from "../../hooks/usePageVisibility";
+import { useRecursivePolling } from "../../hooks/useRecursivePolling";
 import { usePicker } from "../../picker/PickerContext";
 import type { PickerOrder } from "../../picker/types";
 import styles from "../../scss/pages/PickerTransfers.module.scss";
 
-/** Страница «Трансферы»: заказы, собранные на другом складе и едущие к нам.
- *  Сборщик принимает их кнопкой «Принять» — товар считается приехавшим.
- *  Список хранится локально на странице (в контекст он не входит). */
+/** Страница «Трансферы»: упаковки, которые курьер уже привёз на одну из
+ *  назначенных сборщику точек. До прибытия они находятся у courier, поэтому
+ *  здесь появятся только после статуса `awaiting_receipt`. */
 export default function PickerTransfersPage() {
-  const { receive } = usePicker();
-  const [transfers, setTransfers] = useState<PickerOrder[]>([]);
-  const [fetching, setFetching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    receive,
+    transfers,
+    transfersLoading,
+    transfersError,
+    refreshTransfers,
+    online,
+  } = usePicker();
+  const visiblePage = usePageVisibility();
   const [busyId, setBusyId] = useState<number | null>(null); // какой заказ сейчас принимаем
+  const [commandError, setCommandError] = useState<string | null>(null);
 
-  // Загрузка списка входящих трансферов с сервера.
-  const load = useCallback(async () => {
-    setFetching(true);
-    setError(null);
-    try {
-      const res = await fetchIncomingTransfers();
-      setTransfers(res.data);
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Не удалось загрузить трансферы"
-      );
-    } finally {
-      setFetching(false);
-    }
-  }, []);
-
-  // При открытии страницы — сразу грузим список.
-  useEffect(() => {
-    load();
-  }, [load]);
+  // В отличие от прежнего локального state, данные теперь переживают переходы
+  // между страницами и сохраняются как read-only snapshot для offline-start.
+  useRecursivePolling({
+    enabled: online && visiblePage,
+    intervalMs: 30_000,
+    refresh: refreshTransfers,
+  });
 
   // «Принять»: вызываем действие из контекста (оно дёргает API),
   // затем перезагружаем список — принятый трансфер из него исчезнет.
   const accept = async (orderId: number) => {
     setBusyId(orderId);
-    setError(null);
+    setCommandError(null);
     try {
       await receive(orderId);
-      await load();
     } catch (err) {
-      setError(
+      setCommandError(
         err instanceof Error ? err.message : "Не удалось принять трансфер"
       );
     } finally {
@@ -65,16 +58,29 @@ export default function PickerTransfersPage() {
         <Typography component="h1" className={styles.pageTitle}>
           Входящие трансферы
         </Typography>
-        <Button variant="outlined" size="small" onClick={load} disabled={fetching}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => refreshTransfers()}
+          disabled={transfersLoading || !online}
+        >
           Обновить
         </Button>
       </Box>
 
-      {error && <Typography className={styles.errorText}>{error}</Typography>}
+      <Typography className={styles.pageSubtitle}>
+        Здесь только уже прибывшие межскладские упаковки, ожидающие вашей приёмки
+      </Typography>
+
+      {(transfersError || commandError) && (
+        <Typography className={styles.errorText}>
+          {commandError ?? transfersError}
+        </Typography>
+      )}
 
       {/* Список трансферов; если пусто — подсказка */}
       <Box className={styles.orderList}>
-        {!fetching && transfers.length === 0 && (
+        {!transfersLoading && transfers.length === 0 && (
           <Box className={styles.emptyWrap}>
             <SwapHorizIcon className={styles.emptyIcon} />
             <Typography className={styles.emptyText}>
@@ -87,6 +93,7 @@ export default function PickerTransfersPage() {
             key={order.id}
             order={order}
             busy={busyId === order.id}
+            online={online}
             onAccept={() => accept(order.id)}
           />
         ))}
@@ -99,10 +106,12 @@ export default function PickerTransfersPage() {
 function TransferCard({
   order,
   busy,
+  online,
   onAccept,
 }: {
   order: PickerOrder;
   busy: boolean;
+  online: boolean;
   onAccept: () => void;
 }) {
   const giftCount = order.gifts.length;
@@ -155,7 +164,7 @@ function TransferCard({
             className={styles.receiveBtn}
             startIcon={<CheckCircleIcon />}
             onClick={onAccept}
-            disabled={busy}
+            disabled={busy || !online}
           >
             {busy ? "Приём..." : "Принять"}
           </Button>

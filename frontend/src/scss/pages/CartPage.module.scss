@@ -1,6 +1,7 @@
 @import "../abstracts/variable";
 @import "../abstracts/functions";
 
+// Локальная чайно-кофейная палитра. Отступы и размеры берём из функций проекта.
 $color-bg-page: #faf5ee;
 $color-surface: #ffffff;
 $color-border: #ece2d4;
@@ -70,7 +71,7 @@ $color-danger: #c9564e;
 .backButton {
   color: $color-text-secondary !important;
   text-transform: none !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   padding: 0 !important;
 
   &:hover {
@@ -83,8 +84,25 @@ $color-danger: #c9564e;
   font-size: 28px !important;
   font-weight: 700 !important;
   color: $color-text-primary;
-  margin-bottom: spacing(lg) !important;
+  margin: 0 !important;
 }
+
+.titleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: spacing(md);
+  margin: spacing(md) 0 spacing(lg);
+}
+
+.selectAll {
+  color: $color-text-secondary;
+  :global(.MuiCheckbox-root) { color: #a58b72; }
+  :global(.Mui-checked),
+  :global(.MuiCheckbox-indeterminate) { color: $color-accent !important; }
+}
+
+.inlineAlert { margin-bottom: spacing(md); }
 
 .cartLayout {
   display: flex;
@@ -117,6 +135,33 @@ $color-danger: #c9564e;
 
   &:hover {
     background-color: #fbf8f3;
+  }
+}
+
+.giftCard {
+  // Тёплый фон отделяет собранный подарок от обычной товарной строки.
+  background: linear-gradient(135deg, #fffdf9, #f7eee2);
+}
+
+.giftImage {
+  display: grid;
+  place-items: center;
+  color: #8f6548;
+  background: #ead8c4 !important;
+  svg { font-size: 34px; }
+}
+
+.giftComponents {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(xs);
+  margin-top: spacing(xs);
+  span {
+    padding: 3px spacing(xs);
+    border-radius: 999px;
+    background: #f1e4d4;
+    color: $color-text-secondary;
+    font-size: font-size(caption);
   }
 }
 
@@ -167,7 +212,7 @@ $color-danger: #c9564e;
   height: 32px !important;
   padding: 0 !important;
   border-radius: 0 !important;
-  font-size: 16px !important;
+  font-size: 18px !important;
   font-weight: 600 !important;
   color: $color-text-primary !important;
 
@@ -303,7 +348,7 @@ $color-danger: #c9564e;
   color: #ffffff !important;
   text-transform: none !important;
   font-weight: 700 !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   padding: 12px 22px !important;
   border-radius: 10px !important;
   margin-top: spacing(sm) !important;
@@ -318,12 +363,19 @@ $color-danger: #c9564e;
   }
 }
 
+.selectionHint {
+  color: $color-text-secondary;
+  font-size: font-size(caption) !important;
+  line-height: 1.45 !important;
+  text-align: center;
+}
+
 .secondaryButton {
   border-color: $color-text-primary !important;
   color: $color-text-primary !important;
   text-transform: none !important;
   font-weight: 600 !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   border-radius: 10px !important;
 
   &:hover {
@@ -333,6 +385,14 @@ $color-danger: #c9564e;
 }
 
 .itemUpdating {
+  // Пока строка сохраняется, блокируем повторные действия только внутри неё.
   opacity: 0.5;
   pointer-events: none;
+}
+
+@media (max-width: 640px) {
+  .titleRow { align-items: flex-start; flex-direction: column; }
+  .itemCard { position: relative; align-items: flex-start; flex-wrap: wrap; }
+  .itemImage { flex-basis: 64px; height: 64px; }
+  .itemRight { width: 100%; flex-direction: row; align-items: center; justify-content: flex-end; }
 }

@@ -30,6 +30,12 @@ $color-matcha: #87a617;
   margin: 0 !important;
 }
 
+.pageSubtitle {
+  color: $color-text-secondary;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
 .tabs {
   border-bottom: 1px solid $color-border;
 

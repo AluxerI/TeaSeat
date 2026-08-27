@@ -8,7 +8,10 @@ import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import OrderPage from './pages/Order';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 import { AuthProvider } from './contexts/AuthContext';
+import { CustomerCartProvider } from './contexts/CustomerCartContext';
+import MiniCartDrawer from './components/cart/MiniCartDrawer';
 import { SellerProvider } from './contexts/SellerContext';
 import LayoutSeller from './layouts/LayoutSeller';
 import SellerDashboardPage from './pages/seller/DashboardPage';
@@ -51,6 +54,7 @@ const App: React.FC = () => {
     <>
       <BrowserRouter>
         <AuthProvider>
+          <CustomerCartProvider>
            <Routes>
              <Route path='/' element={<Navigate to='/catalog' replace />} />
              <Route path='*' element={<Navigate to='/catalog' replace />} />
@@ -61,7 +65,10 @@ const App: React.FC = () => {
              <Route path='login' Component={LoginPage}/>
              <Route path='profile' Component={ProfilePage}/>
              <Route path='order/:id' Component={OrderPage}/>
+             {/* Покупатель собирает выбор в корзине, оформляет его на checkout
+                 и после успешного POST переходит на созданный заказ. */}
              <Route path='cart' Component={CartPage}/>
+             <Route path='checkout' Component={CheckoutPage}/>
              <Route
                path='constructor'
                element={
@@ -142,6 +149,11 @@ const App: React.FC = () => {
                  <Route path="moderation/feedback/:feedbackId" element={<ManagerFeedbackDetailPage />} /> {/* оценка заказа */}
                </Route>
           </Routes>
+          {/* Один Drawer обслуживает все покупательские страницы. Если
+              разместить его в каждой странице, при навигации терялся бы фокус
+              и создавались бы дублирующиеся модальные слои. */}
+          <MiniCartDrawer />
+          </CustomerCartProvider>
         </AuthProvider>
       </BrowserRouter>
     </>

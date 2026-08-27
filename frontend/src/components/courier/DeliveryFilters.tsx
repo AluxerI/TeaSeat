@@ -7,7 +7,7 @@ export type DeliveryKindFilter = DeliveryKind | "all";
 const KIND_TABS: Array<{ value: DeliveryKindFilter; label: string }> = [
   { value: "all", label: "Все" },
   { value: "customer", label: "Клиентам" },
-  { value: "transfer", label: "Трансферы" },
+  // { value: "transfer", label: "Трансферы" },
 ];
 
 /**

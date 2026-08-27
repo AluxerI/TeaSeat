@@ -13,7 +13,7 @@ use App\Http\Controllers\User\ShowCurrentUserController;
 use App\Http\Controllers\Auth\DeleteAccountController;
 use App\Http\Controllers\Auth\LogoutFromAllDevicesController;
 use App\Http\Controllers\Auth\SessionController;
-use App\Http\Controllers\cart\CheckoutController;
+use App\Http\Controllers\Cart\CheckoutController;
 use App\Http\Controllers\Cart\QuoteController;
 use App\Http\Controllers\Order\Admin\AdminOrderActionController;
 use App\Http\Controllers\Order\Admin\AdminOrderController;

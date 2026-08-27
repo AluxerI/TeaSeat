@@ -91,8 +91,11 @@ export const sellerTheme = createTheme({
       fontWeight: 600,
       fontSize: "0.9rem",
     },
-    body1: { fontWeight: 500 },
-    button: { textTransform: "none", fontWeight: 700 },
+    // Те же размеры, что приняты в manager PWA: основной текст 18px,
+    // компактные подписи/контролы 15px. Это убирает разнобой между ролями.
+    body1: { fontWeight: 500, fontSize: "18px" },
+    body2: { fontWeight: 500, fontSize: "15px" },
+    button: { textTransform: "none", fontWeight: 700, fontSize: "15px" },
   },
   components: {
     MuiPaper: {
@@ -108,7 +111,12 @@ export const sellerTheme = createTheme({
     MuiButton: {
       defaultProps: { disableElevation: true },
       styleOverrides: {
-        root: { borderRadius: 12, padding: "10px 20px", fontWeight: 700 },
+        root: {
+          borderRadius: 12,
+          padding: "10px 20px",
+          fontWeight: 700,
+          fontSize: "15px",
+        },
         containedPrimary: {
           "&:hover": { backgroundColor: sellerColors.matchaDark },
         },
@@ -126,12 +134,35 @@ export const sellerTheme = createTheme({
       },
     },
     MuiChip: {
-      styleOverrides: { root: { fontWeight: 700, borderRadius: 8 } },
+      styleOverrides: {
+        root: { fontWeight: 700, borderRadius: 8, fontSize: "15px" },
+      },
+    },
+    MuiTab: {
+      styleOverrides: { root: { fontSize: "15px" } },
+    },
+    MuiInputLabel: {
+      styleOverrides: { root: { fontSize: "15px" } },
+    },
+    MuiFormLabel: {
+      styleOverrides: { root: { fontSize: "15px" } },
+    },
+    MuiMenuItem: {
+      styleOverrides: { root: { fontSize: "15px" } },
     },
     MuiBottomNavigationAction: {
       styleOverrides: {
-        root: { borderRadius: 16 },
-        label: { fontWeight: 700, fontSize: "0.72rem" },
+        root: {
+          borderRadius: 16,
+          fontSize: "15px",
+          // Стандартная MUI-иконка 24px; +4px лучше читается в мобильной PWA.
+          "& .MuiSvgIcon-root": { fontSize: "28px" },
+        },
+        label: {
+          fontWeight: 700,
+          fontSize: "15px",
+          "&.Mui-selected": { fontSize: "15px" },
+        },
       },
     },
     MuiDialog: {

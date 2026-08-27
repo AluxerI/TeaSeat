@@ -215,3 +215,75 @@ $danger: #c9564e;
 }
 
 .preWrap { white-space: pre-wrap; }
+
+// ── Глобальные переопределения MUI ────────────────────────────────────────────
+// Диалоги: заголовок +2px (caption * 2.75 = 22px).
+:global(.MuiDialogTitle-root) {
+  font-size: $font-unit * 2.75 !important;
+}
+
+// Кнопки: +1px (caption * 1.875 = 15px).
+:global(.MuiButton-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Алерты: +2px (caption * 2 = 16px).
+:global(.MuiAlert-root) {
+  font-size: $font-unit * 2 !important;
+}
+
+// Чипы (статус, канал, клиент): +1px (caption * 1.875 = 15px).
+:global(.MuiChip-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Табы: +1px (caption * 1.875 = 15px).
+:global(.MuiTab-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Лейблы (InputLabel / FormLabel): +1px (caption * 1.875 = 15px).
+:global(.MuiInputLabel-root),
+:global(.MuiFormLabel-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Селекты (MenuItem): +1px (caption * 1.875 = 15px).
+:global(.MuiMenuItem-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Таблицы/строки деталей: текст +1px (caption * 1.875 = 15px).
+.row {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Панели: заголовки секций +1px (caption * 2.125 = 17px).
+.sectionTitle {
+  font-size: $font-unit * 2.125 !important;
+}
+
+// Заголовки карточек +1px (caption * 2.375 = 19px).
+.cardTitle {
+  font-size: $font-unit * 2.375 !important;
+}
+
+// Мета-текст +1px (caption * 1.75 = 14px).
+.meta {
+  font-size: $font-unit * 1.75 !important;
+}
+
+// Метрики: значение +1px (caption * 2.625 = 21px).
+.metricValue {
+  font-size: $font-unit * 2.625 !important;
+}
+
+// Пустые состояния: заголовок +1px (caption * 2.375 = 19px).
+.emptyTitle {
+  font-size: $font-unit * 2.375 !important;
+}
+
+// Typography body1 (дефолтный <p>): +2px (caption * 2.25 = 18px).
+:global(.MuiTypography-body1) {
+  font-size: $font-unit * 2.25 !important;
+}

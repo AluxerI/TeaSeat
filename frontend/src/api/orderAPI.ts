@@ -1,29 +1,25 @@
 import { api } from "./api";
+import { unwrapData } from "./unwrap";
 import type { Order } from "../interfaces/order";
 
 const ORDERS_PATH = "/api/orders";
 
-export interface CancelResponse {
-  message: string;
-  data: Order;
-}
-
+/** API заказов текущего покупателя. Пользователь определяется Sanctum-сессией. */
 export const orderApi = {
-  /** Получить список заказов текущего пользователя */
   async getOrders(): Promise<Order[]> {
-    const { data } = await api.get<Order[]>(ORDERS_PATH);
-    return data;
+    const response = await api.get<Order[] | { data: Order[] }>(ORDERS_PATH);
+    return unwrapData(response.data);
   },
 
-  /** Получить детали одного заказа */
   async getOrder(orderId: number): Promise<Order> {
-    const { data } = await api.get<Order>(`${ORDERS_PATH}/${orderId}`);
-    return data;
+    const response = await api.get<Order | { data: Order }>(`${ORDERS_PATH}/${orderId}`);
+    return unwrapData(response.data);
   },
 
-  /** Отменить заказ */
-  async cancelOrder(orderId: number): Promise<CancelResponse> {
-    const { data } = await api.put<CancelResponse>(`${ORDERS_PATH}/${orderId}/cancel`);
-    return data;
+  // CancelController возвращает обновлённый ресурс заказа; отдельный message
+  // интерфейсу не нужен.
+  async cancelOrder(orderId: number): Promise<Order> {
+    const response = await api.put<Order | { data: Order }>(`${ORDERS_PATH}/${orderId}/cancel`);
+    return unwrapData(response.data);
   },
 };

@@ -40,6 +40,10 @@ $delivery-actions-height: 72px;
   border-radius: 14px;
   background: rgba($color-primary-tea, 0.14);
   color: $color-primary-tea;
+
+  :global(.MuiSvgIcon-root) {
+    font-size: 28px;
+  }
 }
 
 .heading {
@@ -69,6 +73,20 @@ $delivery-actions-height: 72px;
     :global(.MuiChip-label) {
       display: none;
     }
+  }
+}
+
+.warehouseSelect {
+  flex-shrink: 0;
+  min-width: 120px;
+  font-size: $font-unit * 1.875 !important;
+
+  :global(.MuiSelect-select) {
+    font-weight: 600 !important;
+  }
+
+  @media (max-width: 420px) {
+    min-width: 100px;
   }
 }
 
@@ -105,6 +123,10 @@ $delivery-actions-height: 72px;
   :global(.MuiBottomNavigationAction-root) {
     min-width: 72px;
     color: $color-muted;
+  }
+
+  :global(.MuiBottomNavigationAction-root .MuiSvgIcon-root) {
+    font-size: 28px;
   }
 
   :global(.Mui-selected) {

@@ -11,10 +11,11 @@ const mocks = vi.hoisted(() => ({
   releaseCourierDelivery: vi.fn(),
   startCourierDelivery: vi.fn(),
   deliverCourierDelivery: vi.fn(),
+  online: true,
 }));
 
 vi.mock("./api", () => mocks);
-vi.mock("./useOnlineStatus", () => ({ useOnlineStatus: () => true }));
+vi.mock("./useOnlineStatus", () => ({ useOnlineStatus: () => mocks.online }));
 
 import { CourierProvider } from "./CourierContext";
 import { useCourier } from "./useCourier";
@@ -34,8 +35,22 @@ function Probe() {
   );
 }
 
+function OfflineProbe() {
+  const { claim, state } = useCourier();
+  return (
+    <div>
+      <span>{state.online ? "online" : "offline"}</span>
+      <button onClick={() => void claim(17).catch(() => undefined)}>claim offline</button>
+    </div>
+  );
+}
+
 beforeEach(() => {
-  Object.values(mocks).forEach((mock) => mock.mockReset());
+  localStorage.clear();
+  Object.values(mocks).forEach((value) => {
+    if (typeof value === "function" && "mockReset" in value) value.mockReset();
+  });
+  mocks.online = true;
   mocks.fetchCourierDeliveries.mockResolvedValue({ data: [], meta: paginationMeta({ total: 0 }) });
 });
 
@@ -62,5 +77,16 @@ describe("CourierProvider", () => {
     expect(await screen.findByText("mine:1")).toBeInTheDocument();
     expect(screen.getByText("notice:Доставка назначена курьеру")).toBeInTheDocument();
     await waitFor(() => expect(mocks.fetchCourierDeliveries).toHaveBeenCalledTimes(3));
+  });
+
+  it("offline не отправляет POST-команду изменения статуса", async () => {
+    mocks.online = false;
+    render(<CourierProvider><OfflineProbe /></CourierProvider>);
+
+    expect(screen.getByText("offline")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "claim offline" }));
+
+    expect(mocks.claimCourierDelivery).not.toHaveBeenCalled();
+    expect(await screen.findByText("offline")).toBeInTheDocument();
   });
 });

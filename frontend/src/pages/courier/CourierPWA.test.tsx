@@ -52,7 +52,7 @@ describe("CourierPWA", () => {
   it("хранит выбранный тип в URL", async () => {
     mocks.useCourier.mockReturnValue(courierValue());
     render(<MemoryRouter initialEntries={["/courier"]}><CourierPWA /></MemoryRouter>);
-    await userEvent.click(screen.getByRole("tab", { name: "Трансферы" }));
-    expect(screen.getByRole("tab", { name: "Трансферы" })).toHaveAttribute("aria-selected", "true");
+    await userEvent.click(screen.getByRole("tab", { name: "Клиентам" }));
+    expect(screen.getByRole("tab", { name: "Клиентам" })).toHaveAttribute("aria-selected", "true");
   });
 });

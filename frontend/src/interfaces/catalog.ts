@@ -1,5 +1,6 @@
 import { Warehouse } from "./warehouse";
 import Images from "../utils/Images";
+import type { StockUnit } from "../types/productMeasurement";
 
 /** Категория товаров с вложенными подкатегориями */
 export interface Category {
@@ -35,10 +36,15 @@ export interface Product {
     type: string;
     value: number;
     code: string;
-  };
+  } | null;
   discount_percent: number;
   galery: typeof Images[];
   weight_grams: number;
+  // Backend задаёт единицу хранения, минимальный шаг продажи и количество,
+  // за которое указана цена. Это особенно важно для развесного чая.
+  stock_unit: StockUnit;
+  sale_step: number;
+  price_unit_quantity: number;
   brand: string;
   brand_id: number;
   category_path: {

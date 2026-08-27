@@ -8,16 +8,8 @@ const context = vi.hoisted(() => ({
   usePicker: vi.fn(),
 }));
 
-const apiMocks = vi.hoisted(() => ({
-  fetchIncomingTransfers: vi.fn(),
-}));
-
 vi.mock("../../picker/PickerContext", () => ({
   usePicker: context.usePicker,
-}));
-
-vi.mock("../../picker/api", () => ({
-  fetchIncomingTransfers: apiMocks.fetchIncomingTransfers,
 }));
 
 function order(overrides: Partial<PickerOrder> = {}): PickerOrder {
@@ -54,22 +46,25 @@ function order(overrides: Partial<PickerOrder> = {}): PickerOrder {
   };
 }
 
-function transfersBody(orders: PickerOrder[]) {
+function pickerValue(overrides: Record<string, unknown> = {}) {
   return {
-    data: orders,
-    meta: { current_page: 1, last_page: 1, per_page: 50, total: orders.length },
+    receive: vi.fn(),
+    transfers: [],
+    transfersLoading: false,
+    transfersError: null,
+    refreshTransfers: vi.fn().mockResolvedValue(undefined),
+    online: true,
+    ...overrides,
   };
 }
 
 beforeEach(() => {
-  apiMocks.fetchIncomingTransfers.mockReset();
   context.usePicker.mockReset();
 });
 
 describe("PickerTransfersPage", () => {
   it("пустой список показывает пустое состояние", async () => {
-    apiMocks.fetchIncomingTransfers.mockResolvedValue(transfersBody([]));
-    context.usePicker.mockReturnValue({ receive: vi.fn() });
+    context.usePicker.mockReturnValue(pickerValue());
 
     render(<PickerTransfersPage />);
 
@@ -77,8 +72,7 @@ describe("PickerTransfersPage", () => {
   });
 
   it("рисует карточку трансфера с маршрутом", async () => {
-    apiMocks.fetchIncomingTransfers.mockResolvedValue(transfersBody([order()]));
-    context.usePicker.mockReturnValue({ receive: vi.fn() });
+    context.usePicker.mockReturnValue(pickerValue({ transfers: [order()] }));
 
     render(<PickerTransfersPage />);
 
@@ -88,12 +82,9 @@ describe("PickerTransfersPage", () => {
     expect(screen.getByText(/Флагман/)).toBeInTheDocument();
   });
 
-  it("кнопка «Принять» вызывает receive и обновляет список", async () => {
+  it("кнопка «Принять» вызывает Context-команду", async () => {
     const receive = vi.fn().mockResolvedValue(undefined);
-    apiMocks.fetchIncomingTransfers
-      .mockResolvedValueOnce(transfersBody([order()]))
-      .mockResolvedValueOnce(transfersBody([]));
-    context.usePicker.mockReturnValue({ receive });
+    context.usePicker.mockReturnValue(pickerValue({ receive, transfers: [order()] }));
 
     render(<PickerTransfersPage />);
 
@@ -101,15 +92,27 @@ describe("PickerTransfersPage", () => {
     await userEvent.click(screen.getByRole("button", { name: "Принять" }));
 
     await waitFor(() => expect(receive).toHaveBeenCalledWith(5));
-    expect(await screen.findByText("Входящих трансферов нет")).toBeInTheDocument();
   });
 
   it("показывает ошибку при сбое загрузки", async () => {
-    apiMocks.fetchIncomingTransfers.mockRejectedValue(new Error("Нет связи с сервером"));
-    context.usePicker.mockReturnValue({ receive: vi.fn() });
+    context.usePicker.mockReturnValue(
+      pickerValue({ transfersError: "Нет связи с сервером" }),
+    );
 
     render(<PickerTransfersPage />);
 
     expect(await screen.findByText("Нет связи с сервером")).toBeInTheDocument();
+  });
+
+  it("offline оставляет сохранённые карточки, но выключает обновление и приёмку", () => {
+    context.usePicker.mockReturnValue(
+      pickerValue({ transfers: [order()], online: false }),
+    );
+
+    render(<PickerTransfersPage />);
+
+    expect(screen.getByText("T-0005")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Обновить" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Принять" })).toBeDisabled();
   });
 });

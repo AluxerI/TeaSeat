@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import CatalogHeader from "../components/catalog-part/CatalogHeaderSort/CatalogHeaderProps";
 import FilterPanel, {PRICE_RANGES, FilterState, CategoryTreeNode, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
 import { ProductList } from "../components/productList";
+import ProductQuickViewDialog from "../components/catalog/ProductQuickViewDialog";
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
 import { catalogApi } from "../api/catalogAPI";
@@ -153,6 +154,9 @@ export const PageCatalog = () => {
   // Состояние фильтров — живёт здесь, а FilterPanel только отображает и сообщает об изменениях
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [sortValue, setSortValue] = useState("popular");
+  // На странице существует только один Dialog. Карточки передают сюда
+  // выбранный товар, поэтому сотня товаров не создаёт сотню скрытых окон.
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
   // Загрузка данных с бэкенда (один раз при монтировании)
   const products = useAsync(() => catalogApi.getProducts(), true);
@@ -244,10 +248,16 @@ export const PageCatalog = () => {
             sortValue={sortValue}
             onSortChange={setSortValue}
           />
-          <ProductList products={filtered} categories={categories.data ?? []}/>
+          {/* Карточки получают остаток и правила измерения прямо из ProductResource. */}
+          <ProductList products={filtered} onQuickView={setQuickViewProduct}/>
         </div>
       </span>
       <Footer />
+      <ProductQuickViewDialog
+        product={quickViewProduct}
+        open={quickViewProduct !== null}
+        onClose={() => setQuickViewProduct(null)}
+      />
     </>
   );
 };

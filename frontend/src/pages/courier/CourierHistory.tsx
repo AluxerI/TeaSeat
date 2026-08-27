@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { Box, Button, Skeleton, Typography } from "@mui/material";
 import HistoryOutlinedIcon from "@mui/icons-material/HistoryOutlined";
+import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { CourierEmptyState } from "../../components/courier/CourierEmptyState";
 import { DeliveryCard } from "../../components/courier/DeliveryCard";
@@ -9,6 +10,8 @@ import {
   type DeliveryKindFilter,
 } from "../../components/courier/DeliveryFilters";
 import { useCourier } from "../../courier/useCourier";
+import { useCourierPolling } from "../../courier/useCourierPolling";
+import { usePageVisibility } from "../../courier/usePageVisibility";
 import type { CourierDeliveryFilters } from "../../courier/types";
 import styles from "../../scss/pages/CourierShared.module.scss";
 
@@ -16,6 +19,7 @@ export default function CourierHistory() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { state, history, refreshList, loadNextPage } = useCourier();
+  const visiblePage = usePageVisibility();
   const kind = (searchParams.get("kind") as DeliveryKindFilter | null) ?? "all";
   const filters = useMemo<CourierDeliveryFilters>(
     () => ({
@@ -27,11 +31,18 @@ export default function CourierHistory() {
     [kind],
   );
 
-  // History статична относительно активной работы: загружаем при входе/смене
-  // фильтра, но не держим для неё отдельный polling-таймер.
-  useEffect(() => {
-    if (state.online) void refreshList("history", filters);
-  }, [filters, refreshList, state.online]);
+  const refresh = useCallback(
+    () => refreshList("history", filters),
+    [filters, refreshList],
+  );
+
+  // История меняется реже активных доставок, поэтому проверяем её раз в минуту.
+  // Это также покрывает второй девайс курьера без лишней нагрузки на backend.
+  useCourierPolling({
+    enabled: state.online && visiblePage,
+    intervalMs: 60_000,
+    refresh,
+  });
 
   const listState = state.lists.history;
   const firstLoad = listState.phase === "loading" && history.length === 0;
@@ -47,8 +58,17 @@ export default function CourierHistory() {
       <Box className={styles.pageHeader}>
         <Box>
           <Typography component="h2" className={styles.pageTitle}>История</Typography>
-          <Typography className={styles.pageSubtitle}>Завершённые доставки</Typography>
+          <Typography className={styles.pageSubtitle}>Завершённые доставки · обновление раз в минуту</Typography>
         </Box>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<RefreshRoundedIcon />}
+          onClick={() => void refresh()}
+          disabled={listState.phase === "loading" || !state.online}
+        >
+          Обновить
+        </Button>
       </Box>
       <DeliveryFilters value={kind} onChange={changeKind} />
       {listState.error && <Typography className={styles.errorText}>{listState.error.message}</Typography>}

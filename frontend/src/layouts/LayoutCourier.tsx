@@ -8,6 +8,8 @@ import {
   Box,
   Chip,
   Container,
+  MenuItem,
+  Select,
   Snackbar,
   Toolbar,
   Typography,
@@ -20,6 +22,7 @@ import HistoryRoundedIcon from "@mui/icons-material/HistoryRounded";
 import WifiRoundedIcon from "@mui/icons-material/WifiRounded";
 import WifiOffRoundedIcon from "@mui/icons-material/WifiOffRounded";
 import { useCourier } from "../courier/useCourier";
+import { useAuth } from "../hooks/useAuth";
 import { sellerTheme } from "../theme/sellerTheme";
 import styles from "../scss/pages/CourierLayout.module.scss";
 
@@ -46,7 +49,9 @@ const noticeClassBySeverity = {
 export default function LayoutCourier() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { state, mine, dismissNotice } = useCourier();
+  const { state, mine, dismissNotice, warehouseId, setWarehouseId } = useCourier();
+  const { user } = useAuth();
+  const workLocations = user?.work_locations ?? [];
   const activePath = pathname.startsWith("/courier/history")
     ? "/courier/history"
     : pathname.startsWith("/courier/mine") || pathname.startsWith("/courier/deliveries")
@@ -68,6 +73,22 @@ export default function LayoutCourier() {
               <Typography className={styles.eyebrow}>Чайные посиделки</Typography>
               <Typography component="h1" className={styles.title}>{title}</Typography>
             </Box>
+            <Select
+              size="small"
+              value={warehouseId ?? ""}
+              displayEmpty
+              onChange={(event) => {
+                const next = event.target.value ? Number(event.target.value) : null;
+                setWarehouseId(next);
+              }}
+              className={styles.warehouseSelect}
+              aria-label="Точка"
+            >
+              <MenuItem value="">Все точки</MenuItem>
+              {workLocations.map((loc) => (
+                <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+              ))}
+            </Select>
             <Chip
               size="small"
               variant="outlined"

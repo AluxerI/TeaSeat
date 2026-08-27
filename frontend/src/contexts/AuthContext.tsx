@@ -3,6 +3,7 @@ import axios from "axios";
 import { api } from "../api/api";
 import { getAuthToken, setAuthToken, clearAuthToken } from "../api/authAPI";
 import { resetSellerDatabase } from "../seller/db";
+import { clearStaffSnapshots } from "../pwa/staffSnapshot";
 
 export interface User {
   id: number;
@@ -67,6 +68,9 @@ function readCachedUser(): User | null {
 
 async function clearUserScopedState(): Promise<void> {
   await resetSellerDatabase();
+  // Picker/courier хранят только последний подтверждённый снимок для чтения
+  // без сети. При выходе и смене аккаунта эти данные тоже обязательно удаляем.
+  clearStaffSnapshots();
   localStorage.removeItem(PICKER_WAREHOUSE_KEY);
   localStorage.removeItem(AUTH_USER_CACHE_KEY);
   if ("caches" in window) {

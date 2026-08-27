@@ -44,9 +44,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:courier": "vitest run src/courier src/pages/courier src/components/courier",
+    "test:picker": "vitest run src/picker src/pages/picker",
     "test:manager": "vitest run src/manager src/staff src/pages/manager src/components/manager src/contexts/ManagerContext.test.tsx",
+    "test:offline": "vitest run src/pwa src/hooks/useOnlineStatus.test.tsx src/picker/PickerContext.test.tsx src/courier/cache.test.ts src/courier/CourierContext.test.tsx src/pages/picker/PickerOrderPage.test.tsx src/pages/picker/PickerTransfersPage.test.tsx",
     "test:smoke": "playwright test --grep @smoke",
     "test:sanity": "playwright test --grep @sanity",
+    "test:e2e:offline": "playwright test --grep @offline",
     "test:regression": "vitest run && playwright test --grep @regression",
     "test:all": "npm run typecheck && npm run test && npm run build"
   },
