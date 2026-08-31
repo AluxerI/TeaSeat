@@ -1,6 +1,7 @@
 import { api } from "./api";
 import { unwrapData } from "./unwrap";
 import type { Cart, AddToCartRequest } from "../interfaces/cart";
+import type { AddGiftToCartRequest } from "../interfaces/giftConstructor";
 import type { Order } from "../interfaces/order";
 import type {
   CartQuote,
@@ -25,6 +26,11 @@ export const cartApi = {
 
   async addItem(params: AddToCartRequest): Promise<Cart> {
     const response = await api.post<Cart | { data: Cart }>(`${CART_PATH}/add`, params);
+    return unwrapData(response.data);
+  },
+
+  async addGift(params: AddGiftToCartRequest): Promise<Cart> {
+    const response = await api.post<Cart | { data: Cart }>(`${CART_PATH}/gifts`, params);
     return unwrapData(response.data);
   },
 

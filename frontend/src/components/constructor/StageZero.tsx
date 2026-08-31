@@ -1,5 +1,6 @@
 import { motion } from "framer-motion";
 import type { GiftType } from "../../pages/ConstructorPage";
+import type { GiftSizeProfile } from "../../interfaces/giftConstructor";
 import styles from "../../scss/pages/ConstructorPage.module.scss";
 
 /**
@@ -15,6 +16,9 @@ interface StageZeroProps {
   onSelect: (type: GiftType) => void;
   selected: GiftType | null;
   disabled?: boolean;
+  simpleBox: GiftSizeProfile | null;
+  loading: boolean;
+  error: string;
 }
 
 interface Option {
@@ -24,42 +28,63 @@ interface Option {
   badgeClass: string;
   badgeLabel: string;
   contents: string[];
+  available: boolean;
 }
 
-const OPTIONS: Option[] = [
-  {
+function buildOptions(simpleBox: GiftSizeProfile | null): Option[] {
+  const requirements = simpleBox?.simple_requirements;
+  return [{
     type: "simplified",
-    label: "Упрощённая",
-    description: "Компактная коробка. Лёгкий подарок, который всегда уместен.",
+    label: simpleBox?.name ?? "Упрощённая",
+    description: simpleBox
+      ? `Компактная коробка с серверной наценкой ${simpleBox.default_markup_amount} ₽.`
+      : "Компактная коробка сейчас недоступна.",
     badgeClass: "badgeSimple",
-    badgeLabel: "Хит",
-    contents: ["2 чая", "1 десерт"],
+    badgeLabel: simpleBox ? "Доступно" : "Недоступно",
+    contents: requirements
+      ? [`${requirements.tea_count} чая`, `${requirements.sweet_count} десерт`]
+      : ["Состав задаёт backend"],
+    available: Boolean(simpleBox),
   },
   {
     type: "complex",
     label: "Усложнённая",
     description: "Большая коробка с открыткой. Роскошный подарочный набор.",
     badgeClass: "badgeComplex",
-    badgeLabel: "Премиум",
-    contents: ["3 чая", "2 десерта", "открытка"],
+    badgeLabel: "Скоро",
+    contents: ["2.5D-сетка", "свободная раскладка"],
+    available: false,
   },
-];
+  ];
+}
 
-export default function StageZero({ onSelect, selected, disabled = false }: StageZeroProps) {
+export default function StageZero({
+  onSelect,
+  selected,
+  disabled = false,
+  simpleBox,
+  loading,
+  error,
+}: StageZeroProps) {
+  const options = buildOptions(simpleBox);
   return (
     <div className={styles.stageZero}>
+      {loading && <p className={styles.constructorNotice}>Загружаем доступные коробки…</p>}
+      {error && <p className={styles.confirmError}>{error}</p>}
       <div className={styles.giftTypeGrid}>
-        {OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const isSelected = selected === opt.type;
+          const unavailable = disabled || loading || !opt.available || Boolean(selected);
           return (
-            <motion.div
+            <motion.button
+              type="button"
               key={opt.type}
               className={`${styles.giftTypeCard} ${isSelected ? styles.selected : ""}`}
-              onClick={() => !disabled && !selected && onSelect(opt.type)}
-              whileHover={!disabled && !selected ? { y: -4 } : undefined}
-              whileTap={!disabled && !selected ? { scale: 0.99 } : undefined}
+              onClick={() => !unavailable && onSelect(opt.type)}
+              disabled={unavailable}
+              whileHover={!unavailable ? { y: -4 } : undefined}
+              whileTap={!unavailable ? { scale: 0.99 } : undefined}
               transition={{ duration: 0.25, ease: "easeOut" }}
-              style={{ cursor: disabled || selected ? "default" : "pointer" }}
             >
               <span className={`${styles.giftTypeBadge} ${styles[opt.badgeClass]}`}>
                 {opt.badgeLabel}
@@ -75,7 +100,7 @@ export default function StageZero({ onSelect, selected, disabled = false }: Stag
                   </span>
                 ))}
               </div>
-            </motion.div>
+            </motion.button>
           );
         })}
       </div>

@@ -5,6 +5,7 @@ import type { Cart } from "../interfaces/cart";
 const mocks = vi.hoisted(() => ({
   getCart: vi.fn(),
   addItem: vi.fn(),
+  addGift: vi.fn(),
   updateItemQuantity: vi.fn(),
   removeItem: vi.fn(),
 }));
@@ -37,6 +38,14 @@ function Probe() {
       <button onClick={() => void cart.addProduct({ product_id: 5, quantity: 100 }).catch(() => undefined)}>
         Добавить
       </button>
+      <button onClick={() => void cart.addGift({
+        gift_id: 17,
+        gift_version: 2,
+        quantity: 1,
+        client_instance_id: "11111111-1111-4111-8111-111111111111",
+      }).catch(() => undefined)}>
+        Добавить подарок
+      </button>
       <button onClick={() => void cart.refreshCart().catch(() => undefined)}>Обновить</button>
     </>
   );
@@ -66,6 +75,26 @@ describe("CustomerCartProvider", () => {
     await waitFor(() => expect(mocks.addItem).toHaveBeenCalledOnce());
     expect(screen.getByTestId("drawer")).toHaveTextContent("false");
     expect(screen.getByTestId("cart-id")).toHaveTextContent("empty");
+  });
+
+  it("принимает подарок как одну серверную строку корзины", async () => {
+    const nextCart = {
+      ...cartSnapshot(12),
+      gifts: [{ id: 31, gift_id: 17, quantity: 1 }],
+    } as unknown as Cart;
+    mocks.addGift.mockResolvedValue(nextCart);
+    render(<CustomerCartProvider><Probe /></CustomerCartProvider>);
+
+    fireEvent.click(screen.getByRole("button", { name: "Добавить подарок" }));
+
+    await waitFor(() => expect(screen.getByTestId("cart-id")).toHaveTextContent("12"));
+    expect(screen.getByTestId("drawer")).toHaveTextContent("true");
+    expect(screen.getByTestId("count")).toHaveTextContent("1");
+    expect(mocks.addGift).toHaveBeenCalledWith(expect.objectContaining({
+      gift_id: 17,
+      gift_version: 2,
+      quantity: 1,
+    }));
   });
 
   it("не позволяет старому GET затереть результат добавления", async () => {

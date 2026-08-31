@@ -1,16 +1,18 @@
 import { motion } from "framer-motion";
-import { MOCK_SWEETS, type ConstructorItem } from "../../data/constructorMockData";
+import type { ConstructorProductSize } from "../../interfaces/giftConstructor";
+import { normalizeAssetUrl } from "../../utils/assetUrl";
+import { constructorItemPrice, constructorItemQuantity } from "../../utils/giftConstructor";
 import styles from "../../scss/pages/ConstructorPage.module.scss";
 
 interface StageTwoProps {
-  selected: ConstructorItem | null;
-  onSelect: (item: ConstructorItem) => void;
-  /** Запускает 3D-упаковку десерта */
+  options: ConstructorProductSize[];
+  selected: ConstructorProductSize[];
+  requiredCount: number;
+  onAdd: (item: ConstructorProductSize) => void;
+  onRemove: (item: ConstructorProductSize) => void;
   onPack: () => void;
-  /** Анимация уже идёт — карточки и кнопка недоступны */
   packing: boolean;
 }
-
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: (i: number) => ({
@@ -20,83 +22,93 @@ const cardVariants = {
   }),
 };
 
-export default function StageTwo({ selected, onSelect, onPack, packing }: StageTwoProps) {
+export default function StageTwo({
+  options,
+  selected,
+  requiredCount,
+  onAdd,
+  onRemove,
+  onPack,
+  packing,
+}: StageTwoProps) {
+  const selectedCount = (id: number) => selected.filter((item) => item.id === id).length;
+  const ready = selected.length === requiredCount;
+
   return (
     <div className={styles.selectionStage}>
       <div className={styles.selectionLayout}>
         <div className={styles.selectionMain}>
           <div className={styles.selectionGrid}>
-            {MOCK_SWEETS.map((sweet, i) => {
-              const isSelected = selected?.id === sweet.id;
+            {options.map((sweet, index) => {
+              const count = selectedCount(sweet.id);
+              const image = normalizeAssetUrl(sweet.product.image) || "/pages/catalog/details/swetty.svg";
               return (
-                <motion.div
+                <motion.article
                   key={sweet.id}
-                  className={`${styles.selectionCard} ${isSelected ? styles.selected : ""}`}
-                  custom={i}
+                  className={`${styles.selectionCard} ${count > 0 ? styles.selected : ""}`}
+                  custom={index}
                   variants={cardVariants}
                   initial="hidden"
                   animate="visible"
                   whileHover={!packing ? { scale: 1.02, y: -3 } : undefined}
-                  whileTap={!packing ? { scale: 0.98 } : undefined}
-                  onClick={() => !packing && onSelect(sweet)}
-                  style={{
-                    opacity: packing ? 0.45 : 1,
-                    cursor: packing ? "not-allowed" : "pointer",
-                  }}
                   layout
                 >
-                  {isSelected && (
-                    <motion.div
-                      className={styles.selectionCheck}
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 15 }}
-                    >
-                      ✓
-                    </motion.div>
-                  )}
-
+                  {count > 0 && <div className={styles.selectionCheck}>{count}</div>}
                   <div className={styles.selectionCardImage}>
-                    <img src={sweet.image} alt={sweet.name} />
+                    <img src={image} alt="" />
                   </div>
-
-                  <div className={styles.selectionCardName}>{sweet.name}</div>
-                  <div className={styles.selectionCardDesc}>{sweet.description}</div>
-
+                  <div className={styles.selectionCardName}>{sweet.product.name}</div>
+                  <div className={styles.selectionCardDesc}>{sweet.label}</div>
                   <div className={styles.selectionCardFooter}>
-                    <span className={styles.selectionCardPrice}>{sweet.price} ₽</span>
-                    <span className={styles.selectionCardWeight}>{sweet.weight_grams} г</span>
+                    <span className={styles.selectionCardPrice}>{constructorItemPrice(sweet)} ₽</span>
+                    <span className={styles.selectionCardWeight}>{constructorItemQuantity(sweet)}</span>
                   </div>
-                </motion.div>
+                  <div className={styles.selectionQuantity}>
+                    <button
+                      type="button"
+                      onClick={() => onRemove(sweet)}
+                      disabled={packing || count === 0}
+                      aria-label={`Убрать ${sweet.product.name}`}
+                    >
+                      −
+                    </button>
+                    <span aria-label={`Выбрано ${sweet.product.name}: ${count}`}>{count}</span>
+                    <button
+                      type="button"
+                      onClick={() => onAdd(sweet)}
+                      disabled={packing || selected.length >= requiredCount}
+                      aria-label={`Добавить ${sweet.product.name}`}
+                    >
+                      +
+                    </button>
+                  </div>
+                </motion.article>
               );
             })}
           </div>
         </div>
 
-        {/* Box preview */}
         <div className={styles.boxPreviewPanel}>
           <div className={styles.boxPreviewTitle}>Ваша коробка</div>
           <div className={styles.boxPreviewItems}>
-            <div className={styles.boxPreviewItem}>
-              <div className={`${styles.boxPreviewItemDot} ${styles.sweet}`} />
-              <span className={styles.boxPreviewItemName}>
-                {selected ? selected.name : "Десерт (выберите)"}
-              </span>
-              {selected && (
-                <span className={styles.boxPreviewPrice}>{selected.price} ₽</span>
-              )}
-            </div>
+            {Array.from({ length: requiredCount }, (_, index) => {
+              const item = selected[index];
+              return (
+                <div key={index} className={styles.boxPreviewItem}>
+                  <div className={`${styles.boxPreviewItemDot} ${item ? styles.sweet : styles.empty}`} />
+                  <span className={styles.boxPreviewItemName}>
+                    {item ? item.product.name : `Десерт ${index + 1} (выберите)`}
+                  </span>
+                  {item && <span className={styles.boxPreviewPrice}>{constructorItemPrice(item)} ₽</span>}
+                </div>
+              );
+            })}
           </div>
-
-          <p style={{ fontSize: 12, color: "#8a7d6f", textAlign: "center", marginTop: 4 }}>
-            {selected ? "1/1 десерт выбран" : "Выберите 1 десерт"}
-          </p>
-
+          <p className={styles.selectionCounter}>{selected.length}/{requiredCount} десерта выбрано</p>
           <button
             className={styles.btnPrimary}
             onClick={onPack}
-            disabled={!selected || packing}
+            disabled={!ready || packing}
             style={{ width: "100%", marginTop: 8 }}
           >
             {packing ? "Упаковываем…" : "Упаковать в коробку"}

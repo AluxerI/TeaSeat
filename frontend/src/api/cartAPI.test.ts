@@ -27,6 +27,18 @@ describe("customer cart api", () => {
     });
   });
 
+  it("добавляет подарок в корзину отдельной строкой", async () => {
+    mocks.post.mockResolvedValue({ data: { data: { id: 9, items: [], gifts: [{ id: 31 }] } } });
+    const request = {
+      gift_id: 17,
+      gift_version: 2,
+      quantity: 1,
+      client_instance_id: "11111111-1111-4111-8111-111111111111",
+    };
+    await cartApi.addGift(request);
+    expect(mocks.post).toHaveBeenCalledWith("/api/cart/gifts", request);
+  });
+
   it("передаёт Idempotency-Key при checkout", async () => {
     mocks.post.mockResolvedValue({ data: { data: { id: 91 } } });
     await cartApi.checkout({

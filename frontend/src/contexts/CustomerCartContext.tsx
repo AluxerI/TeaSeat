@@ -10,6 +10,7 @@ import {
 import { cartApi } from "../api/cartAPI";
 import { useAuth } from "../hooks/useAuth";
 import type { AddToCartRequest, Cart } from "../interfaces/cart";
+import type { AddGiftToCartRequest } from "../interfaces/giftConstructor";
 import { extractError, translateError } from "../utils/translateError";
 
 export interface CustomerCartContextValue {
@@ -24,6 +25,7 @@ export interface CustomerCartContextValue {
   refreshCart: () => Promise<Cart | null>;
   replaceCart: (cart: Cart) => void;
   addProduct: (request: AddToCartRequest) => Promise<Cart>;
+  addGift: (request: AddGiftToCartRequest) => Promise<Cart>;
   updateItemQuantity: (itemId: number, quantity: number) => Promise<Cart>;
   removeItem: (itemId: number) => Promise<Cart>;
   openMiniCart: () => void;
@@ -134,6 +136,16 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
     return nextCart;
   }, [runAction]);
 
+  const addGift = useCallback(async (request: AddGiftToCartRequest) => {
+    const nextCart = await runAction(
+      `add-gift:${request.client_instance_id}`,
+      () => cartApi.addGift(request),
+    );
+    setLastAddedProductId(null);
+    setMiniCartOpen(true);
+    return nextCart;
+  }, [runAction]);
+
   const updateItemQuantity = useCallback((itemId: number, quantity: number) => (
     runAction(`update:${itemId}`, () => cartApi.updateItemQuantity(itemId, quantity))
   ), [runAction]);
@@ -161,6 +173,7 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
     refreshCart,
     replaceCart,
     addProduct,
+    addGift,
     updateItemQuantity,
     removeItem,
     openMiniCart: () => setMiniCartOpen(true),
@@ -168,6 +181,7 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
     clearError: () => setError(""),
   }), [
     addProduct,
+    addGift,
     cart,
     error,
     initialized,
