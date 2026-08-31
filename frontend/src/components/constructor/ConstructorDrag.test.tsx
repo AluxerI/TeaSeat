@@ -47,12 +47,14 @@ describe("constructor pointer drag", () => {
     fireEvent.pointerDown(handle, pointer(650, 150));
     fireEvent.pointerMove(window, pointer(350, 250));
     expect(screen.getByText("Можно разместить")).toBeInTheDocument();
-    expect(screen.getAllByText(/10 × 10 мм/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/10 × 10 мм/)).not.toBeInTheDocument();
+    const ghost = document.querySelector('[aria-hidden="true"] img[src*="tea.svg"]');
+    expect(ghost).toBeInTheDocument();
     fireEvent.pointerUp(window, pointer(350, 250));
     fireEvent.click(handle);
     expect(screen.getAllByRole("button", { name: /^Позиция \d/ })).toHaveLength(1);
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(3);
-    expect(screen.getByRole("spinbutton", { name: "Строка позиции" })).toHaveValue(2);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "3 / span 1", gridRow: "2 / span 1" });
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
   });
 
   it("двигает существующую позицию с сохранением точки захвата", async () => {
@@ -60,8 +62,7 @@ describe("constructor pointer drag", () => {
     fireEvent.pointerDown(screen.getByRole("button", { name: /^Позиция 1:/ }), pointer(175, 125));
     fireEvent.pointerMove(window, pointer(375, 225));
     fireEvent.pointerUp(window, pointer(375, 225));
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(3);
-    expect(screen.getByRole("spinbutton", { name: "Строка позиции" })).toHaveValue(2);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "3 / span 1", gridRow: "2 / span 1" });
   });
 
   it("не меняет координаты при перекрытии", async () => {
@@ -72,7 +73,7 @@ describe("constructor pointer drag", () => {
     fireEvent.pointerMove(window, pointer(250, 150));
     expect(screen.getByText(/Позиции перекрываются/)).toBeInTheDocument();
     fireEvent.pointerUp(window, pointer(250, 150));
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(1);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "1 / span 1" });
   });
 
   it.each(["escape", "pointercancel", "lostcapture", "outside"])("сохраняет прежнее положение: %s", async (reason) => {
@@ -83,8 +84,7 @@ describe("constructor pointer drag", () => {
     if (reason === "pointercancel") fireEvent.pointerCancel(window, pointer(350, 250));
     if (reason === "lostcapture") fireEvent.lostPointerCapture(window, pointer(350, 250));
     fireEvent.pointerUp(window, pointer(reason === "outside" ? 800 : 350, 250));
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(1);
-    expect(screen.getByRole("spinbutton", { name: "Строка позиции" })).toHaveValue(1);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "1 / span 1", gridRow: "1 / span 1" });
   });
 
   it("сохраняет расстановку при возврате к коробке по шагам", async () => {
@@ -140,7 +140,7 @@ describe("constructor pointer drag", () => {
     expect(screen.getByText("Можно разместить")).toBeInTheDocument();
     touchEnd(350, 250);
     expect(screen.getAllByRole("button", { name: /^Позиция \d/ })).toHaveLength(1);
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(3);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "3 / span 1" });
   });
 
   it("вертикальный touch-жест оставляет скролл браузеру и отменяет удержание", async () => {
@@ -200,6 +200,58 @@ describe("constructor pointer drag", () => {
     await editor([{ ...size, size: { ...size.size, can_rotate: false } }]); addTea();
     expect(screen.getByRole("button", { name: "Повернуть влево на 90°" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Повернуть вправо на 90°" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Повернуть предмет за ручку" })).toBeDisabled();
+  });
+
+  it("рамка и удаление появляются только при выделении; на предмете нет подписей", async () => {
+    await editor();
+    expect(screen.queryByLabelText("Рамка выделения")).not.toBeInTheDocument();
+    addTea();
+    const item = screen.getByRole("button", { name: /^Позиция 1:/ });
+    expect(item.textContent).toBe("");
+    expect(item.querySelector('img[alt=""]')).toBeInTheDocument();
+    expect(screen.queryByText(/^Позиция:/)).not.toBeInTheDocument();
+    expect(screen.queryByText("Столбец")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Удалить Ассам из коробки" }));
+    expect(screen.queryByRole("button", { name: /^Позиция 1:/ })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Рамка выделения")).not.toBeInTheDocument();
+  });
+
+  it("перемещает стрелками и удаляет Delete без полей координат", async () => {
+    await editor(); addTea();
+    const item = screen.getByRole("button", { name: /^Позиция 1:/ });
+    fireEvent.keyDown(item, { key: "ArrowRight" });
+    expect(item).toHaveStyle({ gridColumn: "2 / span 1" });
+    fireEvent.keyDown(item, { key: "ArrowDown" });
+    expect(item).toHaveStyle({ gridRow: "2 / span 1" });
+    fireEvent.keyDown(item, { key: "Delete" });
+    expect(screen.queryByRole("button", { name: /^Позиция 1:/ })).not.toBeInTheDocument();
+  });
+
+  it("вращает за ручку с привязкой 90°, фиксирует только после отпускания", async () => {
+    await editor([testSize(11, "tea", 2, 1)]); addTea();
+    const frame = screen.getByLabelText("Рамка выделения");
+    vi.spyOn(frame, "getBoundingClientRect").mockReturnValue({ left: 100, top: 100, width: 200, height: 100, right: 300, bottom: 200, x: 100, y: 100, toJSON: () => ({}) });
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Повернуть предмет за ручку" }), pointer(200, 80));
+    fireEvent.pointerMove(window, pointer(300, 150));
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ transform: "rotate(90deg)", gridColumn: "1 / span 2" });
+    expect(screen.getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeDisabled();
+    fireEvent.pointerUp(window, pointer(300, 150));
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "1 / span 1", gridRow: "1 / span 2" });
+    expect(screen.getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeEnabled();
+  });
+
+  it.each(["Escape", "pointercancel", "blur"])("отменяет поворот ручкой: %s", async reason => {
+    await editor([testSize(11, "tea", 2, 1)]); addTea();
+    vi.spyOn(screen.getByLabelText("Рамка выделения"), "getBoundingClientRect").mockReturnValue({ left: 100, top: 100, width: 200, height: 100, right: 300, bottom: 200, x: 100, y: 100, toJSON: () => ({}) });
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Повернуть предмет за ручку" }), pointer(200, 80));
+    fireEvent.pointerMove(window, pointer(300, 150));
+    if (reason === "Escape") fireEvent.keyDown(window, { key: "Escape" });
+    if (reason === "pointercancel") fireEvent.pointerCancel(window, pointer(300, 150));
+    if (reason === "blur") fireEvent.blur(window);
+    fireEvent.pointerUp(window, pointer(300, 150));
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "1 / span 2", gridRow: "1 / span 1" });
+    expect(screen.getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeEnabled();
   });
 
   it("прокручивает страницу при переносе у края и останавливает кадры по Escape", async () => {

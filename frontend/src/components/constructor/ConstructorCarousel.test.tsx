@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import ConstructorCarousel, { initialCatalogBrowse } from "./ConstructorCarousel";
 import { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import { testBox, testSize } from "./testFixtures";
 import type { ConstructorProductSize } from "../../interfaces/giftConstructor";
+import ConstructorCatalog from "./ConstructorCatalog";
 
 const sizes: ConstructorProductSize[] = [testSize(11, "tea", 2, 1), { ...testSize(12), label: "100 г" },
   testSize(21, "sweet"), { ...testSize(31), constructor_role: "general", product: { ...testSize(31).product, name: "Открытка" } }];
@@ -48,15 +49,17 @@ describe("сеточная карусель конструктора", () => {
     const grid = screen.getByRole("grid", { name: /Сетка форматов/ });
     grid.focus();
     fireEvent.keyDown(grid, { key: "ArrowRight" });
-    expect(screen.getByText("Форматы 10–18 из 18")).toBeInTheDocument();
+    expect(screen.getByText("Форматы 13–18 из 18")).toBeInTheDocument();
     fireEvent.keyDown(grid, { key: "Home" });
-    expect(screen.getByText("Форматы 1–9 из 18")).toBeInTheDocument();
+    expect(screen.getByText("Форматы 1–12 из 18")).toBeInTheDocument();
   });
 
-  it("показывает реальный след без выдуманных миллиметров", () => {
+  it("показывает размер картинкой относительно дна", () => {
     render(<Harness cellSizeMm={null} />);
-    expect(screen.getByText("2 × 1 кл.")).toBeInTheDocument();
-    expect(screen.queryByText(/мм/)).not.toBeInTheDocument();
+    const diagram = screen.getByRole("img", { name: "Занимает 2 на 1 клетки из дна 4 на 3" });
+    expect(diagram.querySelectorAll("rect")).toHaveLength(2);
+    expect(diagram.querySelectorAll("line")).toHaveLength(5);
+    expect(screen.queryByText(/кл\.|мм/)).not.toBeInTheDocument();
   });
 
   it("пустой поиск не ломает индекс", () => {
@@ -107,11 +110,56 @@ describe("сеточная карусель конструктора", () => {
   it("показывает все карточки в ленте и листает по страницам сетки", () => {
     const many = Array.from({ length: 25 }, (_, i) => ({ ...testSize(100 + i), label: `${i + 1} г` }));
     render(<Harness options={many} />);
-    // Вся лента рендерится в DOM (нужно для горизонтального скролла), видима страница из GRID_COLS^2 карточек.
-    expect(screen.getAllByRole("article")).toHaveLength(25);
-    expect(screen.getByText("Форматы 1–9 из 25")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Следующая страница" }));
-    expect(screen.getByText("Форматы 10–18 из 25")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Предыдущая страница" })).toBeEnabled();
+    // Только активная дюжина доступна клавиатуре и скринридеру.
+    expect(screen.getAllByRole("article")).toHaveLength(12);
+    expect(screen.getAllByRole("article", { hidden: true })).toHaveLength(25);
+    expect(screen.getByText("Форматы 1–12 из 25")).toBeInTheDocument();
+    const previous = screen.getByRole("button", { name: "Предыдущая страница форматов" });
+    const next = screen.getByRole("button", { name: "Следующая страница форматов" });
+    expect(previous.className).not.toBe(next.className);
+    fireEvent.click(next);
+    expect(screen.getByText("Форматы 13–24 из 25")).toBeInTheDocument();
+    expect(previous).toBeEnabled();
+    expect(screen.getByText("Страница 2 из 3")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Предыдущая страница" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Следующая страница" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Тяните карточку/)).not.toBeInTheDocument();
+  });
+
+  it("держит Подробнее и Добавить в одной горизонтальной группе", () => {
+    render(<Harness />);
+    const card = screen.getByRole("article", { name: "Ассам, 50 г" });
+    const details = within(card).getByRole("button", { name: "Подробнее о Ассам" });
+    const add = within(card).getByRole("button", { name: "Добавить Ассам, 50 г" });
+    expect(details.parentElement).toBe(add.parentElement);
+    expect(card).toContainElement(details);
+    expect(details).toHaveTextContent("");
+    expect(add).toHaveTextContent("");
+    expect(within(add).getByTestId("AddShoppingCartRoundedIcon")).toBeInTheDocument();
+    expect(within(details).getByTestId("VisibilityOutlinedIcon")).toBeInTheDocument();
+  });
+
+  it("открывает компактные подробности без дополнительного описания", () => {
+    const rich = { ...sizes[0], product: { ...sizes[0].product, description: "Длинное описание", ingredients: "Состав" } };
+    render(<Harness options={[rich]} />);
+    fireEvent.click(screen.getByRole("button", { name: "Подробнее о Ассам" }));
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(screen.queryByText("Длинное описание")).not.toBeInTheDocument();
+    expect(screen.queryByText("Состав")).not.toBeInTheDocument();
+    expect(within(screen.getByRole("dialog")).getByRole("img", { name: /Занимает 2 на 1/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Закрыть подробности" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});
+
+describe("страницы простого каталога", () => {
+  it("оставляет номера страниц без нижних стрелок", () => {
+    const many = Array.from({ length: 21 }, (_, index) => ({ ...testSize(300 + index), label: `${index + 1} г` }));
+    render(<ConstructorCatalog title="Чай" box={testBox} options={many} selected={[]} limit={30} onAdd={vi.fn()} />);
+    expect(screen.queryByText(/← Назад|Далее →/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Страница 1" })).toHaveAttribute("aria-current", "page");
+    fireEvent.click(screen.getByRole("button", { name: "Страница 2" }));
+    expect(screen.getByLabelText("Количество Ассам, 21 г")).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
   });
 });

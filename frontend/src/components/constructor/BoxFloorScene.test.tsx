@@ -48,13 +48,15 @@ describe("camera controller without WebGL", () => {
     expect(mocks.invalidate).not.toHaveBeenCalled();
   });
 
-  it("возвращается сразу к дну после повторного подключения Canvas", () => {
+  it("начинает переход к дну сразу после выбора ручного режима", () => {
     const camera = mocks.state.camera as OrthographicCamera;
     render(<FloorCamera width={4} height={3} editing />);
     mocks.invalidate.mockClear();
     tick();
+    expect(camera.position.z).toBeGreaterThan(0);
+    expect(mocks.invalidate).toHaveBeenCalled();
+    for (let index = 0; index < 20; index += 1) tick();
     expect(camera.position.toArray()).toEqual([0, 8, 0]);
-    expect(mocks.invalidate).not.toHaveBeenCalled();
   });
 
   it("с reduced motion ждёт подтверждения и затем пропускает анимацию", () => {

@@ -7,45 +7,54 @@ import { useConstructorResource } from "../hooks/useConstructorResource";
 import { giftConstructorApi } from "../api/giftConstructorAPI";
 import ConstructorEditor from "../components/constructor/ConstructorEditor";
 import ConstructorCatalogStatus from "../components/constructor/ConstructorCatalogStatus";
+import { ConstructorBoxPicker, ConstructorModePicker, type ConstructorMode } from "../components/constructor/ConstructorChoice";
+import ConstructorSteps from "../components/constructor/ConstructorSteps";
 import styles from "../scss/pages/ConstructorWorkspace.module.scss";
 
-// Сохранён type export для старых компонентов сцены; страница их больше не монтирует.
+// Совместимость старых компонентов анимации.
 export type { GiftType } from "../components/constructor/three/sceneConfig";
 export type ConstructorStage = 0 | 1 | 2 | 3;
 
 function Workspace({ userId }: { userId: number }) {
-  const [mode, setMode] = useState<"simple" | "advanced">("simple");
+  const [mode, setMode] = useState<ConstructorMode | null>(null);
+  const [step, setStep] = useState<"mode" | "box" | "editor">("box");
   const [boxId, setBoxId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
-  const loadOptions = useCallback((signal: AbortSignal) => giftConstructorApi.loadOptions(mode, signal), [mode]);
-  const options = useConstructorResource(`${userId}:${mode}`, true, loadOptions);
-  const boxes = (options.data?.boxes ?? []).filter((box) => mode === "advanced" || (
-    box.simple_constructor_enabled && box.simple_requirements
-      && box.simple_requirements.tea_count > 0 && box.simple_requirements.sweet_count > 0
-  ));
-  const box = boxes.find((candidate) => candidate.id === boxId) ?? boxes[0];
-  const loadProducts = useCallback((signal: AbortSignal) => giftConstructorApi.getBoxProducts(box!.id, signal), [box?.id]);
-  const products = useConstructorResource(`${userId}:${mode}:${box?.id}`, Boolean(box), loadProducts);
+  // Advanced options содержит все активные коробки, включая simple_requirements.
+  // Размер выбирается до режима; смена режима не перезагружает тот же каталог.
+  const loadOptions = useCallback((signal: AbortSignal) => giftConstructorApi.loadOptions("advanced", signal), []);
+  const options = useConstructorResource(`${userId}:boxes`, true, loadOptions);
+  const boxes = options.data?.boxes ?? [];
+  const loadProducts = useCallback((signal: AbortSignal) => giftConstructorApi.getBoxProducts(boxId!, signal), [boxId]);
+  const products = useConstructorResource(`${userId}:${boxId}`, boxId !== null, loadProducts);
+  // Реконнект не размонтирует уже открытый редактор/созданный Gift, даже если
+  // коробку сняли с публикации. Quote и create всё равно проверяются сервером.
+  const box = boxes.find((candidate) => candidate.id === boxId) ?? products.data?.box;
 
   return <>
-    <div className={styles.modeSwitch} aria-label="Режим конструктора">
-      <button type="button" aria-pressed={mode === "simple"} disabled={busy} onClick={() => { setMode("simple"); setBoxId(null); }}>Простой — список</button>
-      <button type="button" aria-pressed={mode === "advanced"} disabled={busy} onClick={() => { setMode("advanced"); setBoxId(null); }}>Сложный — сетка 2.5D</button>
-    </div>
-    {options.loading && <p role="status">Загружаем коробки…</p>}
-    {options.error && <div role="alert" className={styles.notice}><p>{options.error}</p><button type="button" disabled={!options.online} onClick={options.retry}>Повторить загрузку коробок</button><Link to="/login">Войти заново</Link></div>}
-    {!options.loading && options.data && !boxes.length && <p role="status">Для этого режима нет активных коробок. Проверьте профили коробок на backend.</p>}
-    {box && <label className={styles.boxSelect}>Коробка<select aria-label="Коробка" value={box.id} disabled={busy} onChange={(event) => setBoxId(Number(event.target.value))}>
-      {boxes.map((option) => <option key={option.id} value={option.id}>{option.name} · {option.width_cells} × {option.height_cells}{mode === "simple" ? ` · ${option.simple_requirements!.tea_count} чая + ${option.simple_requirements!.sweet_count} сладостей` : ""}</option>)}
-    </select></label>}
-    {box && products.loading && <p role="status">Загружаем форматы для коробки…</p>}
+    {step !== "editor" && <ConstructorSteps current={step === "box" ? 0 : 1} onBack={() => setStep("box")} />}
+    {options.loading && !options.data && <p role="status">Загружаем коробки…</p>}
+    {options.error && <div role="alert" className={styles.notice}><p>{options.error}</p><button type="button" disabled={!options.online || busy} onClick={options.retry}>Повторить загрузку коробок</button><Link to="/login">Войти заново</Link></div>}
+    {!options.loading && options.data && !boxes.length && step === "box" && <p role="status">Сейчас нет активных коробок.</p>}
+    {step === "box" && <>
+      {!!boxes.length && <ConstructorBoxPicker boxes={boxes} selectedId={boxId} cellSizeMm={options.data?.cell_size_mm} onSelect={(next) => {
+        if (next.id !== boxId) setMode(null);
+        setBoxId(next.id); setStep("mode");
+      }} />}
+    </>}
+    {step === "mode" && box && <ConstructorModePicker box={products.data?.box ?? box} onSelect={(next) => { setMode(next); setStep("editor"); }} />}
+    <div hidden={step !== "editor"}>
+    {step === "editor" && !products.data && <ConstructorSteps current={2} onBack={(index) => setStep(index === 0 ? "box" : "mode")} />}
+    {box && products.loading && <p role="status">Загружаем товары…</p>}
     {box && products.error && <div role="alert" className={styles.notice}><p>{products.error}</p><button type="button" disabled={!products.online} onClick={products.retry}>Повторить загрузку товаров</button></div>}
-    {box && products.data?.product_sizes.length === 0 && <ConstructorCatalogStatus box={box} mode={mode}
+    {mode && box && products.data?.product_sizes.length === 0 && <ConstructorCatalogStatus box={box} mode={mode}
       availableCount={options.error || options.loading ? null : options.data?.product_sizes.length ?? null}
       onRetry={() => { options.retry(); products.retry(); }}
       retryDisabled={busy || !products.online || products.loading || options.loading} />}
-    {box && <p className={styles.hint}>Назад по шагам можно вернуться без потери состава. Смена коробки или режима очистит выбор.</p>}
-    {box && products.data && <ConstructorEditor key={`${mode}:${box.id}`} mode={mode} box={products.data.box} sizes={products.data.product_sizes} onBusy={setBusy} cellSizeMm={options.data?.cell_size_mm} />}
+    {mode && box && products.data && <ConstructorEditor key={box.id} mode={mode} box={products.data.box} sizes={products.data.product_sizes} onBusy={setBusy}
+      active={step === "editor"} startEditing onBackToMode={() => setStep("mode")}
+      onBackToBoxes={() => setStep("box")} cellSizeMm={options.data?.cell_size_mm} />}
+    </div>
   </>;
 }
 

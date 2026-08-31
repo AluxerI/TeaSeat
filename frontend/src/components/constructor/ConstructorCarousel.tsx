@@ -1,15 +1,17 @@
 import { useEffect, useId, useRef, useState } from "react";
+import AddShoppingCartRounded from "@mui/icons-material/AddShoppingCartRounded";
+import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
+import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
 import type { useConstructorDrag } from "../../hooks/useConstructorDrag";
-import { formatFootprint } from "../../utils/constructorInteraction";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
-import { constructorItemPrice, constructorItemQuantity } from "../../utils/giftConstructor";
+import { constructorItemPrice } from "../../utils/giftConstructor";
 import ProductDetailsModal from "./ProductDetailsModal";
+import FootprintDiagram from "./FootprintDiagram";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 
-// Сетка сайдбара: 3 колонки × несколько рядов, страница — одна «лента» этой сетки.
-const GRID_COLS = 3;
-const PAGE_SIZE = 9;
+// Широкий каталог: 4 × 3 на десктопе, колонки адаптируются на узких экранах.
+const PAGE_SIZE = 12;
 
 type Role = ConstructorProductSize["constructor_role"];
 // ProductSize::ROLE_*: это роли конструктора, а не категории обычного каталога.
@@ -35,7 +37,7 @@ interface Props {
 export default function ConstructorCarousel({ box, options, selected, limit, onAdd, drag, cellSizeMm, browse, onBrowse }: Props) {
   const id = useId();
   const tabsRef = useRef<(HTMLButtonElement | null)[]>([]);
-  const pageRefs = useRef<(HTMLElement | null)[]>([]);
+  const gridRef = useRef<HTMLDivElement>(null);
   const [details, setDetails] = useState<ConstructorProductSize | null>(null);
   const { role, search, formatIds } = browse;
   const filtered = options.filter((size) => size.constructor_role === role
@@ -51,8 +53,10 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
     if (target) onBrowse({ ...browse, formatIds: { ...formatIds, [role]: target.id } });
   };
   const reveal = (page: number, behavior: ScrollBehavior = "smooth") => {
-    const node = pageRefs.current[Math.max(0, Math.min(pageCount - 1, page))];
-    if (node && typeof node.scrollIntoView === "function") node.scrollIntoView({ behavior, block: "nearest", inline: "start" });
+    const node = gridRef.current;
+    const target = node?.children[Math.max(0, Math.min(pageCount - 1, page))] as HTMLElement | undefined;
+    const first = node?.firstElementChild as HTMLElement | null;
+    if (node && target && first && typeof node.scrollTo === "function") node.scrollTo({ left: target.offsetLeft - first.offsetLeft, behavior });
   };
   const shiftPage = (delta: number) => {
     const page = Math.max(0, Math.min(pageCount - 1, pageIndex + delta));
@@ -69,14 +73,13 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
     const isRotated = size.size.can_rotate && (size.size.width_cells > box.width_cells || size.size.height_cells > box.height_cells);
     const width = isRotated ? size.size.height_cells : size.size.width_cells;
     const height = isRotated ? size.size.width_cells : size.size.height_cells;
-    const percent = width * height / (box.width_cells * box.height_cells) * 100;
-    return { width, height, area: width * height, percent, share: percent < .1 ? "<0,1" : percent.toLocaleString("ru-RU", { maximumFractionDigits: 1 }) };
+    return { width, height };
   };
   const from = pageIndex * PAGE_SIZE + 1;
   const to = Math.min(pageIndex * PAGE_SIZE + PAGE_SIZE, filtered.length);
 
-  return <section className={styles.catalog} aria-label="Каталог форматов">
-    <h2>Добавить в коробку <small>{selected.length} выбрано · максимум {limit}</small></h2>
+  return <section className={`${styles.catalog} ${styles.carouselCatalog}`} aria-label="Каталог форматов">
+    <h2>Товары <small aria-label="Заполнение коробки">{selected.length} / {limit}</small></h2>
     <div className={styles.catalogTabs} role="tablist" aria-label="Тип товара">
       {roles.map((group, tabIndex) => <button key={group.id} ref={(node) => { tabsRef.current[tabIndex] = node; }} type="button" role="tab"
         id={`${id}-${group.id}`} aria-controls={`${id}-panel-${group.id}`} aria-selected={role === group.id} tabIndex={role === group.id ? 0 : -1}
@@ -90,15 +93,15 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
     {roles.map((group) => <div key={group.id} id={`${id}-panel-${group.id}`} role="tabpanel" aria-labelledby={`${id}-${group.id}`} hidden={group.id !== role}>
     {group.id === role && <>
       <div className={styles.catalogTools}>
-        <label>Найти товар или формат<input type="search" value={search} disabled={drag.dragging} onChange={(event) => onBrowse({ ...browse, search: event.target.value })} /></label>
+        <input type="search" placeholder="Найти товар" aria-label="Найти товар или формат" value={search} disabled={drag.dragging} onChange={(event) => onBrowse({ ...browse, search: event.target.value })} />
       </div>
       {!filtered.length ? <p role="status">{search ? "В этом типе ничего не найдено. Очистите поиск или выберите другую вкладку." : "В этом типе пока нет доступных форматов. Выберите другую вкладку."}</p>
         : <section aria-roledescription="карусель" aria-label={`Форматы: ${group.label}`}>
           <div className={styles.carouselViewport}>
-            <button type="button" className={styles.carouselArrow} disabled={pageIndex === 0 || drag.dragging} aria-label="Предыдущая страница форматов" onClick={() => shiftPage(-1)}>←</button>
+            <button type="button" className={`${styles.carouselArrow} ${styles.carouselArrowLeft}`} disabled={pageIndex === 0 || drag.dragging} aria-label="Предыдущая страница форматов" onClick={() => shiftPage(-1)}><span aria-hidden="true">‹</span></button>
             <span className={styles.carouselCounter} role="status">Форматы {from}–{to} из {filtered.length}</span>
-            <button type="button" className={styles.carouselArrow} disabled={pageIndex >= pageCount - 1 || drag.dragging} aria-label="Следующая страница форматов" onClick={() => shiftPage(1)}>→</button>
-            <div className={styles.carouselGrid} role="grid" tabIndex={0} aria-label="Сетка форматов" onKeyDown={(event) => {
+            <button type="button" className={`${styles.carouselArrow} ${styles.carouselArrowRight}`} disabled={pageIndex >= pageCount - 1 || drag.dragging} aria-label="Следующая страница форматов" onClick={() => shiftPage(1)}><span aria-hidden="true">›</span></button>
+            <div ref={gridRef} className={styles.carouselGrid} role="grid" tabIndex={0} aria-label="Сетка форматов" onKeyDown={(event) => {
               if (event.target !== event.currentTarget || drag.dragging) return;
               if (event.key === "ArrowRight") { event.preventDefault(); shiftPage(1); }
               else if (event.key === "ArrowLeft") { event.preventDefault(); shiftPage(-1); }
@@ -106,27 +109,29 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
               else if (event.key === "End") { event.preventDefault(); shiftPage(pageCount - 1 - pageIndex); }
             }}>
               {pages.map((groupItems, p) => (
-                <div key={p} ref={(node) => { pageRefs.current[p] = node; }} className={styles.carouselPage} aria-label={`Страница ${p + 1}`} data-active={p === pageIndex}>
+                <div key={p} className={styles.carouselPage} aria-label={`Страница ${p + 1}`} data-active={p === pageIndex} inert={p !== pageIndex} aria-hidden={p !== pageIndex}>
                   {groupItems.map((size) => {
                     const fp = footprint(size);
                     const active = size.id === filtered[index]?.id;
                     return <article key={size.id} className={`${styles.carouselCard}${active ? ` ${styles.carouselActive}` : ""}`}
                       aria-roledescription="слайд" aria-label={`${size.product.name}, ${size.label}`} tabIndex={active ? 0 : -1} data-active={active}
-                      aria-describedby={`${id}-gesture`} data-dragging={drag.dragging && drag.cursor?.placement.product_size_id === size.id}
+                      data-dragging={drag.dragging && drag.cursor?.placement.product_size_id === size.id}
                       onFocus={() => selectIndex(filtered.findIndex((candidate) => candidate.id === size.id))} onPointerDown={(event) => { if (!atLimit && !interactive(event.target)) drag.startCatalog(size, event); }}
-                      onTouchStart={(event) => { if (!interactive(event.target)) drag.startCatalogTouch(size, event, () => { }, !atLimit); }}
+                      onTouchStart={(event) => { if (!interactive(event.target)) drag.startCatalogTouch(size, event, shiftPage, !atLimit); }}
                       onContextMenu={drag.preventTouchMenu} onClickCapture={drag.allowCatalogClick}>
                       <img className={styles.carouselImage} src={normalizeAssetUrl(size.product.image) || "/pages/catalog/details/tea.svg"} alt="" loading="lazy" draggable={false} />
                       <div className={styles.productDescription}>
                         <strong>{size.product.name}</strong>
-                        <span>{size.label} · {constructorItemQuantity(size)}</span>
+                        <span>{size.label}</span>
                         <span>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽</span>
-                        <span className={styles.cardFootprintText}>{formatFootprint(fp.width, fp.height, cellSizeMm)}</span>
                       </div>
                       <div className={styles.cardActions}>
-                        <output aria-label={`Количество ${size.product.name}, ${size.label}`}>В коробке: {selected.filter((item) => item === size.id).length}</output>
-                        <button type="button" disabled={drag.dragging} aria-label={`Подробнее о ${size.product.name}`} onClick={() => setDetails(size)}>Подробнее</button>
-                        <button type="button" disabled={atLimit || drag.dragging} aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}>+ Добавить</button>
+                        <FootprintDiagram compact box={box} width={fp.width} height={fp.height} cellSizeMm={cellSizeMm} />
+                        <output data-empty={!selected.includes(size.id)} aria-label={`Количество ${size.product.name}, ${size.label}`}>{selected.filter((item) => item === size.id).length}</output>
+                        <div className={styles.cardButtons}>
+                          <IconButton className={styles.detailsButton} disabled={drag.dragging} title="Подробнее" aria-label={`Подробнее о ${size.product.name}`} onClick={() => setDetails(size)}><VisibilityOutlined fontSize="small" /></IconButton>
+                          <IconButton className={styles.addButton} disabled={atLimit || drag.dragging} title="Добавить в коробку" aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}><AddShoppingCartRounded fontSize="small" /></IconButton>
+                        </div>
                       </div>
                     </article>;
                   })}
@@ -134,14 +139,9 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
               ))}
             </div>
           </div>
-          {pageCount > 1 && <nav className={styles.pagination} aria-label="Страницы каталога">
-            <button type="button" disabled={pageIndex === 0 || drag.dragging} aria-label="Предыдущая страница" onClick={() => shiftPage(-1)}>← Назад</button>
-            <span role="status">Страница {pageIndex + 1} из {pageCount} · форматов {filtered.length}</span>
-            <button type="button" disabled={pageIndex >= pageCount - 1 || drag.dragging} aria-label="Следующая страница" onClick={() => shiftPage(1)}>Далее →</button>
-          </nav>}
-          {details && <ProductDetailsModal size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={atLimit} />}
+          {pageCount > 1 && <p className={styles.pageIndicator} role="status">Страница {pageIndex + 1} из {pageCount}</p>}
+          {details && <ProductDetailsModal box={box} size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={atLimit} />}
         </section>}
-      <p id={`${id}-gesture`} className={styles.hint}>Тяните карточку на дно. Листайте сетку вбок. На телефоне: свайп — листать, удержание — перенос. У края экрана страница прокручивается. Доля площади не гарантирует, что предмет поместится между уже выбранными.</p>
       {atLimit && <p role="status">Достигнут лимит {limit} позиций. Удалите позицию, чтобы добавить другую.</p>}
     </>}
     </div>)}

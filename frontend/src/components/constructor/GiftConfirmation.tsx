@@ -20,9 +20,10 @@ interface Props {
   onReset: () => void;
   onBusy: (busy: boolean) => void;
   onBackToBox?: () => void;
+  onBackToMode?: () => void;
 }
 
-export default function GiftConfirmation({ draft, box, contents, onBack, onReset, onBusy, onBackToBox }: Props) {
+export default function GiftConfirmation({ draft, box, contents, onBack, onReset, onBusy, onBackToBox, onBackToMode }: Props) {
   const { user } = useAuth();
   const { addGift } = useCustomerCart();
   const online = useOnlineStatus();
@@ -111,8 +112,8 @@ export default function GiftConfirmation({ draft, box, contents, onBack, onReset
   };
 
   return <>
-    <ConstructorSteps current={done ? 3 : 2} locked={busy || done || Boolean(gift.current) || unknownCreation}
-      onBack={(step) => { if (step === 0 && onBackToBox) onBackToBox(); else onBack(); }} />
+    <ConstructorSteps current={done ? 4 : 3} locked={busy || done || Boolean(gift.current) || unknownCreation}
+      onBack={(step) => { if (step === 0 && onBackToBox) onBackToBox(); else if (step === 1 && onBackToMode) onBackToMode(); else onBack(); }} />
     <section className={styles.confirmation}>
     <h2>Проверьте подарок</h2>
     <p>{box.name} · {contents.length} позиций</p>

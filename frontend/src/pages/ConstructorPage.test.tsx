@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { testBox, testQuote, testSizes } from "../components/constructor/testFixtures";
 import type { BoxFloorSceneProps } from "../components/constructor/BoxFloorScene";
+import type { SimplePackingSceneProps } from "../components/constructor/SimplePackingScene";
 
 const mocks = vi.hoisted(() => ({
   user: { id: 7 } as { id: number } | null, loadOptions: vi.fn(), getBoxProducts: vi.fn(),
@@ -13,16 +14,29 @@ vi.mock("../ui/footer/Footer", () => ({ default: () => null }));
 vi.mock("../hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.user, loading: false }) }));
 vi.mock("../hooks/useCustomerCart", () => ({ useCustomerCart: () => ({ addGift: mocks.addGift }) }));
 vi.mock("../api/giftConstructorAPI", () => ({ giftConstructorApi: mocks }));
+vi.mock("../components/constructor/ConstructorBoxScene", () => ({ default: () => <div aria-label="Коробки в 3D" /> }));
+vi.mock("../components/constructor/SimplePackingScene", () => ({ default: (props: SimplePackingSceneProps) => <div aria-label="Анимация упаковки подарка">{props.teas.length} + {props.sweets.length}</div> }));
 vi.mock("../components/constructor/BoxFloorScene", async () => {
   const { default: FloorGrid } = await import("../components/constructor/FloorGrid");
   return { default: (props: BoxFloorSceneProps) => props.editing ? <FloorGrid {...props} /> : <button onClick={props.onChoose}>Модель выбранной коробки</button> };
 });
 import ConstructorPage from "./ConstructorPage";
 
-function renderPage() { return render(<MemoryRouter><ConstructorPage /></MemoryRouter>); }
+let requestedMode: "simple" | "advanced" | null = "simple";
+function renderPage(mode: "simple" | "advanced" | null = "simple") {
+  requestedMode = mode;
+  const view = render(<MemoryRouter><ConstructorPage /></MemoryRouter>);
+  return view;
+}
+async function chooseBox(name = testBox.name) {
+  const button = await screen.findByRole("button", { name: `Выбрать коробку ${name}` });
+  await act(async () => { fireEvent.click(button); });
+  if (requestedMode) await act(async () => { fireEvent.click(screen.getByRole("button", { name: requestedMode === "simple" ? "С анимацией" : "Вручную" })); });
+}
 const addTea = () => fireEvent.click(screen.getByRole("button", { name: "Добавить Ассам, 50 г" }));
 const addSweet = () => fireEvent.click(screen.getByRole("button", { name: "Добавить Пастила, 50 г" }));
 async function fillSimple() {
+  await chooseBox();
   await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
   for (let index = 0; index < 5; index += 1) addTea();
   addSweet(); addSweet();
@@ -42,11 +56,11 @@ beforeEach(() => {
 });
 
 describe("constructor workspace", () => {
-  it("не монтирует 3D в простом режиме и принимает коробку 5+2", async () => {
+  it("передаёт 5+2 в анимацию и сохраняет настоящий simple pipeline", async () => {
     renderPage();
     await fillSimple();
     expect(screen.queryByLabelText(/Дно коробки/)).not.toBeInTheDocument();
-    expect(document.querySelector("canvas")).toBeNull();
+    expect(await screen.findByLabelText("Анимация упаковки подарка")).toHaveTextContent("5 + 2");
     expect(screen.getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
     const submit = await screen.findByRole("button", { name: "Добавить подарок в корзину" });
@@ -59,16 +73,13 @@ describe("constructor workspace", () => {
   });
 
   it("переключает сложный режим на сетку и проверяет advanced pipeline", async () => {
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
-    const choose = await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" });
-    expect(screen.queryByLabelText("Дно коробки, вид сверху")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Добавить Ассам, 50 г" })).not.toBeInTheDocument();
-    fireEvent.click(choose);
+    renderPage("advanced"); await chooseBox();
+    expect(screen.queryByRole("button", { name: "Выбрать коробку и расставить товары" })).not.toBeInTheDocument();
     await screen.findByLabelText("Дно коробки, вид сверху");
     addTea();
     fireEvent.click(screen.getByRole("button", { name: "Ячейка 3, 2" }));
-    expect(screen.getByRole("spinbutton", { name: "Столбец позиции" })).toHaveValue(3);
+    expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "3 / span 1" });
+    expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
     const submit = await screen.findByRole("button", { name: "Добавить подарок в корзину" });
     await waitFor(() => expect(submit).toBeEnabled());
@@ -87,9 +98,7 @@ describe("constructor workspace", () => {
   });
 
   it("возврат из проверки сохраняет вкладку и передаёт поворот в boolean-контракте API", async () => {
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" }));
+    renderPage("advanced"); await chooseBox();
     await screen.findByLabelText("Дно коробки, вид сверху");
     fireEvent.click(screen.getByRole("tab", { name: /Сладости/ }));
     addSweet();
@@ -101,7 +110,7 @@ describe("constructor workspace", () => {
     }] }, expect.any(AbortSignal));
     fireEvent.click(screen.getByRole("button", { name: "Наполнение" }));
     expect(screen.getByRole("tab", { name: /Сладости/ })).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("В коробке: 1");
+    expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("1");
     expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
   });
 
@@ -121,6 +130,7 @@ describe("constructor workspace", () => {
     mocks.loadOptions.mockRejectedValueOnce({ response: { status: 500 } });
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Повторить загрузку коробок" }));
+    await chooseBox();
     await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
     expect(mocks.loadOptions).toHaveBeenCalledTimes(2);
   });
@@ -151,15 +161,16 @@ describe("constructor workspace", () => {
       ? new Promise((resolve) => { resolveOld = resolve; })
       : Promise.resolve({ box: secondBox, product_sizes: [] }));
     renderPage();
-    const select = await screen.findByRole("combobox", { name: "Коробка" });
+    await chooseBox();
     await waitFor(() => expect(mocks.getBoxProducts).toHaveBeenCalledOnce());
     const oldSignal = mocks.getBoxProducts.mock.calls[0][1] as AbortSignal;
-    fireEvent.change(select, { target: { value: "5" } });
+    fireEvent.click(screen.getByRole("button", { name: "Коробка" }));
+    await chooseBox(secondBox.name);
     await waitFor(() => expect(mocks.getBoxProducts).toHaveBeenCalledTimes(2));
     expect(oldSignal.aborted).toBe(true);
     await act(async () => resolveOld({ box: testBox, product_sizes: testSizes }));
     expect(screen.queryByRole("button", { name: "Добавить Ассам, 50 г" })).not.toBeInTheDocument();
-    expect(select).toHaveValue("5");
+    expect(screen.getByRole("heading", { name: /^Чай/ })).toBeInTheDocument();
   });
 
   it("позволяет очистить выбор форматов, удалённых из обновлённого каталога", async () => {
@@ -183,21 +194,19 @@ describe("constructor workspace", () => {
   it("объясняет отсутствие ProductSize, не выдавая лимит 40 за количество товаров", async () => {
     mocks.loadOptions.mockResolvedValue({ boxes: [testBox], product_sizes: [] });
     mocks.getBoxProducts.mockResolvedValue({ box: testBox, product_sizes: [] });
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
+    renderPage("advanced"); await chooseBox();
     await screen.findByText(/В общем каталоге этого режима тоже нет доступных форматов/);
-    fireEvent.click(await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" }));
-    expect(screen.getByText("0 выбрано · максимум 40")).toBeInTheDocument();
+    await screen.findByLabelText("Дно коробки, вид сверху");
+    expect(screen.getByLabelText("Заполнение коробки")).toHaveTextContent("0 / 40");
     expect(screen.queryByRole("button", { name: /Добавить Ассам/ })).not.toBeInTheDocument();
     expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
   });
 
   it("не подставляет общий каталог, если backend отсеял форматы коробки", async () => {
     mocks.getBoxProducts.mockResolvedValue({ box: testBox, product_sizes: [] });
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
+    renderPage("advanced"); await chooseBox();
     await screen.findByText(/доступно 2 форматов, но для этой коробки не подошёл ни один/);
-    fireEvent.click(await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" }));
+    await screen.findByLabelText("Дно коробки, вид сверху");
     expect(screen.queryByRole("button", { name: /Добавить Ассам/ })).not.toBeInTheDocument();
     mocks.getBoxProducts.mockResolvedValue({ box: testBox, product_sizes: testSizes });
     fireEvent.click(screen.getByRole("button", { name: "Обновить каталог конструктора" }));
@@ -205,16 +214,104 @@ describe("constructor workspace", () => {
     expect(screen.queryByLabelText("Диагностика каталога конструктора")).not.toBeInTheDocument();
   });
 
-  it("возвращает предпросмотр до подтверждения другой коробки", async () => {
+  it("возвращает выбор способа после смены размера и открывает новое дно", async () => {
     const second = { ...testBox, id: 5, name: "Другая коробка" };
     mocks.loadOptions.mockResolvedValue({ boxes: [testBox, second], product_sizes: testSizes });
     mocks.getBoxProducts.mockImplementation((id: number) => Promise.resolve({ box: id === 4 ? testBox : second, product_sizes: testSizes }));
-    renderPage();
-    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Модель выбранной коробки" }));
+    renderPage("advanced"); await chooseBox();
     await screen.findByLabelText("Дно коробки, вид сверху");
-    fireEvent.change(screen.getByRole("combobox", { name: "Коробка" }), { target: { value: "5" } });
-    await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" });
+    fireEvent.click(screen.getByRole("button", { name: "Коробка" }));
+    requestedMode = null;
+    await chooseBox(second.name);
+    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Дно коробки, вид сверху")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    await screen.findByLabelText("Дно коробки, вид сверху");
+  });
+
+  it("сначала загружает коробки в 3D, затем показывает два способа сборки", async () => {
+    renderPage(null);
+    await screen.findByRole("button", { name: `Выбрать коробку ${testBox.name}` });
+    expect(mocks.loadOptions).toHaveBeenCalledWith("advanced", expect.any(AbortSignal));
+    expect(screen.queryByRole("button", { name: "С анимацией" })).not.toBeInTheDocument();
+    expect(mocks.getBoxProducts).not.toHaveBeenCalled();
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
+    await chooseBox();
+    expect(screen.getByRole("button", { name: "С анимацией" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Добавить Ассам, 50 г" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
+    expect(mocks.getBoxProducts).toHaveBeenCalledWith(testBox.id, expect.any(AbortSignal));
+  });
+
+  it("возврат к карточкам и выбор той же коробки сохраняет состав", async () => {
+    renderPage(); await fillSimple();
+    fireEvent.click(screen.getByRole("button", { name: "Коробка" }));
+    await chooseBox();
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
+    expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("2");
+  });
+
+  it("меняет способ, сохраняя оба черновика и не загружая каталог заново", async () => {
+    renderPage(); await fillSimple();
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(screen.queryByLabelText("Анимация упаковки подарка")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    await screen.findByLabelText("Дно коробки, вид сверху");
+    addTea();
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("1");
+    fireEvent.click(screen.getByRole("button", { name: "Очистить выбор" }));
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
+    expect(mocks.getBoxProducts).toHaveBeenCalledOnce();
+    expect(mocks.createSimpleGift).not.toHaveBeenCalled();
+    expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
+  });
+
+  it("позволяет вернуться во время загрузки товаров", async () => {
+    mocks.getBoxProducts.mockReturnValue(new Promise(() => {}));
+    renderPage(); await chooseBox();
+    expect(screen.getByText("Загружаем товары…")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Назад" }));
+    expect(screen.getByRole("button", { name: `Выбрать коробку ${testBox.name}` })).toBeInTheDocument();
+  });
+
+  it("не разрешает анимационный режим коробке без simple-настроек", async () => {
+    const advancedOnly = { ...testBox, simple_constructor_enabled: false, simple_requirements: null };
+    mocks.loadOptions.mockResolvedValue({ boxes: [advancedOnly], product_sizes: testSizes });
+    mocks.getBoxProducts.mockResolvedValue({ box: advancedOnly, product_sizes: testSizes });
+    renderPage(null); await chooseBox();
+    expect(screen.getByRole("button", { name: "С анимацией" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Вручную" })).toBeEnabled();
+  });
+
+  it("не теряет созданный Gift, если при reconnect коробка исчезла из options", async () => {
+    mocks.addGift.mockRejectedValue(new Error("Network unavailable"));
+    renderPage(); await fillSimple();
+    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Добавить подарок в корзину" }));
+    await screen.findByRole("button", { name: "Повторить добавление в корзину" });
+    act(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: false }); window.dispatchEvent(new Event("offline")); });
+    mocks.loadOptions.mockResolvedValue({ boxes: [], product_sizes: [] });
+    mocks.getBoxProducts.mockRejectedValue({ response: { status: 404 } });
+    act(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: true }); window.dispatchEvent(new Event("online")); });
+    await waitFor(() => expect(mocks.loadOptions).toHaveBeenCalledTimes(2));
+    const retry = await screen.findByRole("button", { name: "Повторить добавление в корзину" });
+    await waitFor(() => expect(retry).toBeEnabled());
+    mocks.addGift.mockResolvedValue({});
+    fireEvent.click(retry);
+    await screen.findByText("Подарок добавлен в корзину.");
+    expect(mocks.createSimpleGift).toHaveBeenCalledOnce();
+    expect(mocks.addGift.mock.calls[1][0]).toEqual(mocks.addGift.mock.calls[0][0]);
   });
 });
