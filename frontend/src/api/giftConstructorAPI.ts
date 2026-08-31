@@ -25,6 +25,7 @@ function validProfile(box: GiftSizeProfile): boolean {
 
 function validSize(size: ConstructorProductSize): boolean {
   return Boolean(size && Number.isInteger(size.id) && validProfile(size.size)
+    && ["tea", "sweet", "general"].includes(size.constructor_role) && typeof size.label === "string"
     && size.product && typeof size.product.name === "string"
     && ["gram", "piece"].includes(size.product.stock_unit)
     && Number.isFinite(size.product.price) && size.product.price_unit_quantity > 0
@@ -32,7 +33,7 @@ function validSize(size: ConstructorProductSize): boolean {
 }
 
 export const giftConstructorApi = {
-  async loadOptions(mode: "simple" | "advanced", signal: AbortSignal): Promise<{ boxes: GiftSizeProfile[]; product_sizes: ConstructorProductSize[] }> {
+  async loadOptions(mode: "simple" | "advanced", signal: AbortSignal): Promise<{ boxes: GiftSizeProfile[]; product_sizes: ConstructorProductSize[]; cell_size_mm: number | null }> {
     const response = await api.get<{ data: SimpleConstructorOptions | AdvancedConstructorOptions }>(
       `/api/gift-constructor/${mode}/options`, readConfig(signal),
     );
@@ -55,7 +56,7 @@ export const giftConstructorApi = {
     if (!Array.isArray(sizes) || !sizes.every(validSize)) {
       throw new Error("Некорректный ответ API: ожидается общий каталог форматов конструктора.");
     }
-    return { boxes: data.boxes, product_sizes: sizes };
+    return { boxes: data.boxes, product_sizes: sizes, cell_size_mm: Number.isFinite(data.cell_size_mm) && data.cell_size_mm > 0 ? data.cell_size_mm : null };
   },
 
   async getBoxProducts(boxId: number, signal: AbortSignal): Promise<BoxProducts> {

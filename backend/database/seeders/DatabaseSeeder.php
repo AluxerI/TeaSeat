@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             InventorySeeder::class,
             ProductSeeder::class,
             GiftSizeProfileSeeder::class,
+            ProductSizeSeeder::class,
             SupplierSeeder::class,
             ProductSupplierSeeder::class,
             ProductImageSeeder::class,

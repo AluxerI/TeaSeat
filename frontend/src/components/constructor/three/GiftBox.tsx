@@ -10,6 +10,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
+import { createBowGeometry } from "./bowGeometry";
 import {
   BD,
   BH,
@@ -505,8 +506,7 @@ function Ribbon({
 // ── Бант ────────────────────────────────────────────────────────────────────
 
 /**
- * Петли банта — торы с вырезом, а не коробки: скруглённый профиль ловит блики
- * и сразу читается как лента, тогда как параллелепипеды выглядят как планки.
+ * Широкие ленты с тонкой кромкой, приподнятыми петлями и V-срезом хвостов.
  */
 function Bow({
   groupRef,
@@ -517,12 +517,8 @@ function Bow({
   material: THREE.Material;
   y: number;
 }) {
-  const loop = useMemo(
-    () => new THREE.TorusGeometry(0.17, 0.045, 10, 32, Math.PI * 1.55),
-    [],
-  );
-  const knot = useMemo(() => new THREE.SphereGeometry(0.075, 16, 12), []);
-  const tail = useMemo(() => new THREE.BoxGeometry(0.085, 0.02, 0.34), []);
+  const { loop, tail } = useMemo(createBowGeometry, []);
+  const knot = useMemo(() => new THREE.SphereGeometry(0.085, 16, 12), []);
 
   useEffect(
     () => () => {
@@ -535,19 +531,20 @@ function Bow({
 
   return (
     <group ref={groupRef} position={[0, y, 0]} visible={false}>
-      {/* Левая и правая петли: тор поставлен «на ребро» и развёрнут в стороны */}
+      {/* Петли слегка различаются по высоте, чтобы бант не выглядел штампованным. */}
       <mesh
         geometry={loop}
         material={material}
-        position={[-0.16, 0.04, 0]}
-        rotation={[Math.PI / 2, 0, Math.PI * 0.72]}
+        position={[-0.025, 0, 0]}
+        rotation={[.08, .08, 0]}
         castShadow
       />
       <mesh
         geometry={loop}
         material={material}
-        position={[0.16, 0.04, 0]}
-        rotation={[Math.PI / 2, 0, -Math.PI * 0.28]}
+        position={[0.025, .012, 0]}
+        scale={[-1, .92, 1]}
+        rotation={[-.06, -.1, 0]}
         castShadow
       />
 
@@ -555,18 +552,17 @@ function Bow({
       <mesh
         geometry={tail}
         material={material}
-        position={[-0.1, 0.005, 0.16]}
-        rotation={[0.18, 0.5, 0]}
+        position={[-0.02, 0, 0]}
       />
       <mesh
         geometry={tail}
         material={material}
-        position={[0.1, 0.005, 0.16]}
-        rotation={[0.18, -0.5, 0]}
+        position={[0.02, 0, 0]}
+        scale={[-1, 1, .92]}
       />
 
       {/* Узел */}
-      <mesh geometry={knot} material={material} position={[0, 0.05, 0]} castShadow />
+      <mesh geometry={knot} material={material} position={[0, 0.07, 0]} scale={[1.15, .65, .85]} castShadow />
     </group>
   );
 }

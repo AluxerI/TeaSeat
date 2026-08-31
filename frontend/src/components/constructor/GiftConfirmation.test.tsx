@@ -50,6 +50,8 @@ describe("shared gift confirmation", () => {
     const firstRequest = mocks.addGift.mock.calls[0][0];
     expect(firstRequest.client_instance_id).toMatch(/^[\da-f]{8}-[\da-f]{4}-4[\da-f]{3}-[89ab][\da-f]{3}-[\da-f]{12}$/i);
     expect(screen.getByRole("button", { name: "К составу" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Наполнение" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Коробка" })).toBeDisabled();
     fireEvent.click(retry);
     await screen.findByText("Подарок добавлен в корзину.");
     expect(mocks.createSimpleGift).toHaveBeenCalledOnce();

@@ -86,6 +86,37 @@ describe("constructor workspace", () => {
     expect(mocks.loadOptions).not.toHaveBeenCalled();
   });
 
+  it("возврат из проверки сохраняет вкладку и передаёт поворот в boolean-контракте API", async () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: "Сложный — сетка 2.5D" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Выбрать коробку и расставить товары" }));
+    await screen.findByLabelText("Дно коробки, вид сверху");
+    fireEvent.click(screen.getByRole("tab", { name: /Сладости/ }));
+    addSweet();
+    fireEvent.click(screen.getByRole("button", { name: "Повернуть вправо на 90°" }));
+    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
+    expect(mocks.validateAdvanced).toHaveBeenCalledWith({ box_profile_id: 4, items: [{
+      client_item_id: expect.any(String), product_size_id: 21, position_x: 0, position_y: 0, is_rotated: true,
+    }] }, expect.any(AbortSignal));
+    fireEvent.click(screen.getByRole("button", { name: "Наполнение" }));
+    expect(screen.getByRole("tab", { name: /Сладости/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("В коробке: 1");
+    expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
+  });
+
+  it("возвращается из проверки к наполнению без потери выбранных форматов", async () => {
+    renderPage(); await fillSimple();
+    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "Наполнение" }));
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
+    expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("2");
+    expect(mocks.createSimpleGift).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    await waitFor(() => expect(mocks.quoteSimple).toHaveBeenCalledTimes(2));
+  });
+
   it("повторяет неудавшуюся загрузку без мокового fallback", async () => {
     mocks.loadOptions.mockRejectedValueOnce({ response: { status: 500 } });
     renderPage();

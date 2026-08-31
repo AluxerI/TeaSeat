@@ -67,4 +67,18 @@ describe("camera controller without WebGL", () => {
     tick();
     expect(camera.position.toArray()).toEqual([0, 8, 0]);
   });
+
+  it("ограничивает ручной ракурс и возвращает его к дну до разрешения переноса", () => {
+    const camera = mocks.state.camera as OrthographicCamera;
+    const settled = vi.fn();
+    const view = render(<FloorCamera width={4} height={3} editing={false} previewRotation={100} onSettled={settled} />);
+    tick();
+    expect(camera.position.x).toBeGreaterThan(0);
+    expect(Math.atan2(camera.position.x, camera.position.z)).toBeCloseTo(Math.PI / 5);
+    expect(settled).not.toHaveBeenCalledWith(true);
+    view.rerender(<FloorCamera width={4} height={3} editing previewRotation={100} onSettled={settled} />);
+    for (let index = 0; index < 20; index += 1) tick();
+    expect(camera.position.toArray()).toEqual([0, 8, 0]);
+    expect(settled).toHaveBeenCalledWith(true);
+  });
 });

@@ -44,7 +44,8 @@ function Workspace({ userId }: { userId: number }) {
       availableCount={options.error || options.loading ? null : options.data?.product_sizes.length ?? null}
       onRetry={() => { options.retry(); products.retry(); }}
       retryDisabled={busy || !products.online || products.loading || options.loading} />}
-    {box && products.data && <ConstructorEditor key={`${mode}:${box.id}`} mode={mode} box={products.data.box} sizes={products.data.product_sizes} onBusy={setBusy} />}
+    {box && <p className={styles.hint}>Назад по шагам можно вернуться без потери состава. Смена коробки или режима очистит выбор.</p>}
+    {box && products.data && <ConstructorEditor key={`${mode}:${box.id}`} mode={mode} box={products.data.box} sizes={products.data.product_sizes} onBusy={setBusy} cellSizeMm={options.data?.cell_size_mm} />}
   </>;
 }
 

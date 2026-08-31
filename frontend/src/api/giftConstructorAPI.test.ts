@@ -46,15 +46,20 @@ describe("gift constructor api", () => {
       ? { tea_product_sizes: [testSizes[0]], sweet_product_sizes: [testSizes[1]] }
       : { product_sizes: testSizes }) } } });
     const signal = new AbortController().signal;
-    await expect(giftConstructorApi.loadOptions(mode, signal)).resolves.toEqual({ boxes: [testBox], product_sizes: testSizes });
+    await expect(giftConstructorApi.loadOptions(mode, signal)).resolves.toEqual({ boxes: [testBox], product_sizes: testSizes, cell_size_mm: null });
     expect(mocks.get).toHaveBeenCalledWith(`/api/gift-constructor/${mode}/options`, { signal, timeout: 15000 });
   });
 
   it("отличает пустой каталог от отсутствующего поля в ответе", async () => {
     mocks.get.mockResolvedValueOnce({ data: { data: { boxes: [testBox], product_sizes: [] } } });
-    await expect(giftConstructorApi.loadOptions("advanced", new AbortController().signal)).resolves.toEqual({ boxes: [testBox], product_sizes: [] });
+    await expect(giftConstructorApi.loadOptions("advanced", new AbortController().signal)).resolves.toEqual({ boxes: [testBox], product_sizes: [], cell_size_mm: null });
     mocks.get.mockResolvedValueOnce({ data: { data: { boxes: [testBox] } } });
     await expect(giftConstructorApi.loadOptions("advanced", new AbortController().signal)).rejects.toThrow(/общий каталог/);
+  });
+
+  it("берёт физический размер ячейки из API, не подставляя собственный", async () => {
+    mocks.get.mockResolvedValue({ data: { boxes: [testBox], product_sizes: testSizes, cell_size_mm: 12 } });
+    await expect(giftConstructorApi.loadOptions("advanced", new AbortController().signal)).resolves.toMatchObject({ cell_size_mm: 12 });
   });
 
   it("не принимает HTML frontend вместо ответа backend", async () => {

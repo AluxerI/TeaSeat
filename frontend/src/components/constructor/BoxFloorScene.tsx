@@ -1,35 +1,40 @@
 import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { Html } from "@react-three/drei";
 import { OrthographicCamera } from "three";
 import FloorGrid, { type FloorProps } from "./FloorGrid";
 import { footprint } from "../../utils/giftLayout";
 import { advanceFloorCamera, floorCameraPosition } from "../../utils/floorCamera";
+import { clampPreviewRotation, floorViewport, PREVIEW_ROTATION_LIMIT } from "../../utils/constructorInteraction";
 import GiftBox, { createBoxDrive } from "./three/GiftBox";
 import { BD, BH, BW, THICK } from "./three/sceneConfig";
 import { disposeConstructorTextures } from "./three/materials";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 
-class WebGLBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+class WebGLBoundary extends Component<{ children: ReactNode; fallback: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch() { this.props.onFailure(); }
   render() { return this.state.failed ? this.props.fallback : this.props.children; }
 }
 
 /** Единственное движение: от наклонного вида к дну. После остановки Canvas не перерисовывается. */
-export function FloorCamera({ width, height, editing }: { width: number; height: number; editing: boolean }) {
+export function FloorCamera({ width, height, editing, previewRotation = 0, onSettled }: {
+  width: number; height: number; editing: boolean; previewRotation?: number; onSettled?: (ready: boolean) => void;
+}) {
   const { camera, size, invalidate } = useThree();
   // Повторное открытие Canvas в уже выбранной коробке сразу сохраняет вид сверху.
   const progress = useRef(editing ? 1 : 0);
   const reduced = useRef(false);
+  const settled = useRef(false);
   useEffect(() => {
     reduced.current = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     invalidate();
   }, [invalidate]);
-  useEffect(() => { invalidate(); }, [editing, invalidate]);
+  useEffect(() => { settled.current = false; onSettled?.(false); invalidate(); }, [editing, onSettled, invalidate]);
+  useEffect(() => { invalidate(); }, [previewRotation, invalidate]);
   useEffect(() => {
     if (camera instanceof OrthographicCamera) {
-      camera.zoom = Math.min(size.width / (width + 1.4), size.height / (height + 1.4));
+      camera.zoom = floorViewport(size.width, size.height, width, height).zoom;
       camera.updateProjectionMatrix();
     }
     invalidate();
@@ -37,9 +42,12 @@ export function FloorCamera({ width, height, editing }: { width: number; height:
   useFrame((_, delta) => {
     progress.current = advanceFloorCamera(progress.current, delta, editing, reduced.current);
     camera.up.set(0, 0, -1);
-    camera.position.set(...floorCameraPosition(progress.current, width, height));
+    const [, y, z] = floorCameraPosition(progress.current, width, height);
+    const angle = clampPreviewRotation(previewRotation) * (1 - progress.current);
+    camera.position.set(Math.sin(angle) * z, y, Math.cos(angle) * z);
     camera.lookAt(0, 0, 0);
     if (editing && progress.current < 1) invalidate();
+    if (editing && progress.current === 1 && !settled.current) { settled.current = true; onSettled?.(true); }
   });
   return null;
 }
@@ -60,7 +68,7 @@ export interface BoxFloorSceneProps extends FloorProps {
 }
 
 /** Та же GiftBox, что использовалась в прежнем конструкторе; сетка — слой над её дном. */
-function FloorContent({ box, sizes, items, selectedId, onSelect, onCell, editing, onChoose }: BoxFloorSceneProps) {
+function FloorContent({ box, sizes, items, selectedId, editing, onChoose, previewRotation, onSettled }: BoxFloorSceneProps & { previewRotation: number; onSettled: (ready: boolean) => void }) {
   const width = box.width_cells;
   const height = box.height_cells;
   const drive = useRef(createBoxDrive({ fold: 1, lidLift: 0 }));
@@ -76,7 +84,7 @@ function FloorContent({ box, sizes, items, selectedId, onSelect, onCell, editing
     return new Float32Array(lines);
   }, [width, height]);
   return <>
-    <FloorCamera width={width} height={height} editing={editing} />
+    <FloorCamera width={width} height={height} editing={editing} previewRotation={previewRotation} onSettled={onSettled} />
     <ambientLight intensity={1.5} />
     <directionalLight position={[4, 8, 3]} intensity={2} />
     <group scale={[width / (BW - THICK), 1, height / (BD - THICK)]}
@@ -88,23 +96,16 @@ function FloorContent({ box, sizes, items, selectedId, onSelect, onCell, editing
         <bufferGeometry><bufferAttribute attach="attributes-position" args={[grid, 3]} /></bufferGeometry>
         <lineBasicMaterial color="#edd5ad" />
       </lineSegments>
-      <mesh position={[0, .008, 0]} rotation={[-Math.PI / 2, 0, 0]} onClick={(event) => {
-        event.stopPropagation();
-        onCell(Math.min(width - 1, Math.max(0, Math.floor(event.point.x + width / 2))), Math.min(height - 1, Math.max(0, Math.floor(event.point.z + height / 2))));
-      }}>
-        <planeGeometry args={[width, height]} /><meshBasicMaterial transparent opacity={0} depthWrite={false} />
-      </mesh>
     </>}
-    {editing && items.map((item, index) => {
+    {editing && items.map((item) => {
       const product = sizes.find((size) => size.id === item.product_size_id);
       if (!product) return null;
       const [w, h] = footprint(product, item.is_rotated);
       return <group key={item.client_item_id} position={[item.position_x - width / 2 + w / 2, .08, item.position_y - height / 2 + h / 2]}>
-        <mesh onClick={(event) => { event.stopPropagation(); onSelect(item.client_item_id); }}>
+        <mesh>
           <boxGeometry args={[w - .09, .14, h - .09]} />
           <meshStandardMaterial color={item.client_item_id === selectedId ? "#b6c784" : product.constructor_role === "sweet" ? "#d1a684" : "#ccd7b5"} />
         </mesh>
-        <Html center position={[0, .1, 0]} style={{ pointerEvents: "none" }}><span className={styles.meshLabel}>{index + 1}</span></Html>
       </group>;
     })}
   </>;
@@ -113,17 +114,63 @@ function FloorContent({ box, sizes, items, selectedId, onSelect, onCell, editing
 export default function BoxFloorScene(props: BoxFloorSceneProps) {
   const [lost, setLost] = useState(false);
   const [staticView, setStaticView] = useState(false);
-  const fallback = props.editing ? <FloorGrid {...props} /> : <p className={styles.hint}>Предпросмотр 3D недоступен. Выберите коробку кнопкой ниже — плоская сетка останется рабочей.</p>;
-  if (props.box.width_cells * props.box.height_cells > 1600) return fallback;
+  const [ready, setReady] = useState(false);
+  const [rotation, setRotation] = useState(0);
+  const container = useRef<HTMLDivElement | null>(null);
+  const orbit = useRef<{ id: number; x: number; start: number; moved: boolean } | null>(null);
+  const suppressChoose = useRef(false);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  useLayoutEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const measure = () => { const rect = element.getBoundingClientRect(); setViewport({ width: rect.width, height: rect.height }); };
+    measure();
+    const observer = typeof ResizeObserver !== "undefined" ? new ResizeObserver(measure) : null;
+    observer?.observe(element);
+    window.addEventListener("resize", measure);
+    return () => { observer?.disconnect(); window.removeEventListener("resize", measure); };
+  }, []);
+  const surface = floorViewport(viewport.width, viewport.height, props.box.width_cells, props.box.height_cells);
+  const flatWidth = floorViewport(Math.max(0, viewport.width - 32), Math.max(0, viewport.height - 32), props.box.width_cells, props.box.height_cells).width;
+  const fallback = props.editing ? <div className={styles.flatSurface} style={{ width: flatWidth ? flatWidth + 32 : "100%" }}><FloorGrid {...props} /></div>
+    : <p className={styles.hint}>Предпросмотр 3D недоступен. Выберите коробку кнопкой ниже — плоская сетка останется рабочей.</p>;
+  if (props.box.width_cells * props.box.height_cells > 1600) return <FloorGrid {...props} />;
   return <>
-    <div className={styles.scene} aria-label={props.editing ? "Сетка на дне выбранной коробки" : "Предпросмотр подарочной коробки"}>
-      {lost || staticView ? fallback : <WebGLBoundary fallback={fallback}>
+    <div ref={container} className={`${styles.scene} ${!props.editing ? styles.previewOrbit : ""}`} aria-label={props.editing ? "Сетка на дне выбранной коробки" : "Предпросмотр подарочной коробки"}
+      onPointerDownCapture={(event) => {
+        if (props.editing || event.button !== 0 || event.isPrimary === false) return;
+        suppressChoose.current = false;
+        orbit.current = { id: event.pointerId, x: event.clientX, start: rotation, moved: false };
+      }}
+      onPointerMoveCapture={(event) => {
+        const current = orbit.current;
+        if (props.editing || !current || current.id !== event.pointerId) return;
+        if (Math.abs(event.clientX - current.x) < 5 && !current.moved) return;
+        current.moved = true; suppressChoose.current = true;
+        event.currentTarget.setPointerCapture?.(event.pointerId);
+        setRotation(clampPreviewRotation(current.start + (event.clientX - current.x) * .006));
+      }}
+      onPointerUpCapture={(event) => {
+        if (event.currentTarget.hasPointerCapture?.(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        orbit.current = null;
+      }}
+      onPointerCancel={() => { orbit.current = null; suppressChoose.current = true; }}
+      onClickCapture={(event) => { if (suppressChoose.current) { event.stopPropagation(); suppressChoose.current = false; } }}>
+      {lost || staticView ? fallback : <WebGLBoundary fallback={fallback} onFailure={() => setLost(true)}>
         <Canvas orthographic frameloop="demand" dpr={[1, 1.5]} camera={{ position: [0, 8, 5], near: .1, far: 1000 }} fallback={fallback}>
           <ContextLoss onLost={() => setLost(true)} />
-          <FloorContent {...props} />
+          <FloorContent {...props} previewRotation={rotation} onSettled={setReady} />
         </Canvas>
       </WebGLBoundary>}
+      {props.editing && ready && !lost && !staticView && surface.width > 0 && <div className={styles.webglDropSurface} style={{ width: surface.width, height: surface.height }}>
+        <FloorGrid {...props} overlay />
+      </div>}
     </div>
+    {!props.editing && !lost && <div className={styles.orbitControls} aria-label="Поворот предпросмотра">
+      <button type="button" disabled={rotation <= -PREVIEW_ROTATION_LIMIT} onClick={() => setRotation((value) => clampPreviewRotation(value - .15))}>Повернуть влево</button>
+      <button type="button" onClick={() => setRotation(0)}>Сбросить ракурс</button>
+      <button type="button" disabled={rotation >= PREVIEW_ROTATION_LIMIT} onClick={() => setRotation((value) => clampPreviewRotation(value + .15))}>Повернуть вправо</button>
+    </div>}
     {!lost && props.editing && <button type="button" className={styles.textButton} onClick={() => setStaticView((value) => !value)}>{staticView ? "Показать объём коробки" : "Плоская сетка без WebGL"}</button>}
   </>;
 }

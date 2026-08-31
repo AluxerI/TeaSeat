@@ -8,6 +8,7 @@ import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { constructorError, createGiftInstanceId } from "../../utils/constructorErrors";
 import { constructorItemQuantity } from "../../utils/giftConstructor";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
+import ConstructorSteps from "./ConstructorSteps";
 
 const money = (amount: number) => new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB" }).format(amount);
 
@@ -18,9 +19,10 @@ interface Props {
   onBack: () => void;
   onReset: () => void;
   onBusy: (busy: boolean) => void;
+  onBackToBox?: () => void;
 }
 
-export default function GiftConfirmation({ draft, box, contents, onBack, onReset, onBusy }: Props) {
+export default function GiftConfirmation({ draft, box, contents, onBack, onReset, onBusy, onBackToBox }: Props) {
   const { user } = useAuth();
   const { addGift } = useCustomerCart();
   const online = useOnlineStatus();
@@ -108,7 +110,10 @@ export default function GiftConfirmation({ draft, box, contents, onBack, onReset
     }
   };
 
-  return <section className={styles.confirmation}>
+  return <>
+    <ConstructorSteps current={done ? 3 : 2} locked={busy || done || Boolean(gift.current) || unknownCreation}
+      onBack={(step) => { if (step === 0 && onBackToBox) onBackToBox(); else onBack(); }} />
+    <section className={styles.confirmation}>
     <h2>Проверьте подарок</h2>
     <p>{box.name} · {contents.length} позиций</p>
     <ul>{contents.map((size, index) => <li key={`${size.id}-${index}`}>{size.product.name} — {constructorItemQuantity(size)}</li>)}</ul>
@@ -133,5 +138,5 @@ export default function GiftConfirmation({ draft, box, contents, onBack, onReset
       {(gift.current || unknownCreation) && <Link to="/cart">Проверить корзину</Link>}
     </div>}
     <p className={styles.hint}>Расчёт не резервирует товары. При добавлении и оформлении заказа сервер проверит наличие повторно.</p>
-  </section>;
+  </section></>;
 }

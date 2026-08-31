@@ -27,6 +27,14 @@ export interface ConstructorProduct {
   stock_unit: StockUnit;
   price_unit_quantity: number;
   image: string | null;
+  description?: string | null;
+  ingredients?: string | null;
+  weight_grams?: number | null;
+  assembly_instructions?: string | null;
+  sold_count?: number;
+  sku?: string | null;
+  brand?: string | null;
+  total_quantity?: number;
 }
 
 export interface ConstructorProductSize {
