@@ -31,22 +31,18 @@ interface CameraRigProps {
 /** Порог в пикселях, после которого касание считается вращением, а не скроллом */
 const TOUCH_SLOP = 8;
 
-export default function CameraRig({ shot, interactive = true }: CameraRigProps) {
+export default function CameraRig({ shot, interactive = false }: CameraRigProps) {
   const camera = useThree((s) => s.camera);
   const gl = useThree((s) => s.gl);
   const reduced = usePrefersReducedMotion();
 
   // Текущее (сглаженное) состояние камеры.
   const cur = useRef({
-    azimuth: shot.azimuth - 0.3,
+    azimuth: shot.azimuth,
     polar: shot.polar,
-    radius: shot.radius * 1.32,
+    radius: shot.radius,
     target: new THREE.Vector3(...shot.target),
   });
-
-  // Накопленный дрейф — отдельно от azimuth, иначе демпфирование к цели
-  // постоянно съедало бы приращение и облёт стоял бы на месте.
-  const drift = useRef(0);
 
   // Пользовательский оффсет поверх скриптового кадра.
   const drag = useRef({ az: 0, polar: 0, active: false });
@@ -58,6 +54,7 @@ export default function CameraRig({ shot, interactive = true }: CameraRigProps) 
   // ── Ввод ──────────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (!interactive) return;
     const el = gl.domElement;
 
     // pending — палец опущен, но мы ещё не решили, вращение это или скролл.
@@ -157,7 +154,7 @@ export default function CameraRig({ shot, interactive = true }: CameraRigProps) 
       el.removeEventListener("pointercancel", onUp);
       el.style.cursor = "";
     };
-  }, [gl]);
+  }, [gl, interactive]);
 
   // Смена кадра при выключенном взаимодействии — сбрасываем оффсет плавно
   // (само затухание в useFrame), но фиксируем, что жест больше не активен.
@@ -173,8 +170,7 @@ export default function CameraRig({ shot, interactive = true }: CameraRigProps) 
     const d = drag.current;
     const lambda = shot.lambda ?? 2;
 
-    // Медленный облёт: накапливаем дрейф, пока пользователь не держит камеру.
-    if (!d.active && shot.drift) drift.current += shot.drift * delta;
+    // Автоматического облёта больше нет. Позиция меняется только при смене shot.
 
     // Оффсет затухает к нулю — кадр всегда возвращается к режиссёрскому.
     if (!d.active) {
@@ -182,7 +178,7 @@ export default function CameraRig({ shot, interactive = true }: CameraRigProps) 
       d.polar = damp(d.polar, 0, DRAG_LIMITS.decayLambda, delta);
     }
 
-    const targetAz = shot.azimuth + drift.current + d.az;
+    const targetAz = shot.azimuth + d.az;
     const targetPolar = clamp(shot.polar + d.polar, POLAR_CLAMP[0], POLAR_CLAMP[1]);
 
     if (firstFrame.current && reduced) {
@@ -207,14 +203,6 @@ export default function CameraRig({ shot, interactive = true }: CameraRigProps) 
       c.target.x = damp(c.target.x, shot.target[0], lambda, delta);
       c.target.y = damp(c.target.y, shot.target[1], lambda, delta);
       c.target.z = damp(c.target.z, shot.target[2], lambda, delta);
-    }
-
-    // Дрейф накапливается бесконечно — сворачиваем его вместе с текущим
-    // азимутом, когда уходим за полный оборот, чтобы не терять точность float.
-    if (Math.abs(drift.current) > Math.PI * 2) {
-      const wrap = Math.sign(drift.current) * Math.PI * 2;
-      drift.current -= wrap;
-      c.azimuth -= wrap;
     }
 
     const sinP = Math.sin(c.polar);

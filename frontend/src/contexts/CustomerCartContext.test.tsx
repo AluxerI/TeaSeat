@@ -10,7 +10,8 @@ const mocks = vi.hoisted(() => ({
   removeItem: vi.fn(),
 }));
 
-vi.mock("../hooks/useAuth", () => ({ useAuth: () => ({ user: { id: 7 } }) }));
+const auth = vi.hoisted(() => ({ user: { id: 7 } as { id: number } | null }));
+vi.mock("../hooks/useAuth", () => ({ useAuth: () => ({ user: auth.user }) }));
 vi.mock("../api/cartAPI", () => ({ cartApi: mocks }));
 
 import { CustomerCartProvider } from "./CustomerCartContext";
@@ -51,7 +52,7 @@ function Probe() {
   );
 }
 
-beforeEach(() => Object.values(mocks).forEach((mock) => mock.mockReset()));
+beforeEach(() => { auth.user = { id: 7 }; Object.values(mocks).forEach((mock) => mock.mockReset()); });
 
 describe("CustomerCartProvider", () => {
   it("принимает серверный снимок и открывает мини-корзину только после успеха", async () => {
@@ -109,5 +110,17 @@ describe("CustomerCartProvider", () => {
 
     await act(async () => resolveRefresh?.(cartSnapshot(2)));
     expect(screen.getByTestId("cart-id")).toHaveTextContent("9");
+  });
+
+  it("не показывает ответ POST предыдущего аккаунта и не открывает его корзину", async () => {
+    let resolve!: (value: Cart) => void;
+    mocks.addGift.mockReturnValue(new Promise<Cart>((done) => { resolve = done; }));
+    const view = render(<CustomerCartProvider><Probe /></CustomerCartProvider>);
+    fireEvent.click(screen.getByRole("button", { name: "Добавить подарок" }));
+    auth.user = { id: 8 };
+    view.rerender(<CustomerCartProvider><Probe /></CustomerCartProvider>);
+    await act(async () => resolve(cartSnapshot(99)));
+    expect(screen.getByTestId("cart-id")).toHaveTextContent("empty");
+    expect(screen.getByTestId("drawer")).toHaveTextContent("false");
   });
 });

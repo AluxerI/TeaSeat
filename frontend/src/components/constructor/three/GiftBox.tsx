@@ -57,6 +57,8 @@ interface GiftBoxProps {
   desaturable?: boolean;
   position?: [number, number, number];
   scale?: number;
+  /** Редактор дна убирает крышку, чтобы она не перекрывала вид сверху. */
+  showLid?: boolean;
   /** Содержимое коробки — пакетики и десерт кладутся внутрь этой группы */
   children?: React.ReactNode;
 }
@@ -196,6 +198,7 @@ export default function GiftBox({
   desaturable = false,
   position = [0, 0, 0],
   scale = 1,
+  showLid = true,
   children,
 }: GiftBoxProps) {
   const mats = useBoxMaterials(desaturable);
@@ -391,7 +394,7 @@ export default function GiftBox({
 
       {/* ── Крышка ── */}
       {/* Начало координат группы — плоскость верхней панели, юбка свисает вниз */}
-      <group ref={lidRef} position={[0, BH / 2, 0]}>
+      <group ref={lidRef} position={[0, BH / 2, 0]} visible={showLid}>
         <mesh position={[0, THICK / 2, 0]} material={mats.lidTopMats} castShadow receiveShadow>
           <boxGeometry args={[lidW, THICK, lidD]} />
         </mesh>

@@ -52,6 +52,8 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
   const [miniCartOpen, setMiniCartOpen] = useState(false);
   const [lastAddedProductId, setLastAddedProductId] = useState<number | null>(null);
   const requestVersion = useRef(0);
+  const accountId = useRef(user?.id);
+  accountId.current = user?.id;
 
   // Корзина относится к конкретному пользователю. При выходе или смене
   // аккаунта старый снимок нельзя показывать даже на долю секунды.
@@ -107,6 +109,8 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
     actionKey: string,
     operation: () => Promise<Cart>,
   ): Promise<Cart> => {
+    const owner = accountId.current;
+    if (!owner) throw new Error("Войдите в аккаунт для изменения корзины");
     // Результат действия новее фоновой загрузки. Инвалидируем её версию,
     // иначе медленный GET мог бы затереть только что добавленную позицию.
     requestVersion.current += 1;
@@ -116,13 +120,14 @@ export function CustomerCartProvider({ children }: { children: ReactNode }) {
     setError("");
     try {
       const nextCart = await operation();
+      if (accountId.current !== owner) throw new Error("Аккаунт изменился во время запроса");
       setCart(nextCart);
       return nextCart;
     } catch (reason) {
-      acceptError(reason);
+      if (accountId.current === owner) acceptError(reason);
       throw reason;
     } finally {
-      setPendingActionKey((current) => current === actionKey ? null : current);
+      if (accountId.current === owner) setPendingActionKey((current) => current === actionKey ? null : current);
     }
   }, [acceptError]);
 

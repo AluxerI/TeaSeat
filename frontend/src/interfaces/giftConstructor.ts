@@ -108,3 +108,31 @@ export interface AddGiftToCartRequest {
   client_instance_id: string;
   city?: string;
 }
+
+export interface LayoutPlacement {
+  client_item_id: string;
+  product_size_id: number;
+  position_x: number;
+  position_y: number;
+  is_rotated: boolean;
+}
+
+export interface AdvancedGiftSelection {
+  box_profile_id: number;
+  items: LayoutPlacement[];
+}
+
+export interface AdvancedConstructorOptions {
+  cell_size_mm: number;
+  boxes: GiftSizeProfile[];
+  product_sizes: ConstructorProductSize[];
+}
+
+export interface BoxProducts {
+  box: GiftSizeProfile;
+  product_sizes: ConstructorProductSize[];
+}
+
+export type ConstructorDraft =
+  | { mode: "simple"; selection: SimpleGiftSelection }
+  | { mode: "advanced"; selection: AdvancedGiftSelection };

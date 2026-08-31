@@ -476,7 +476,7 @@ function SceneContent({
           завершалась бы выбором варианта, которого пользователь не хотел. */}
       <CameraRig
         shot={shot}
-        interactive={!isScripted(phase) && phase.kind !== "chooseType"}
+        interactive={false}
       />
 
       {/* ── Этап 0 ── */}
