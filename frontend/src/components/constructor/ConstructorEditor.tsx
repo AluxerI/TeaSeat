@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import RotateLeftRounded from "@mui/icons-material/RotateLeftRounded";
 import RotateRightRounded from "@mui/icons-material/RotateRightRounded";
@@ -15,7 +15,7 @@ import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 import ConstructorSteps from "./ConstructorSteps";
 import { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import ProductTexture from "./ProductTexture";
-import { supportsSimple } from "./ConstructorChoice";
+import { useSimpleGiftQuote } from "../../hooks/useSimpleGiftQuote";
 
 // Каждый режим загружает свою сцену по требованию.
 const BoxFloorScene = lazy(() => import("./BoxFloorScene"));
@@ -42,6 +42,8 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   const [confirming, setConfirming] = useState(false);
   const [placementStarted, setPlacementStarted] = useState(startEditing);
   const animatedItems = useRef(new Set<string>());
+  const quoteStatusId = useId();
+  const simpleQuote = useSimpleGiftQuote(box, sizes, teas, sweets, mode === "simple" && active && !confirming);
   const [transforming, setTransforming] = useState(false);
   // Навигация каталога живёт столько же, сколько состав: возврат по шагам её не сбрасывает.
   const [browse, setBrowse] = useState(() => initialCatalogBrowse(sizes));
@@ -57,7 +59,7 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   const selectedIds = mode === "simple" ? [...teas, ...sweets] : items.map((item) => item.product_size_id);
   const contents = selectedIds.map((id) => sizes.find((size) => size.id === id)).filter((size): size is ConstructorProductSize => Boolean(size));
   const ready = mode === "simple"
-    ? Boolean(supportsSimple(box) && requirements && teas.length === requirements.tea_count && sweets.length === requirements.sweet_count && contents.length === selectedIds.length)
+    ? Boolean(simpleQuote.approved)
     : items.length > 0 && !layoutError(box, sizes, items);
   const drag = useConstructorDrag({ box, sizes, items, onSelect: setSelectedId, onError: setError,
     onCommit: (placement, existing) => {
@@ -137,7 +139,7 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
       <div className={styles.simpleWorkspace}>
       {active && <section className={styles.floorPanel} aria-label="Упаковка">
         <Suspense fallback={<p role="status">Загружаем анимацию…</p>}>
-          <SimplePackingScene box={box} teas={teas} sweets={sweets} seen={animatedItems} />
+          <SimplePackingScene box={box} teas={teas} sweets={sweets} seen={animatedItems} layout={simpleQuote.approved?.layout} />
         </Suspense>
       </section>}
       <div className={styles.simpleColumns}>
@@ -167,11 +169,19 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
       {placementStarted && <ConstructorCarousel box={box} options={sizes} selected={selectedIds} limit={MAX_LAYOUT_ITEMS} onAdd={addAdvanced} drag={{ ...drag, dragging: locked }} cellSizeMm={cellSizeMm} browse={browse} onBrowse={setBrowse} />}
     </div>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {contents.length !== selectedIds.length && <p role="alert">Часть выбранных форматов больше недоступна. Удалите их или очистите выбор.</p>}
+    {mode === "advanced" && contents.length !== selectedIds.length && <p role="alert">Часть выбранных форматов больше недоступна. Удалите их или очистите выбор.</p>}
+    {mode === "simple" && <div id={quoteStatusId} className={styles.preflight} aria-live="polite">
+      {simpleQuote.error ? <p role="alert" className={styles.error}>{contents.length !== selectedIds.length
+        ? "Часть выбранных форматов больше недоступна. Удалите их или очистите выбор." : simpleQuote.error}</p>
+        : simpleQuote.loading ? <p role="status">Проверяем раскладку, вес и наличие…</p>
+        : simpleQuote.approved ? <p role="status">{new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB" }).format(simpleQuote.approved.quote.totals.final_total)}</p>
+        : <p className={styles.hint}>Чай {teas.length}/{requirements?.tea_count ?? 0} · Сладости {sweets.length}/{requirements?.sweet_count ?? 0}</p>}
+      {simpleQuote.complete && !simpleQuote.loading && simpleQuote.error && !simpleQuote.localError && simpleQuote.online
+        && <button type="button" onClick={simpleQuote.retry}>Повторить проверку</button>}
+    </div>}
     {(mode === "simple" || placementStarted) && <div className={styles.actions}>
-      <button type="button" className={styles.primary} disabled={!ready || locked} onClick={() => setConfirming(true)}>Проверить подарок и цену</button>
+      <button type="button" className={styles.primary} disabled={!ready || locked} aria-describedby={mode === "simple" ? quoteStatusId : undefined} onClick={() => { if (ready) setConfirming(true); }}>К оформлению</button>
       <button type="button" disabled={!selectedIds.length || locked} onClick={reset}>Очистить выбор</button>
-      {mode === "simple" && !ready && <span className={styles.hint}>Для продолжения: чай {teas.length}/{requirements?.tea_count}, сладости {sweets.length}/{requirements?.sweet_count}.</span>}
     </div>}
     {drag.cursor && cursorSize && cursorFootprint && !cursorOverFloor && createPortal(<div className={styles.dragCursor} aria-hidden="true" style={{
       left: drag.cursor.clientX + 8, top: drag.cursor.clientY + 8,

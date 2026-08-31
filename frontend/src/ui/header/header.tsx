@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { useCustomerCart } from "../../hooks/useCustomerCart";
+import { useWishlist } from "../../hooks/useWishlist";
+import { getAdminPanelUrl } from "../../utils/adminUrl";
 import "./../../scss/main.scss";
 
 function MenuIcon({ size = 22 }: { size?: number }) {
@@ -80,6 +82,7 @@ export default function Header() {
     refreshCart,
     openMiniCart,
   } = useCustomerCart();
+  const wishlist = useWishlist(user?.id ?? null);
 
   // Шапка загружает корзину один раз, чтобы Badge был правильным и после
   // обновления страницы. Ошибка появится внутри Drawer при его открытии.
@@ -88,6 +91,14 @@ export default function Header() {
       void refreshCart().catch(() => undefined);
     }
   }, [cartInitialized, cartLoading, isAuthenticated, refreshCart]);
+
+  const handleWishlistClick = () => {
+    if (!isAuthenticated) {
+      navigate("/login", { state: { from: "/profile?section=favorites" } });
+      return;
+    }
+    navigate("/profile?section=favorites");
+  };
 
   const handleCartClick = () => {
     if (!isAuthenticated) {
@@ -99,13 +110,13 @@ export default function Header() {
   };
 
   const leftNav = [
-    { label: "Главная",  href: "#" },
-    { label: "Контакты", href: "#" },
+    { label: "Главная", href: "/" },
+    { label: "Категории", href: "/category" },
   ];
 
   const rightNav = [
-    { label: "О компании", href: "#" },
-    { label: "Каталог",    href: "/catalog" },
+    { label: "О компании", href: "/about" },
+    { label: "Каталог", href: "/catalog" },
   ];
 
   return (
@@ -119,7 +130,7 @@ export default function Header() {
 
           <div className="header__main">
 
-            {/* ── Верхний ряд: ☰ Главная Контакты · Лого · О компании Каталог ── */}
+            {/* ── Верхний ряд: ☰ Главная Категории · Лого · О компании Каталог ── */}
             <div className="header__row header__row--top">
               <div className="header__left">
                 <button
@@ -173,8 +184,14 @@ export default function Header() {
           </div>
 
           <div className="header__actions">
-            <button className="header__icon-btn" aria-label="Избранное">
+            <button
+              type="button"
+              className="header__icon-btn header__cart-button"
+              aria-label={wishlist.count ? `Избранное, товаров: ${wishlist.count}` : "Избранное"}
+              onClick={handleWishlistClick}
+            >
               <HeartIcon size={20} />
+              {wishlist.count > 0 && <span className="header__cart-badge">{wishlist.count > 99 ? "99+" : wishlist.count}</span>}
             </button>
             {/* id остаётся целью анимации конструктора, но клик теперь открывает
                 общий Drawer без ухода с текущей страницы. */}
@@ -214,7 +231,7 @@ export default function Header() {
                         <span className="header__user-dropdown-email">{user?.email}</span>
                       </div>
                       {isAdmin && (
-                        <a href="/admin" className="header__user-dropdown-item">Админка</a>
+                        <a href={getAdminPanelUrl()} className="header__user-dropdown-item">Админка</a>
                       )}
                       <a href="/profile" className="header__user-dropdown-item">Профиль</a>
                       <a href="/profile?section=orders" className="header__user-dropdown-item">Заказы</a>

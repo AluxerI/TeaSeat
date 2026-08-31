@@ -1,4 +1,4 @@
-import { act, render } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { OrthographicCamera } from "three";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -15,7 +15,8 @@ vi.mock("@react-three/fiber", () => ({
 vi.mock("@react-three/drei", () => ({ Html: () => null }));
 vi.mock("./three/GiftBox", () => ({ default: () => null, createBoxDrive: vi.fn() }));
 vi.mock("./three/materials", () => ({ disposeConstructorTextures: vi.fn() }));
-import { FloorCamera } from "./BoxFloorScene";
+import BoxFloorScene, { FloorCamera, FLOOR_ITEM_Y, FLOOR_ITEM_TOP, FLOOR_WALL_HEIGHT } from "./BoxFloorScene";
+import { testBox, testSizes } from "./testFixtures";
 
 beforeEach(() => {
   mocks.invalidate.mockClear();
@@ -27,6 +28,24 @@ afterEach(() => vi.unstubAllGlobals());
 const tick = () => act(() => { mocks.frame?.({}, .05); });
 
 describe("camera controller without WebGL", () => {
+  it("в ручном режиме нет обзора и поворота камеры; fallback сохраняет сетку", () => {
+    render(<BoxFloorScene box={testBox} sizes={testSizes} items={[]} selectedId={null} editing onChoose={vi.fn()} onSelect={vi.fn()} onCell={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Обзор" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Сверху" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Повернуть коробку/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Без 3D" }));
+    expect(screen.getByLabelText("Дно коробки, вид сверху")).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: /^Ячейка/ })).toHaveLength(12);
+  });
+
+  it("бортик слегка выше предметов, а дно остаётся на прежней плоскости", () => {
+    expect(FLOOR_ITEM_Y).toBe(.15);
+    expect(FLOOR_WALL_HEIGHT - FLOOR_ITEM_TOP).toBeCloseTo(.08);
+    expect(FLOOR_WALL_HEIGHT).toBeLessThan(.4);
+    // GiftBox сдвинут на BH/2 до масштаба Y: низ не поднимается вместе с бортиком.
+    expect((-1.2 / 2 + 1.2 / 2) * FLOOR_WALL_HEIGHT / 1.2).toBe(0);
+  });
+
   it("не запускает движение при загрузке коробки, переходит после выбора и останавливает invalidation", () => {
     const camera = mocks.state.camera as OrthographicCamera;
     const view = render(<FloorCamera width={4} height={3} editing={false} />);

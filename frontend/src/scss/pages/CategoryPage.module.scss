@@ -1,0 +1,41 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.page { min-height: 70vh; padding-block: spacing(xl); }
+.heading { width: min(100%, max-width(xl)); margin: 0 auto spacing(lg); padding-inline: spacing(lg); }
+.heading > span { color: #687e4c; font-size: font-size(body-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.heading h1 { margin: spacing(xs) 0; font-size: $font-unit * 5; }
+.heading p { max-width: 46rem; margin: 0; color: #756553; font-size: font-size(body); }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: spacing(md);
+  width: min(100%, max-width(xl));
+  margin-inline: auto;
+  padding-inline: spacing(lg);
+}
+.card {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(space-mult(xxl, 2.3), .75fr) minmax(0, 1fr);
+  align-items: center;
+  min-height: space-mult(xxl, 3.5);
+  overflow: hidden;
+  border: 1px solid #eadfce;
+  border-radius: spacing(lg);
+  color: #3f3028;
+  background: #fffaf3;
+  text-decoration: none;
+  transition: transform .2s ease, box-shadow .2s ease;
+}
+.card:hover, .card:focus-visible { transform: translateY(-2px); box-shadow: 0 spacing(xs) spacing(lg) #39281712; }
+.card img { width: 100%; height: 100%; min-height: inherit; object-fit: cover; }
+.cardCopy { display: flex; flex-direction: column; gap: spacing(xs); padding: spacing(lg); }
+.cardCopy strong { font-size: $font-unit * 3; }
+.cardCopy > span:not(.cardAction) { color: #756553; font-size: font-size(body-sm); }
+.cardAction { margin-top: spacing(sm); font-size: font-size(body-sm); font-weight: 700; }
+@media (max-width: 760px) {
+  .heading, .grid { padding-inline: spacing(md); }
+  .grid { grid-template-columns: 1fr; }
+  .card { grid-template-columns: minmax(space-mult(xxl, 1.8), .6fr) minmax(0, 1fr); }
+}

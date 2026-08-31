@@ -285,3 +285,58 @@ $transition-normal: 0.25s ease;
     }
   }
 }
+// v11: catalog geometry uses shared spacing/font/max-width tokens.
+.filters-and-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: spacing(md);
+  width: min(100%, max-width(xl));
+  margin: spacing(lg) auto 0;
+  padding-inline: spacing(lg);
+}
+
+.product-and-header { display: flex; min-width: 0; flex-direction: column; gap: spacing(md); }
+
+.grid-category {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(space-mult(xxl, 3), 1fr));
+  align-items: stretch !important;
+  gap: spacing(md);
+  width: 100%;
+  margin: 0 !important;
+}
+.grid-category > * { display: flex; min-width: 0; width: 100%; max-width: none; padding: 0 !important; }
+
+.catalog-filter-menu {
+  width: 100%;
+  border: 1px solid #eadfce;
+  border-radius: spacing(md);
+  background: #fff;
+}
+.catalog-filter-menu > summary {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: space-mult(xl, 1.2); padding: spacing(sm) spacing(md);
+  cursor: pointer; font-size: font-size(body); font-weight: 700; list-style: none;
+}
+.catalog-filter-menu > summary::-webkit-details-marker { display: none; }
+.catalog-filter-menu > summary::after { content: "+"; font-size: $font-unit * 3; font-weight: 400; }
+.catalog-filter-menu[open] > summary::after { content: "−"; }
+.catalog-filter-menu__body { padding: 0 spacing(md) spacing(md); border-top: 1px solid #f0e7da; }
+
+.product-card {
+  width: 100%; height: 100%; min-width: 0;
+  &__body { display: flex; flex: 1; flex-direction: column; }
+  &__rating {
+    display: inline-flex; align-items: center; justify-content: center; gap: spacing(xs);
+    min-height: spacing(lg); margin-inline: spacing(sm);
+    color: $color-text-muted; font-size: font-size(body-sm);
+    strong { color: $color-text-primary; }
+  }
+  &__rating-star { color: #b88932; }
+  .button-for-buy { margin-top: auto; }
+}
+
+@media (max-width: 720px) {
+  .filters-and-grid { padding-inline: spacing(md); }
+  .grid-category { grid-template-columns: repeat(auto-fit, minmax(space-mult(xxl, 2.6), 1fr)); }
+}

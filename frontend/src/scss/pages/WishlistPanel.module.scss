@@ -1,0 +1,122 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  gap: spacing(sm);
+  color: #7a6859;
+  font-size: font-size(body-sm);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(space-mult(xxl, 2.7), 1fr));
+  align-items: stretch;
+  gap: spacing(md);
+}
+
+.card {
+  display: flex;
+  min-width: 0;
+  overflow: hidden;
+  flex-direction: column;
+  border: 1px solid #eadfce;
+  border-radius: spacing(md);
+  background: #fffdf9;
+  box-shadow: 0 spacing(xs) spacing(md) rgba(63, 48, 40, 0.06);
+}
+
+.imageWrap {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #f5ede2;
+
+  img { width: 100%; height: 100%; object-fit: cover; }
+}
+
+.remove {
+  position: absolute !important;
+  top: spacing(sm);
+  right: spacing(sm);
+  color: #a4483d !important;
+  background: rgba(255, 255, 255, 0.94) !important;
+  box-shadow: 0 spacing(xs) spacing(sm) rgba(63, 48, 40, 0.08);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: spacing(xs);
+  padding: spacing(md);
+}
+
+.brand {
+  color: #7c6b5b;
+  font-size: font-size(caption);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.name {
+  margin: 0 !important;
+  color: #3f3028;
+  font-size: font-size(body) !important;
+  font-weight: 750 !important;
+}
+
+.rating {
+  display: flex;
+  align-items: center;
+  gap: spacing(xs);
+  color: #7a6859;
+  font-size: font-size(body-sm);
+
+  > span:first-child { color: #b88932; }
+  strong { color: #4d3a31; }
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: spacing(sm);
+  margin-top: auto;
+  padding-top: spacing(sm);
+
+  > strong { color: #8b3f24; font-size: font-size(body); }
+  button { text-transform: none; }
+}
+
+.state,
+.loading {
+  display: grid;
+  min-height: space-mult(xxl, 3.2);
+  place-items: center;
+  align-content: center;
+  gap: spacing(sm);
+  padding: spacing(xl);
+  border: 1px solid #eadfce;
+  border-radius: spacing(lg);
+  color: #756553;
+  background: #fffaf3;
+  text-align: center;
+
+  > svg { color: #a85d4d; font-size: $font-unit * 5; }
+}
+
+.inlineError { color: #a4483d; font-size: font-size(body-sm) !important; }
+
+@media (max-width: 720px) {
+  .grid { grid-template-columns: 1fr; }
+  .footer { align-items: flex-start; flex-direction: column; }
+}

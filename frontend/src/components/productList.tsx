@@ -27,6 +27,8 @@ export const ProductList = ({ products, onQuickView }: ProductListProps) => (
         backgroundImage={normalizeAssetUrl(product.background_image)}
         label={product.name}
         brand={product.brand}
+        ratingAverage={product.rating_average}
+        reviewsCount={product.reviews_count ?? 0}
         finalPrice={product.final_price}
         originalPrice={product.original_price}
         discountPercent={product.discount_percent}
