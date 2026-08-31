@@ -83,12 +83,13 @@ function order(overrides: Partial<PickerOrder> = {}): PickerOrder {
 function pickerValue(overrides: Partial<Record<string, unknown>> = {}) {
   return {
     loadOrder: vi.fn().mockResolvedValue(order()),
-    take: vi.fn(),
-    release: vi.fn(),
-    complete: vi.fn(),
-    escalate: vi.fn(),
-    reportShortage: vi.fn(),
-    receive: vi.fn(),
+    take: vi.fn().mockResolvedValue(order()),
+    release: vi.fn().mockResolvedValue(order()),
+    complete: vi.fn().mockResolvedValue(order()),
+    escalate: vi.fn().mockResolvedValue(order()),
+    reportShortage: vi.fn().mockResolvedValue({ order: order(), fulfillment_issue: {} }),
+    receive: vi.fn().mockResolvedValue(order()),
+    online: true,
     ...overrides,
   };
 }
@@ -126,7 +127,7 @@ describe("PickerOrderPage", () => {
   });
 
   it("кнопка «Взять в сборку» вызывает take", async () => {
-    const take = vi.fn();
+    const take = vi.fn().mockResolvedValue(order());
     renderOrder(pickerValue({ take }));
 
     await screen.findByText("P-0007");
@@ -135,16 +136,25 @@ describe("PickerOrderPage", () => {
   });
 
   it("кнопка «Завершить сборку» вызывает complete", async () => {
-    const complete = vi.fn();
-    renderOrder(pickerValue({ complete }));
+    const loadOrder = vi.fn().mockResolvedValue(order());
+    const complete = vi.fn().mockResolvedValue(
+      order({ status: "ready_for_delivery", status_name: "Готов к доставке" }),
+    );
+    renderOrder(pickerValue({ complete, loadOrder }));
 
     await screen.findByText("P-0007");
     await userEvent.click(screen.getByRole("button", { name: "Завершить сборку" }));
     await waitFor(() => expect(complete).toHaveBeenCalledWith(7));
+    expect(await screen.findByText("Готов к доставке")).toBeInTheDocument();
+    // После успешного POST используем его data, а не делаем GET уже закрытого задания.
+    expect(loadOrder).toHaveBeenCalledTimes(1);
   });
 
   it("диалог недостачи шлёт reportShortage", async () => {
-    const reportShortage = vi.fn().mockResolvedValue(undefined);
+    const reportShortage = vi.fn().mockResolvedValue({
+      order: order(),
+      fulfillment_issue: {},
+    });
     const value = pickerValue({ reportShortage });
     value.loadOrder = vi.fn().mockResolvedValue(order());
     renderOrder(value);
@@ -164,7 +174,7 @@ describe("PickerOrderPage", () => {
   });
 
   it("диалог эскалации требует комментарий", async () => {
-    const escalate = vi.fn();
+    const escalate = vi.fn().mockResolvedValue(order());
     renderOrder(pickerValue({ escalate }));
 
     await screen.findByText("P-0007");
@@ -186,5 +196,14 @@ describe("PickerOrderPage", () => {
     await screen.findByText("P-0007");
     await userEvent.click(screen.getByRole("button", { name: "Очередь" }));
     expect(await screen.findByText("queue-page")).toBeInTheDocument();
+  });
+
+  it("offline оставляет детали доступными для чтения, но блокирует команды", async () => {
+    renderOrder(pickerValue({ online: false }));
+
+    expect(await screen.findByText("P-0007")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Взять в сборку" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Завершить сборку" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Недостача" })).toBeDisabled();
   });
 });

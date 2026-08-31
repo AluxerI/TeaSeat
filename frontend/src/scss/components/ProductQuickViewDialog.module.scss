@@ -1,0 +1,198 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+@import "../abstracts/mixins";
+
+$surface: #fffdf9;
+$image-surface: #f2e7d7;
+$border: #e8d8c3;
+$text: $color-primary-coffee;
+$muted: #817064;
+$accent: $color-secondary-coffee;
+$accent-hover: $color-primary-coffee;
+
+.paper {
+  position: relative;
+  overflow: visible !important;
+  background: $surface !important;
+  color: $text;
+  @include border-radius(18px !important);
+}
+.closeButton {
+  position: absolute !important;
+  top: spacing(xs);
+  right: spacing(xs);
+  z-index: 2;
+  color: $text !important;
+  background: rgba(255, 253, 249, 0.88) !important;
+}
+
+.content {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: spacing(lg);
+  padding: spacing(lg) !important;
+}
+
+.imageColumn,
+.infoColumn {
+  min-width: 0;
+}
+
+.imageWrap {
+  position: relative;
+  width: 100%;
+  min-height: 340px;
+  overflow: hidden;
+  background: $image-surface;
+  @include flex-centre();
+  @include border-radius(14px);
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  min-height: 340px;
+  object-fit: cover;
+}
+
+.imagePlaceholder {
+  color: #b9a38c;
+  font-size: 64px !important;
+}
+
+.discount {
+  position: absolute !important;
+  top: spacing(sm);
+  left: spacing(sm);
+  color: #fff !important;
+  background: #b5532e !important;
+  font-weight: 700 !important;
+}
+
+.infoColumn {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.brand {
+  margin-bottom: spacing(xs) !important;
+  color: $muted;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase;
+}
+
+.title {
+  color: $text;
+  font-size: 25px !important;
+  font-weight: 750 !important;
+  line-height: 1.2 !important;
+}
+
+.description {
+  display: -webkit-box;
+  margin-top: spacing(sm) !important;
+  overflow: hidden;
+  color: $muted;
+  font-size: 14px !important;
+  line-height: 1.55 !important;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.stock,
+.outOfStock {
+  margin-top: spacing(sm) !important;
+  font-size: 13px !important;
+  font-weight: 650 !important;
+}
+
+.stock { color: #65753c; }
+.outOfStock { color: #ad493f; }
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: spacing(sm);
+  margin-top: spacing(md);
+}
+
+.price {
+  color: $text;
+  font-size: 25px !important;
+  font-weight: 750 !important;
+}
+
+.oldPrice {
+  color: #a8998c;
+  font-size: 14px !important;
+  text-decoration: line-through;
+}
+
+.quantityBlock {
+  margin-top: spacing(md);
+}
+
+.quantityLabel {
+  margin-bottom: spacing(xs) !important;
+  color: $muted;
+  font-size: 13px !important;
+}
+
+.quantityControl {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid $border;
+  background: #fff;
+  @include border-radius(10px);
+
+  button {
+    color: $text;
+    @include border-radius(0);
+  }
+
+  p {
+    min-width: 82px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 650;
+  }
+}
+
+.alert {
+  margin-top: spacing(sm);
+}
+
+.addButton {
+  margin-top: spacing(md) !important;
+  padding: 11px spacing(md) !important;
+  background: $accent !important;
+  text-transform: none !important;
+  font-weight: 700 !important;
+
+  &:hover { background: $accent-hover !important; }
+}
+
+@media (max-width: 640px) {
+  .paper {
+    margin: spacing(sm) !important;
+    @include border-radius(16px !important);
+  }
+
+  .content {
+    grid-template-columns: 1fr;
+    gap: spacing(md);
+    padding: spacing(sm) !important;
+  }
+
+  .imageWrap,
+  .image {
+    min-height: 220px;
+    max-height: 250px;
+  }
+
+  .title { font-size: 21px !important; }
+}

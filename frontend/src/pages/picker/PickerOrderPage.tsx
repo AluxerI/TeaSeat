@@ -35,7 +35,7 @@ import styles from "../../scss/pages/PickerOrder.module.scss";
 export default function PickerOrderPage() {
   const navigate = useNavigate();
   const { orderId } = useParams<{ orderId: string }>(); // id из адреса /picker/orders/:orderId
-  const { loadOrder, take, release, complete, escalate, reportShortage, receive } =
+  const { loadOrder, take, release, complete, escalate, reportShortage, receive, online } =
     usePicker();
 
   // Локальные состояния страницы
@@ -57,13 +57,13 @@ export default function PickerOrderPage() {
       .finally(() => setLoading(false));
   }, [orderId, loadOrder]);
 
-  // Обёртка для всех кнопок: блокирует интерфейс на время запроса,
-  // а после успеха перезагружает заказ, чтобы отобразить новый статус.
-  const run = async (action: () => Promise<void>) => {
+  // Ответ POST уже содержит новую серверную версию заказа. Используем её сразу:
+  // повторный GET после complete/escalate мог бы закономерно вернуть 404,
+  // потому что заказ уже вышел из активного picker-scope.
+  const run = async (action: () => Promise<PickerOrder>) => {
     setBusy(true);
     try {
-      await action();
-      if (order) setOrder(await loadOrder(order.id));
+      setOrder(await action());
     } catch (err) {
       setError(err instanceof Error ? err.message : "Операция не выполнена");
     } finally {
@@ -180,7 +180,7 @@ export default function PickerOrderPage() {
             variant="contained"
             startIcon={<PlayArrowIcon />}
             onClick={() => run(() => take(order.id))}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Взять в сборку
           </Button>
@@ -190,7 +190,7 @@ export default function PickerOrderPage() {
             variant="contained"
             startIcon={<CheckCircleIcon />}
             onClick={() => run(() => receive(order.id))}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Подтвердить получение
           </Button>
@@ -200,7 +200,7 @@ export default function PickerOrderPage() {
             variant="outlined"
             startIcon={<ReplayIcon />}
             onClick={() => run(() => release(order.id))}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Вернуть в очередь
           </Button>
@@ -211,7 +211,7 @@ export default function PickerOrderPage() {
             color="success"
             startIcon={<CheckCircleIcon />}
             onClick={() => run(() => complete(order.id))}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Завершить сборку
           </Button>
@@ -222,7 +222,7 @@ export default function PickerOrderPage() {
             color="warning"
             startIcon={<WarningAmberIcon />}
             onClick={() => setShortageOpen(true)}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Недостача
           </Button>
@@ -233,7 +233,7 @@ export default function PickerOrderPage() {
             color="error"
             startIcon={<SupportAgentIcon />}
             onClick={() => setEscalateOpen(true)}
-            disabled={busy}
+            disabled={busy || !online}
           >
             Передать менеджеру
           </Button>
@@ -247,7 +247,7 @@ export default function PickerOrderPage() {
         onClose={() => setShortageOpen(false)}
         onSubmit={async (payload) => {
           await run(() =>
-            reportShortage(order.id, payload).then(() => undefined)
+            reportShortage(order.id, payload).then((result) => result.order)
           );
           setShortageOpen(false);
         }}

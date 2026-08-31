@@ -287,7 +287,7 @@ class GiftConstructorService
                 ->where('kind', GiftSizeProfile::KIND_ITEM)
                 ->where('is_active', true))
             ->whereHas('product', fn ($query) => $query->where('is_available', true))
-            ->with(['sizeProfile', 'product.images'])
+            ->with(['sizeProfile', 'product.images', 'product.brand'])
             ->orderBy('product_id')
             ->orderBy('product_quantity')
             ->get();

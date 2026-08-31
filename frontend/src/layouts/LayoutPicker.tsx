@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   Chip,
@@ -10,7 +11,9 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
   Paper,
+  Select,
   Typography,
 } from "@mui/material";
 import QueueIcon from "@mui/icons-material/Queue";
@@ -19,7 +22,9 @@ import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import WifiIcon from "@mui/icons-material/Wifi";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
+import { ThemeProvider } from "@mui/material/styles";
 import { usePicker } from "../picker/PickerContext";
+import { sellerTheme } from "../theme/sellerTheme";
 import styles from "../scss/pages/PickerLayout.module.scss";
 
 // Пункты меню. `end: true` — пункт активен только если путь совпадает
@@ -27,7 +32,7 @@ import styles from "../scss/pages/PickerLayout.module.scss";
 const NAV = [
   { path: "/picker", label: "Очередь", icon: <QueueIcon />, end: true },
   { path: "/picker/mine", label: "Моя работа", icon: <WorkIcon />, end: true },
-  { path: "/picker/transfers", label: "Трансферы", icon: <SwapHorizIcon />, end: true },
+  // { path: "/picker/transfers", label: "Трансферы", icon: <SwapHorizIcon />, end: true },
 ];
 
 /** Каркас приложения сборщика (app-shell).
@@ -41,7 +46,7 @@ export default function LayoutPicker() {
     init,
     ready,
     loading,
-    warehouseName,
+    warehouseId,
     workLocations,
     selectWarehouse,
     online,
@@ -61,10 +66,12 @@ export default function LayoutPicker() {
   // 1) Идёт загрузка — просто крутилка.
   if (loading) {
     return (
-      <Box className={styles.centerWrap}>
-        <CircularProgress />
-        <Typography className={styles.loadingText}>Загрузка очереди...</Typography>
-      </Box>
+      <ThemeProvider theme={sellerTheme}>
+        <Box className={styles.centerWrap}>
+          <CircularProgress />
+          <Typography className={styles.loadingText}>Загрузка очереди...</Typography>
+        </Box>
+      </ThemeProvider>
     );
   }
 
@@ -72,8 +79,9 @@ export default function LayoutPicker() {
   //    Собирать можно только на «своих» складах из work_locations.
   if (!ready) {
     return (
-      <Box className={styles.centerWrap}>
-        <Paper className={styles.pickerCard} elevation={0}>
+      <ThemeProvider theme={sellerTheme}>
+        <Box className={styles.centerWrap}>
+          <Paper className={styles.pickerCard} elevation={0}>
           <StorefrontIcon className={styles.pickerIcon} />
           <Typography component="h1" className={styles.pickerTitle}>
             Выберите склад
@@ -100,8 +108,9 @@ export default function LayoutPicker() {
               </Button>
             ))}
           </Box>
-        </Paper>
-      </Box>
+          </Paper>
+        </Box>
+      </ThemeProvider>
     );
   }
 
@@ -133,28 +142,34 @@ export default function LayoutPicker() {
       </List>
 
       <Divider className={styles.sidebarDivider} />
-
-      <Box className={styles.sidebarMeta}>
-        <Chip
-          size="small"
-          icon={<StorefrontIcon />}
-          label={warehouseName ?? "—"}
-          className={styles.warehouseChip}
-          variant="outlined"
-        />
-      </Box>
     </Box>
   );
 
   // 3) Всё готово — основной экран: шапка + меню + страница.
   return (
-    <Box className={styles.app}>
+    <ThemeProvider theme={sellerTheme}>
+      <Box className={styles.app}>
       {/* Шапка: название приложения + статус сети */}
       <Box className={styles.header}>
         <Box className={styles.headerBrand}>
           <Typography className={styles.brand}>Сборка</Typography>
         </Box>
         <Box className={styles.headerRight}>
+          <Select
+            size="small"
+            value={warehouseId ?? ""}
+            displayEmpty
+            onChange={(event) => {
+              const next = event.target.value ? Number(event.target.value) : null;
+              if (next !== null) selectWarehouse(next);
+            }}
+            className={styles.warehouseSelect}
+            aria-label="Склад"
+          >
+            {workLocations.map((loc) => (
+              <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+            ))}
+          </Select>
           <Chip
             size="small"
             icon={online ? <WifiIcon /> : <WifiOffIcon />}
@@ -166,6 +181,12 @@ export default function LayoutPicker() {
         </Box>
       </Box>
 
+      {!online && (
+        <Alert severity="warning" className={styles.offlineAlert}>
+          Показан последний сохранённый снимок. Изменение статусов доступно только онлайн.
+        </Alert>
+      )}
+
       {/* Каркас кабинета: меню слева + контент в белой карточке */}
       <Box className={styles.cabinet}>
         {sidebar}
@@ -174,6 +195,7 @@ export default function LayoutPicker() {
           <Outlet />
         </Box>
       </Box>
-    </Box>
+      </Box>
+    </ThemeProvider>
   );
 }

@@ -152,16 +152,43 @@ describe("drainOnce", () => {
     expect(events[0].last_error).toBe("Нет связи с сервером");
   });
 
-  it("дропает команду без server_id", async () => {
+  it("после upsert отправляет накопленную команду отдельным проходом", async () => {
     await queuedOrder("ord-local");
     await enqueueCommand("ord-local", "complete");
     postSyncMock.mockImplementation(async (events: SyncEventPayload[]) => okResponse(events));
 
     const summary = await drainOnce("ord-local");
-    expect(summary.sent).toBe(1);
-    expect(postSyncMock).toHaveBeenCalledTimes(1);
-    expect(postSyncMock.mock.calls[0][0]).toHaveLength(1);
+    expect(summary).toEqual({ sent: 2, applied: 2, stuck: 0 });
+    expect(postSyncMock).toHaveBeenCalledTimes(2);
     expect(postSyncMock.mock.calls[0][0][0].action).toBe("upsert");
+    expect(postSyncMock.mock.calls[1][0][0].action).toBe("complete");
+    expect(postSyncMock.mock.calls[1][0][0].order_id).toBe(42);
+    expect(postSyncMock.mock.calls[1][0][0].revision).toBe(1);
+    expect(await db.outbox.count()).toBe(0);
+  });
+
+  it("не теряет команду, если server_id ещё получить неоткуда", async () => {
+    const order = emptyOrder(1, new Date().toISOString());
+    order.client_order_id = "ord-command-only";
+    await db.orders.put(order);
+    await enqueueCommand(order.client_order_id, "cancel");
+
+    const summary = await drainOnce(order.client_order_id);
+
+    expect(summary).toEqual({ sent: 0, applied: 0, stuck: 1 });
+    expect(postSyncMock).not.toHaveBeenCalled();
+    expect(await db.outbox.count()).toBe(1);
+  });
+
+  it("возвращает оставшийся после перезапуска inflight в очередь", async () => {
+    await queuedOrder("ord-inflight");
+    const event = await db.outbox.where("client_order_id").equals("ord-inflight").first();
+    await db.outbox.update(event!.event_id, { state: "inflight" });
+    postSyncMock.mockImplementation(async (events: SyncEventPayload[]) => okResponse(events));
+
+    const summary = await drainOnce("ord-inflight");
+
+    expect(summary).toEqual({ sent: 1, applied: 1, stuck: 0 });
     expect(await db.outbox.count()).toBe(0);
   });
 

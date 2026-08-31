@@ -9,6 +9,7 @@ class ProductSizeResource extends JsonResource
     public function toArray($request): array
     {
         $product = $this->whenLoaded('product');
+        $brand = $product ? $product->brand : null;
         return [
             'id' => $this->id,
             'label' => $this->label,
@@ -21,6 +22,14 @@ class ProductSizeResource extends JsonResource
                 'stock_unit' => $product->stockUnit(),
                 'price_unit_quantity' => $product->priceUnitQuantity(),
                 'image' => $product->getAllData()['main_image_url'] ?? null,
+                'description' => $product->description,
+                'ingredients' => $product->ingredients,
+                'weight_grams' => $product->weight_grams,
+                'assembly_instructions' => $product->assembly_instructions,
+                'sold_count' => (int) $product->sold_count,
+                'sku' => $product->sku,
+                'brand' => $brand ? $brand->name : null,
+                'total_quantity' => (int) $product->total_quantity,
             ] : null,
             'size' => new GiftSizeProfileResource($this->whenLoaded('sizeProfile')),
         ];

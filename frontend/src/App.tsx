@@ -1,20 +1,17 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { PageCategory } from './pages/Category';
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import { ItemApi } from './api/productAPI';
-
-import { FormItem, Item } from './interfaces/clients.api'; 
-import { useAsync } from './hooks/useAsync';
-import { catalogApi } from './api/catalogAPI';
-import { ProductList } from './components/productList';
 import { PageCatalog } from './pages/Catalog';
 import RegisterPage from './pages/RegisterPage';
 import LoginPage from './pages/LoginPage';
 import ProfilePage from './pages/ProfilePage';
 import OrderPage from './pages/Order';
 import CartPage from './pages/CartPage';
+import CheckoutPage from './pages/CheckoutPage';
 import { AuthProvider } from './contexts/AuthContext';
+import { CustomerCartProvider } from './contexts/CustomerCartContext';
+import MiniCartDrawer from './components/cart/MiniCartDrawer';
 import { SellerProvider } from './contexts/SellerContext';
 import LayoutSeller from './layouts/LayoutSeller';
 import SellerDashboardPage from './pages/seller/DashboardPage';
@@ -26,89 +23,52 @@ import LayoutPicker from './layouts/LayoutPicker';
 import PickerQueuePage from './pages/picker/PickerQueuePage';
 import PickerOrderPage from './pages/picker/PickerOrderPage';
 import PickerTransfersPage from './pages/picker/PickerTransfersPage';
+import RequirePermission from './components/RequirePermission';
+import { CourierProvider } from './courier/CourierContext';
+import LayoutCourier from './layouts/LayoutCourier';
+import CourierPWA from './pages/courier/CourierPWA';
+import CourierMine from './pages/courier/CourierMine';
+import CourierHistory from './pages/courier/CourierHistory';
+import CourierDeliveryPage from './pages/courier/CourierDelivery';
+import { ManagerProvider } from './contexts/ManagerContext'; // контекст кабинета менеджера
 
 // Конструктор тянет за собой three.js и @react-three/* — около 600 КБ.
 // Статический импорт клал бы их в общий бандл, то есть в загрузку каждой
 // страницы, включая офлайн-precache PWA. Грузим только при переходе на роут.
 const ConstructorPage = React.lazy(() => import('./pages/ConstructorPage'));
-
-
-interface Data {
-  id: number;
-  name: string;
-  price: number;
-  description: string;
-  stock: number;
-  warehouses: number[];
-}
-interface ApiResponse {
-  data: Data;
-}
-
-
-var history="";
-function recursiveJsonRead(obj:Record<any,any>,tab:string="",){
-  if(obj !== null && typeof obj === "object")
-    for(const key in obj){
-      history+=(`${tab}${key}:`+'\n')
-      recursiveJsonRead(obj[key],tab+" ")
-      
-    }
-  else {
-        history+=(`${tab}${obj} (${typeof obj})`+ '\n');
-    }
-  
-}
-
-
+// Manager — большой online-only кабинет. Отделяем его страницы от клиентского
+// и offline PWA-бандла; браузер загрузит код только после входа в /manager.
+// Каждая страница кабинета лениво импортируется (React.lazy) отдельно.
+const LayoutManager = React.lazy(() => import('./layouts/LayoutManager')); // каркас кабинета (шапка/сайдбар/навигация)
+const ManagerOrdersPage = React.lazy(() => import('./pages/manager/ManagerOrdersPage')); // список заказов
+const ManagerOrderDetailPage = React.lazy(() => import('./pages/manager/ManagerOrderDetailPage')); // детали заказа
+const ManagerIssuesPage = React.lazy(() => import('./pages/manager/ManagerIssuesPage')); // список проблем комплектации
+const ManagerIssueDetailPage = React.lazy(() => import('./pages/manager/ManagerIssueDetailPage')); // детали проблемы
+const ManagerRequestsPage = React.lazy(() => import('./pages/manager/ManagerRequestsPage')); // список обращений клиентов
+const ManagerRequestDetailPage = React.lazy(() => import('./pages/manager/ManagerRequestDetailPage')); // детали обращения
+const ManagerModerationPage = React.lazy(() => import('./pages/manager/ManagerModerationPage')); // модерация отзывов и оценок
+const ManagerReviewDetailPage = React.lazy(() => import('./pages/manager/ManagerReviewDetailPage')); // детали отзыва на товар
+const ManagerFeedbackDetailPage = React.lazy(() => import('./pages/manager/ManagerFeedbackDetailPage')); // детали оценки заказа
 const App: React.FC = () => {
-    
-  const check = ItemApi;
-  const catalog_api = catalogApi;
-  const example_body: FormItem = {
-    name:"kek",
-    description:"kjfkj",
-    price:2,
-    user_id:0,
-  }
-  
-  //const data = useAsync(()=>check.getProduct(1),true);
-  //const data = useAsync(()=> check.getAllItem())
-  //const data = useAsync(()=>catalog_api.getProducts());
-  
-
-  
-  
-  //const chec =recursiveJsonRead(str);
-  //console.log(history);
-  //history = ''
-    
-  
-  //console.log(check.getProduct(2));
-  //check.createProduct(example_body);
   return (
     <>
       <BrowserRouter>
         <AuthProvider>
+          <CustomerCartProvider>
            <Routes>
              <Route path='/' element={<Navigate to='/catalog' replace />} />
              <Route path='*' element={<Navigate to='/catalog' replace />} />
              <Route path='category' Component={PageCategory}/>
             
-            {/**
-            <Grid>
-                <CatalogItem description='lol' label='xz' picture_button={picture_button_const} picture_part={picture_part_const} price={20}/>
-            
-                
-            </Grid>
-             */}
-
              <Route path='catalog' Component={PageCatalog}/>
              <Route path='register' Component={RegisterPage}/>
              <Route path='login' Component={LoginPage}/>
              <Route path='profile' Component={ProfilePage}/>
              <Route path='order/:id' Component={OrderPage}/>
+             {/* Покупатель собирает выбор в корзине, оформляет его на checkout
+                 и после успешного POST переходит на созданный заказ. */}
              <Route path='cart' Component={CartPage}/>
+             <Route path='checkout' Component={CheckoutPage}/>
              <Route
                path='constructor'
                element={
@@ -117,7 +77,14 @@ const App: React.FC = () => {
                  </React.Suspense>
                }
              />
-               <Route path="/seller" element={<SellerProvider><LayoutSeller /></SellerProvider>}>
+               <Route
+                 path="/seller"
+                 element={
+                   <RequirePermission permission="create seller orders">
+                     <SellerProvider><LayoutSeller /></SellerProvider>
+                   </RequirePermission>
+                 }
+               >
                  <Route index element={<Navigate to="dashboard" replace />} />
                  <Route path="dashboard" element={<SellerDashboardPage />} />
                  <Route path="order/new" element={<SellerOrderWizardPage />} />
@@ -127,13 +94,66 @@ const App: React.FC = () => {
                {/* Секция сборщика (picker PWA): свой каркас + общий контекст.
                    LayoutPicker даёт шапку/меню, PickerProvider — очередь, склад,
                    действия; внутри подставляются страницы по подпути. */}
-               <Route path="/picker" element={<PickerProvider><LayoutPicker /></PickerProvider>}>
+               <Route
+                 path="/picker"
+                 element={
+                   <RequirePermission permission="view picking orders">
+                     <PickerProvider><LayoutPicker /></PickerProvider>
+                   </RequirePermission>
+                 }
+               >
                  <Route index element={<PickerQueuePage mode="queue" />} />
                  <Route path="mine" element={<PickerQueuePage mode="mine" />} />
                  <Route path="transfers" element={<PickerTransfersPage />} />
                  <Route path="orders/:orderId" element={<PickerOrderPage />} />
                </Route>
+               {/* Курьерская online-first PWA. Provider хранит единый снимок
+                   delivery-объектов, Layout — постоянную мобильную оболочку. */}
+               <Route
+                 path="/courier"
+                 element={
+                   <RequirePermission permission="view assigned deliveries">
+                     <CourierProvider><LayoutCourier /></CourierProvider>
+                   </RequirePermission>
+                 }
+               >
+                 <Route index element={<CourierPWA />} />
+                 <Route path="mine" element={<CourierMine />} />
+                 <Route path="history" element={<CourierHistory />} />
+                 <Route path="deliveries/:deliveryId" element={<CourierDeliveryPage />} />
+               </Route>
+               {/* Manager — online-first рабочий кабинет. Provider держит
+                   только общие badges/точку/Snackbar; данные страниц загружают
+                   отдельные hooks, чтобы большие очереди не перерисовывали друг друга. */}
+               <Route
+                 path="/manager" // корень кабинета менеджера
+                 element={
+                   // Доступ только с правом «view manager orders».
+                   <RequirePermission permission="view manager orders">
+                     {/* Пока lazy-страница грузится — ничего не рендерим. */}
+                     <React.Suspense fallback={null}>
+                       <ManagerProvider><LayoutManager /></ManagerProvider> {/* общий контекст + каркас кабинета */}
+                     </React.Suspense>
+                   </RequirePermission>
+                 }
+               >
+                 <Route index element={<Navigate to="orders" replace />} /> {/* корень → список заказов */}
+                 <Route path="orders" element={<ManagerOrdersPage />} /> {/* список заказов */}
+                 <Route path="orders/:orderId" element={<ManagerOrderDetailPage />} /> {/* детали заказа */}
+                 <Route path="issues" element={<ManagerIssuesPage />} /> {/* список проблем */}
+                 <Route path="issues/:issueId" element={<ManagerIssueDetailPage />} /> {/* детали проблемы */}
+                 <Route path="requests" element={<ManagerRequestsPage />} /> {/* список обращений */}
+                 <Route path="requests/:requestId" element={<ManagerRequestDetailPage />} /> {/* детали обращения */}
+                 <Route path="moderation" element={<ManagerModerationPage />} /> {/* модерация */}
+                 <Route path="moderation/reviews/:reviewId" element={<ManagerReviewDetailPage />} /> {/* отзыв на товар */}
+                 <Route path="moderation/feedback/:feedbackId" element={<ManagerFeedbackDetailPage />} /> {/* оценка заказа */}
+               </Route>
           </Routes>
+          {/* Один Drawer обслуживает все покупательские страницы. Если
+              разместить его в каждой странице, при навигации терялся бы фокус
+              и создавались бы дублирующиеся модальные слои. */}
+          <MiniCartDrawer />
+          </CustomerCartProvider>
         </AuthProvider>
       </BrowserRouter>
     </>

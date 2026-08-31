@@ -11,11 +11,13 @@ export interface OrderTotals {
   personal_discount: number;
   cart_discount: number;
   shipping_cost: number;
+  shipping_discount?: number;
   final_total: number;
 }
 
 export interface ItemPrices {
   unit_price: number;
+  base_total?: number;
   promotion_discount_percent: number;
   personal_discount_percent: number;
   final_unit_price: number;
@@ -33,6 +35,9 @@ export interface OrderProduct {
   price: number;
   image: string | null;
   weight_grams: number;
+  stock_unit?: string;
+  sale_step?: number;
+  price_unit_quantity?: number;
   category_path: any[];
 }
 
@@ -44,12 +49,37 @@ export interface OrderItem {
   discounts: ItemDiscounts;
 }
 
+export interface OrderGiftPrices {
+  markup_unit_amount: number;
+  markup_total_amount: number;
+  components_base_total: number;
+  components_discount_amount: number;
+  total_price: number;
+}
+
+/** Снимок подарка сохраняет название, раскладку и состав на момент покупки. */
+export interface OrderGift {
+  id: number;
+  gift_id: number;
+  client_instance_id: string;
+  gift_version: number;
+  name: string;
+  description: string | null;
+  quantity: number;
+  layout: Record<string, unknown>;
+  prices: OrderGiftPrices;
+  items: OrderItem[];
+}
+
 export interface DeliveryMethod {
   id: number;
   name: string;
   description: string;
   cost: number;
   estimated_days: string;
+  type?: string;
+  provider_code?: string | null;
+  requires_scheduling?: boolean;
   details?: { min_days: number; max_days: number };
 }
 
@@ -63,10 +93,16 @@ export interface OrderAddress {
 }
 
 export interface OrderDelivery {
-  method: DeliveryMethod;
-  address: OrderAddress;
+  method: DeliveryMethod | null;
+  address: OrderAddress | null;
   tracking_number: string | null;
   warehouse?: { id: number; name: string; city: string } | null;
+  scheduled_window?: {
+    date: string;
+    time_from: string;
+    time_to: string;
+    slot_id: number;
+  } | null;
 }
 
 export interface OrderTimestamps {
@@ -93,6 +129,7 @@ export interface DeliveryInfo {
 export interface Order {
   id: number;
   status: string;
+  sales_channel?: string;
   payment_method: string;
   order_number: string;
   is_partial: boolean;
@@ -104,6 +141,7 @@ export interface Order {
   delivery_info: DeliveryInfo;
   delivery: OrderDelivery;
   items: OrderItem[];
+  gifts: OrderGift[];
   customer_notes: string | null;
   timestamps: OrderTimestamps;
   status_info: StatusInfo;

@@ -291,8 +291,9 @@ $header-avatar-to:    #b5532e;
   font-size: 10px;
   font-weight: 700;
   @include border-radius(9999px);
-  width: 16px;
+  min-width: 16px;
   height: 16px;
+  padding: 0 3px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -429,7 +430,7 @@ $header-avatar-to:    #b5532e;
 }
 
 .header__auth-btn {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: white;
   text-decoration: none;

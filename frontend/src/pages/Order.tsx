@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -11,15 +11,16 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
-import PaymentsOutlinedIcon from "@mui/icons-material/PaymentsOutlined";
 import CalendarTodayOutlinedIcon from "@mui/icons-material/CalendarTodayOutlined";
 import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import RedeemOutlinedIcon from "@mui/icons-material/RedeemOutlined";
 
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
 import { useAuth } from "../hooks/useAuth";
 import { orderApi } from "../api/orderAPI";
 import { translateError, extractError } from "../utils/translateError";
+import { normalizeAssetUrl } from "../utils/assetUrl";
 import type { Order, TabKey, TabItem } from "../interfaces/order";
 import styles from "../scss/pages/Order.module.scss";
 
@@ -58,6 +59,7 @@ export default function OrderPage() {
   const [activeTab, setActiveTab] = useState<TabKey>("items");
 
   useEffect(() => {
+    // Backend ограничивает заказ текущим покупателем; id определяет только ресурс.
     if (!id || authLoading) return;
     if (!user) {
       navigate("/login");
@@ -73,11 +75,11 @@ export default function OrderPage() {
   }, [id, user, authLoading, navigate]);
 
   const handleCancel = async () => {
+    // Ответ отмены уже содержит свежий Order, отдельный GET не требуется.
     if (!order) return;
     setCancelling(true);
     try {
-      const res = await orderApi.cancelOrder(order.id);
-      setOrder(res.data);
+      setOrder(await orderApi.cancelOrder(order.id));
     } catch (err: any) {
       setError(translateError(extractError(err)));
     } finally {
@@ -110,7 +112,7 @@ export default function OrderPage() {
           <Button
             variant="outlined"
             className={styles.secondaryButton}
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/profile?section=orders")}
           >
             Вернуться в профиль
           </Button>
@@ -120,7 +122,10 @@ export default function OrderPage() {
     );
   }
 
+  // UI скрывает невозможное действие, backend всё равно проверяет переход статуса.
   const canCancel = ["pending", "confirmed"].includes(order.status);
+  // Компоненты подарков есть в items и gifts; множество исключает двойную отрисовку.
+  const giftItemIds = new Set(order.gifts.flatMap((gift) => gift.items.map((item) => item.id)));
 
   return (
     <Box className={styles.page}>
@@ -131,7 +136,7 @@ export default function OrderPage() {
           <Button
             className={styles.backButton}
             startIcon={<ArrowBackIcon />}
-            onClick={() => navigate("/profile")}
+            onClick={() => navigate("/profile?section=orders")}
             disableRipple
           >
             Назад в заказы
@@ -191,13 +196,13 @@ export default function OrderPage() {
           <Box component="main" className={styles.orderMain}>
             {activeTab === "items" && (
               <Box className={styles.itemsList}>
-                {order.items.map((item) => (
+                {order.items.filter((item) => !giftItemIds.has(item.id)).map((item) => (
                   <Paper key={item.id} className={styles.itemCard} elevation={0}>
                     <Box
                       className={styles.itemImage}
                       sx={{
                         backgroundImage: item.product?.image
-                          ? `url(${item.product.image})`
+                          ? `url(${normalizeAssetUrl(item.product.image)})`
                           : "none",
                         backgroundColor: item.product?.image ? "transparent" : "#f5ead9",
                       }}
@@ -226,6 +231,17 @@ export default function OrderPage() {
                         </Typography>
                       )}
                     </Box>
+                  </Paper>
+                ))}
+                {order.gifts.map((gift) => (
+                  <Paper key={`gift:${gift.id}`} className={`${styles.itemCard} ${styles.giftCard}`} elevation={0}>
+                    <Box className={`${styles.itemImage} ${styles.giftImage}`}><RedeemOutlinedIcon /></Box>
+                    <Box className={styles.itemInfo}>
+                      <Typography className={styles.itemName}>{gift.name}</Typography>
+                      <Typography className={styles.itemQty}>{gift.quantity} шт. · {gift.items.length} компонентов</Typography>
+                      <Typography className={styles.itemWeight}>{gift.items.map((item) => item.product?.name ?? "Товар").join(" · ")}</Typography>
+                    </Box>
+                    <Box className={styles.itemTotal}><Typography className={styles.itemPrice}>{formatCurrency(gift.prices.total_price)}</Typography></Box>
                   </Paper>
                 ))}
               </Box>
@@ -342,11 +358,16 @@ export default function OrderPage() {
                 Доставка
               </Typography>
               <Typography className={styles.deliveryMethod}>
-                {order.delivery.method.name}
+                {order.delivery.method?.name ?? "Способ доставки уточняется"}
               </Typography>
               {order.delivery.address && (
                 <Typography className={styles.deliveryAddress}>
                   {order.delivery.address.full_address}
+                </Typography>
+              )}
+              {order.delivery.scheduled_window && (
+                <Typography className={styles.deliveryAddress}>
+                  {order.delivery.scheduled_window.date}, {order.delivery.scheduled_window.time_from}–{order.delivery.scheduled_window.time_to}
                 </Typography>
               )}
               {order.delivery.tracking_number && (
@@ -381,6 +402,7 @@ export default function OrderPage() {
 }
 
 function renderTimeline(order: Order) {
+  // Незаполненная дата — ещё не пройденный этап; прогресс берём из событий backend.
   const events: { label: string; date: string | null }[] = [
     { label: "Создан", date: order.timestamps.created_at },
     { label: "Подтверждён", date: order.timestamps.confirmed_at },

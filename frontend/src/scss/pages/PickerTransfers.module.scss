@@ -29,6 +29,12 @@ $color-matcha-dark: #6b8f2f;
   margin: 0 !important;
 }
 
+.pageSubtitle {
+  color: $color-text-secondary;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+
 .errorText {
   color: #c9564e;
   font-size: 13px !important;

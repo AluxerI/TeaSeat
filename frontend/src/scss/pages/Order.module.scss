@@ -1,6 +1,7 @@
 @import "../abstracts/variable";
 @import "../abstracts/functions";
 
+// Та же палитра, что у корзины: пользователь остаётся в одном визуальном потоке.
 $color-bg-page: #faf5ee;
 $color-surface: #ffffff;
 $color-border: #ece2d4;
@@ -53,7 +54,7 @@ $color-danger: #c9564e;
 .backButton {
   color: $color-text-secondary !important;
   text-transform: none !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   padding: 0 !important;
 
   &:hover {
@@ -106,7 +107,7 @@ $color-danger: #c9564e;
   color: $color-danger !important;
   text-transform: none !important;
   font-weight: 600 !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   border-radius: 10px !important;
 
   &:hover {
@@ -127,7 +128,7 @@ $color-danger: #c9564e;
   background: none;
   border: none;
   cursor: pointer;
-  font-size: font-size(body-sm);
+  font-size: 18px;
   font-weight: 600;
   color: $color-text-secondary;
   border-bottom: 2px solid transparent;
@@ -194,6 +195,19 @@ $color-danger: #c9564e;
   &:hover {
     background-color: #fbf8f3;
   }
+}
+
+.giftCard {
+  // Подарок выделен тем же тёплым градиентом, что и в корзине.
+  background: linear-gradient(135deg, #fffdf9, #f7eee2) !important;
+}
+
+.giftImage {
+  display: grid;
+  place-items: center;
+  color: #8f6548;
+  background: #ead8c4 !important;
+  svg { font-size: 34px; }
 }
 
 .itemImage {
@@ -414,7 +428,7 @@ $color-danger: #c9564e;
   color: $color-text-primary !important;
   text-transform: none !important;
   font-weight: 600 !important;
-  font-size: font-size(body-sm) !important;
+  font-size: 18px !important;
   border-radius: 10px !important;
 
   &:hover {

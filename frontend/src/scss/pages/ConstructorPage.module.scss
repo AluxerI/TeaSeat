@@ -58,7 +58,7 @@ $color-badge: #b5532e;
   display: flex;
   align-items: center;
   gap: spacing(xs);
-  font-size: 14px;
+  font-size: $font-unit * 2;
   font-weight: 600;
   color: $color-text-secondary;
   transition: color 0.3s ease;
@@ -157,6 +157,8 @@ $color-badge: #b5532e;
   padding: spacing(lg);
   overflow: hidden;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  font: inherit;
+  color: inherit;
 
   &::before {
     content: "";
@@ -165,6 +167,16 @@ $color-badge: #b5532e;
     background: linear-gradient(135deg, rgba(200, 144, 60, 0.06), transparent);
     pointer-events: none;
   }
+}
+
+.giftTypeCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.62;
+}
+
+.giftTypeCard:disabled:hover {
+  border-color: $color-border;
+  box-shadow: none;
 }
 
 .giftTypeCard:hover {
@@ -192,13 +204,13 @@ $color-badge: #b5532e;
 }
 
 .giftTypeLabel {
-  font-size: 20px;
+  font-size: $font-unit * 3;
   font-weight: 700;
   color: $color-text-primary;
 }
 
 .giftTypeDescription {
-  font-size: 14px;
+  font-size: $font-unit * 2;
   color: $color-text-secondary;
   text-align: center;
   line-height: 1.5;
@@ -298,7 +310,7 @@ $color-badge: #b5532e;
 }
 
 .selectionCardDesc {
-  font-size: 13px;
+  font-size: $font-unit * 2;
   color: $color-text-secondary;
   line-height: 1.4;
 }
@@ -333,8 +345,44 @@ $color-badge: #b5532e;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: $font-unit * 2;
   font-weight: 700;
+}
+
+.selectionQuantity {
+  display: grid;
+  grid-template-columns: 38px 1fr 38px;
+  align-items: center;
+  gap: spacing(sm);
+  margin-top: spacing(xs);
+  text-align: center;
+  font-weight: 700;
+
+  button {
+    width: 38px;
+    height: 34px;
+    border: 1px solid $color-border;
+    border-radius: 8px;
+    background: $color-surface;
+    color: $color-accent;
+    font-size: $font-unit * 3;
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+    color: #aaa;
+    background: #f3eee7;
+  }
+}
+
+.selectionCounter,
+.constructorNotice,
+.quoteHint {
+  margin: spacing(xs) 0 0;
+  color: $color-text-secondary;
+  font-size: $font-unit * 2;
+  text-align: center;
 }
 
 // ── Box preview (right side / bottom) ───────────────────────────────────────
@@ -359,7 +407,7 @@ $color-badge: #b5532e;
 }
 
 .boxPreviewTitle {
-  font-size: 14px;
+  font-size: $font-unit * 2;
   font-weight: 700;
   color: $color-text-primary;
   text-align: center;
@@ -378,7 +426,7 @@ $color-badge: #b5532e;
   align-items: center;
   gap: spacing(sm);
   padding: spacing(xs) 0;
-  font-size: 13px;
+  font-size: $font-unit * 2;
   color: $color-text-primary;
 }
 
@@ -468,6 +516,32 @@ $color-badge: #b5532e;
   gap: spacing(md);
 }
 
+.giftNameField {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(xs);
+  color: $color-text-primary;
+  font-size: $font-unit * 2;
+  font-weight: 700;
+
+  input {
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid $color-border;
+    border-radius: 10px;
+    padding: 11px 12px;
+    background: $color-surface;
+    color: $color-text-primary;
+    font: inherit;
+    font-weight: 500;
+  }
+
+  input:focus-visible {
+    outline: 2px solid $color-accent-light;
+    outline-offset: 2px;
+  }
+}
+
 .confirmSection {
   display: flex;
   flex-direction: column;
@@ -475,7 +549,7 @@ $color-badge: #b5532e;
 }
 
 .confirmSectionTitle {
-  font-size: 14px;
+  font-size: $font-unit * 2;
   font-weight: 700;
   color: $color-text-primary;
   text-transform: uppercase;
@@ -511,7 +585,7 @@ $color-badge: #b5532e;
   align-items: center;
   padding-top: spacing(md);
   border-top: 2px solid $color-accent;
-  font-size: 20px;
+  font-size: $font-unit * 3;
   font-weight: 700;
 }
 
@@ -534,7 +608,7 @@ $color-badge: #b5532e;
   border: none;
   border-radius: 10px;
   padding: 12px 28px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 700;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease;
@@ -552,13 +626,20 @@ $color-badge: #b5532e;
   }
 }
 
+a.btnPrimary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .btnSecondary {
   background: transparent;
   color: $color-text-secondary;
   border: 1px solid $color-border;
   border-radius: 10px;
   padding: 12px 28px;
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, border-color 0.2s ease;
@@ -576,14 +657,14 @@ $color-badge: #b5532e;
 
 .confirmError {
   color: #c9564e;
-  font-size: 14px;
+  font-size: $font-unit * 2;
   text-align: center;
   margin: 0;
 }
 
 .confirmStatus {
   color: $color-text-secondary;
-  font-size: 14px;
+  font-size: $font-unit * 2;
   text-align: center;
   margin: 0;
 }
@@ -683,7 +764,7 @@ $color-badge: #b5532e;
 }
 
 .heroCaptionTitle {
-  font-size: 20px;
+  font-size: $font-unit * 3;
   font-weight: 700;
   margin: 0;
 
@@ -693,7 +774,7 @@ $color-badge: #b5532e;
 }
 
 .heroCaptionSub {
-  font-size: 13px;
+  font-size: $font-unit * 2;
   color: $color-text-secondary;
   margin: 4px 0 0;
 }
@@ -720,7 +801,7 @@ $color-badge: #b5532e;
 .backButton {
   color: $color-text-secondary !important;
   text-transform: none !important;
-  font-size: 14px !important;
+  font-size: 16px !important;
   padding: 0 !important;
   cursor: pointer;
   background: none;

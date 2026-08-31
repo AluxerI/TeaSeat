@@ -1,0 +1,181 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$color-surface: #ffffff;
+$color-page: #faf5ee;
+$color-border: #ece2d4;
+$color-text: #3a2c22;
+$color-muted: #8a7d6f;
+$bottom-nav-height: 72px;
+$delivery-actions-height: 72px;
+
+.app {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: $color-page;
+  color: $color-text;
+}
+
+.appBar {
+  background: rgba($color-surface, 0.96) !important;
+  border-bottom: 1px solid $color-border;
+  backdrop-filter: blur(12px);
+  color: $color-text !important;
+}
+
+.toolbar {
+  width: 100%;
+  max-width: max-width(md);
+  min-height: 68px !important;
+  margin: 0 auto;
+  padding: env(safe-area-inset-top) spacing(md) 0 !important;
+  gap: spacing(sm);
+}
+
+.brandIcon {
+  @include flex-centre;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba($color-primary-tea, 0.14);
+  color: $color-primary-tea;
+
+  :global(.MuiSvgIcon-root) {
+    font-size: 28px;
+  }
+}
+
+.heading {
+  min-width: 0;
+  flex: 1;
+}
+
+.eyebrow {
+  @include typography('caption', 700, 1.2);
+  color: $color-muted;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.title {
+  font-family: "Unbounded Variable", Unbounded, sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  line-height: 1.25 !important;
+}
+
+.networkChip {
+  flex-shrink: 0;
+  font-weight: 700 !important;
+
+  @media (max-width: 420px) {
+    :global(.MuiChip-label) {
+      display: none;
+    }
+  }
+}
+
+.warehouseSelect {
+  flex-shrink: 0;
+  min-width: 120px;
+  font-size: $font-unit * 1.875 !important;
+
+  :global(.MuiSelect-select) {
+    font-weight: 600 !important;
+  }
+
+  @media (max-width: 420px) {
+    min-width: 100px;
+  }
+}
+
+.offlineAlert {
+  border-radius: 0 !important;
+  justify-content: center;
+}
+
+.main {
+  padding: spacing(md) spacing(md) calc(#{$bottom-nav-height} + spacing(xl) + env(safe-area-inset-bottom)) !important;
+
+  @include respond-to(map-get($breakpoints, md)) {
+    padding-top: spacing(lg) !important;
+  }
+}
+
+.bottomBar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: $color-surface;
+  border-top: 1px solid $color-border;
+}
+
+.bottomNavigation {
+  max-width: max-width(md);
+  height: $bottom-nav-height !important;
+  margin: 0 auto;
+  background: transparent !important;
+
+  :global(.MuiBottomNavigationAction-root) {
+    min-width: 72px;
+    color: $color-muted;
+  }
+
+  :global(.MuiBottomNavigationAction-root .MuiSvgIcon-root) {
+    font-size: 28px;
+  }
+
+  :global(.Mui-selected) {
+    color: $color-primary-coffee !important;
+  }
+}
+
+.snackbar {
+  bottom: calc(#{$bottom-nav-height} + spacing(sm) + env(safe-area-inset-bottom)) !important;
+}
+
+// На странице заказа Snackbar поднимается ещё выше, чтобы не закрыть
+// приклеенную снизу кнопку «Начать»/«Доставлено».
+.snackbarWithActions {
+  bottom: calc(
+    #{$bottom-nav-height} + #{$delivery-actions-height} + spacing(md) + env(safe-area-inset-bottom)
+  ) !important;
+}
+
+.snackbarAlert {
+  width: min(calc(100vw - #{space-mult(md, 2)}), 560px);
+  border: 1px solid rgba($color-primary-coffee, 0.14);
+  border-radius: 16px !important;
+  background: $color-page !important;
+  color: $color-primary-coffee !important;
+  box-shadow: 0 12px 32px rgba($color-primary-coffee, 0.18) !important;
+  font-weight: 700;
+
+  :global(.MuiAlert-icon),
+  :global(.MuiAlert-action) {
+    color: inherit;
+  }
+}
+
+.noticeSuccess {
+  border-left: spacing(xxs) solid $color-primary-tea;
+  color: adjust-brightness($color-primary-tea, -14%) !important;
+}
+
+.noticeInfo {
+  border-left: spacing(xxs) solid $color-secondary-coffee;
+}
+
+.noticeWarning {
+  border-left: spacing(xxs) solid #b7791f;
+  color: #70450f !important;
+}
+
+.noticeError {
+  border-left: spacing(xxs) solid #b33a32;
+  color: #7a211c !important;
+}

@@ -5,16 +5,18 @@ $color-accent: #f07b39; // оранжевый — кнопка "В корзин�
 $color-accent-hover: #d9642a; // темнее при наведении
 $color-success: #52c41a; // зелёный — "Добавлено ✓"
 $color-danger: #ff4d4f; // красный — бейдж скидки
-$color-text-primary: #1a1a1a; // основной текст
-$color-text-muted: #888888; // второстепенный текст (бренд, счётчик)
-$color-text-old-price: #bbbbbb; // перечёркнутая цена
+// Тёплая палитра текста под общий чайно-кофейный стиль. Muted-цвета достаточно
+// насыщенные, чтобы оставаться читаемыми на светлом фоне карточки.
+$color-text-primary: #2b211a; // основной текст — тёмный тёплый
+$color-text-muted: #7a6452; // второстепенный текст (бренд, остаток) — тёплый, ярче прежнего
+$color-text-old-price: #b8a48e; // перечёркнутая цена
 $color-star-active: #ffb800; // жёлтый — заполненная звезда
 $color-star-empty: #e0e0e0; // серый — пустая звезда
 $color-border: #eeeeee; // граница кнопки просмотра
 $color-wish-bg: rgba(255, 255, 255, 0.15); // фон кнопки сердечка
 
 // Размеры карточки
-$card-width: 200px;
+$card-width: 230px;
 $card-radius: 16px;
 $image-area-height: 170px;
 
@@ -49,6 +51,7 @@ $transition-normal: 0.25s ease;
   flex-direction: column;
   position: relative;
 
+  color: $color-text-primary;
   @include typography($body-sm, 400);
 
   &__head {
@@ -60,6 +63,19 @@ $transition-normal: 0.25s ease;
 
     overflow: hidden;
     z-index: 1;
+  }
+
+  &__discount {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 2;
+    padding: 4px 8px;
+    border-radius: 999px;
+    background: $color-danger;
+    color: #fff;
+    font-size: $font-size-badge;
+    font-weight: 700;
   }
   &__image {
     width: 100%;
@@ -75,7 +91,11 @@ $transition-normal: 0.25s ease;
     }
   }
   &__body {
-    background-size: 100%;
+    // Псевдослой ограничен телом карточки и больше не накрывает изображение.
+    position: relative;
+    flex: 1;
+    background-size: cover;
+    background-position: center;
     &::before {
       content: "";
       position: absolute;
@@ -104,31 +124,82 @@ $transition-normal: 0.25s ease;
       .at-cart {
         text-decoration: none;
         border: none;
-        width: 100%;
+        flex: 1;
         height: auto;
         padding: 3%;
         border-radius: calc($button-radius/4);
         background-color: $color-accent;
         color: #f0f0f0;
         @include typography($body-sm, 400);
+
+        &:disabled {
+          cursor: not-allowed;
+          opacity: 0.55;
+        }
       }
-      .quickView {
-        width: calc($button-check-preview * 2);
-        height: calc($button-check-preview * 8);
 
-        border-color: none;
-        border-radius: 20%;
-        text-decoration: none;
-        border: none;
+      // Глаз открывает краткий Dialog. Его визуально отделяем от основной
+      // покупки, чтобы две кнопки не конкурировали за внимание.
+      .quick-view {
+        flex: 0 0 38px;
+        width: 38px;
+        height: 38px;
+        border: 1px solid $color-border;
+        border-radius: calc($button-radius / 4);
+        color: $color-primary-coffee;
+        background: rgba(255, 255, 255, 0.82);
 
-        img {
-          position: relative;
-          width: 100%;
-          height: 30px;
-          object-fit: cover;
+        &:hover {
+          background: #f5ead9;
         }
       }
     }
+  }
+
+  &__brand,
+  &__stock {
+    margin: 0;
+    color: $color-text-muted;
+    font-size: $font-size-brand;
+  }
+
+  &__brand {
+    // Eyebrow над названием: мелкий капс задаёт контекст, не споря с названием.
+    margin-top: $padding-body;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-weight: 600;
+  }
+
+  &__stock {
+    margin-bottom: 8px;
+    font-weight: 500;
+  }
+
+  &__prices {
+    min-width: 72px;
+    text-align: right;
+
+    p { margin: 0; }
+  }
+
+  &__old-price {
+    color: $color-text-old-price;
+    font-size: $font-size-old;
+    font-weight: 400;
+    line-height: 1.2;
+    text-decoration: line-through;
+  }
+
+  &__message {
+    min-height: 18px;
+    margin: -4px $padding-body $padding-body;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+
+    &--success { color: $color-success; }
+    &--error { color: $color-danger; }
   }
 }
 .background-card {
@@ -138,6 +209,21 @@ $transition-normal: 0.25s ease;
   display: flex;
   flex-direction: column;
   align-items: center;
+
+  // Единый ритм для прямых абзацев; детальную настройку ведут BEM-блоки выше.
+  > p {
+    margin: 0;
+    line-height: 1.4;
+  }
+}
+
+.label-product {
+  margin: 4px $padding-body 6px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: $color-text-primary;
 }
 
 .background,
@@ -164,19 +250,38 @@ $transition-normal: 0.25s ease;
     min-width: 50px;
   }
 
+  // Счётчик — компактный, но уверенный: шаг и единица читаются с первого взгляда.
+  .count-gramms {
+    font-size: 14px;
+    font-weight: 600;
+    color: $color-text-primary;
+  }
+
+  // Цена — акцентный элемент карточки: тёплый оранжевый, крупный, tabular-nums
+  // не дёргает ширину при изменении количества.
+  .price {
+    font-size: $font-size-price;
+    font-weight: 700;
+    line-height: 1.1;
+    color: $color-accent-hover;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .block-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   button {
-    width: $button-height;
-    height: $button-height;
-    display: inherit;
-    background-color: #f0f0f0;
-    background: none;
-    border: none;
+    width: 26px;
+    height: 22px;
     padding: 0;
-    cursor: pointer;
-    img {
-      width: $button-height;
-      height: auto;
-      display: block;
+    color: $color-text-primary;
+
+    &:disabled {
+      color: $color-text-old-price;
+      cursor: not-allowed;
     }
   }
 }

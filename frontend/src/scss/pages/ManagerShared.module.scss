@@ -1,0 +1,289 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+$surface: #ffffff;
+$border: #ece2d4;
+$text: #3a2c22;
+$muted: #74685d;
+$danger: #c9564e;
+
+.page,
+.list,
+.section,
+.detailGrid,
+.stack {
+  display: flex;
+  flex-direction: column;
+}
+
+.page { gap: spacing(md); }
+.list { gap: spacing(sm); }
+.section { gap: spacing(xs); }
+.stack { gap: spacing(xs); }
+
+.pageHeader,
+.cardHeader,
+.row,
+.pagination,
+.actions,
+.filters,
+.metricRow {
+  display: flex;
+  align-items: center;
+}
+
+.pageHeader,
+.cardHeader,
+.row,
+.pagination {
+  justify-content: space-between;
+}
+
+.pageHeader,
+.cardHeader,
+.row,
+.pagination,
+.actions,
+.filters,
+.metricRow {
+  gap: spacing(sm);
+}
+
+.pageHeader,
+.filters,
+.actions {
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  color: $text;
+  font-family: "Unbounded Variable", Unbounded, sans-serif !important;
+  font-size: 24px !important;
+  font-weight: 700 !important;
+}
+
+.subtitle,
+.muted,
+.meta {
+  color: $muted;
+  font-size: 13px !important;
+}
+
+.card,
+.panel,
+.emptyState {
+  border: 1px solid $border !important;
+  border-radius: 18px !important;
+  background: $surface !important;
+}
+
+.card {
+  padding: spacing(md);
+  cursor: pointer;
+  @include smooth-transition((transform, box-shadow), 0.18s);
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px opacity-change("rgba", $color-primary-coffee, 0.08) !important;
+  }
+
+  &:focus-visible {
+    outline: 3px solid opacity-change("rgba", $color-primary-tea, 0.35);
+  }
+}
+
+.panel {
+  padding: spacing(md);
+}
+
+.cardTitle,
+.sectionTitle {
+  color: $text;
+  font-weight: 800 !important;
+}
+
+.cardTitle { font-size: 18px !important; }
+.sectionTitle { font-size: 16px !important; }
+
+.filters {
+  padding: spacing(sm);
+  border: 1px solid $border;
+  border-radius: 16px;
+  background: opacity-change("rgba", $color-primary-coffee, 0.035);
+
+  :global(.MuiTextField-root),
+  :global(.MuiFormControl-root) {
+    min-width: 150px;
+  }
+
+  :global(.MuiTextField-root:first-child) {
+    min-width: min(320px, 100%);
+    flex: 1;
+  }
+}
+
+.tabs {
+  min-height: 44px;
+
+  :global(.MuiTab-root) {
+    min-height: 40px;
+    border-radius: 12px;
+    text-transform: none;
+  }
+
+  :global(.Mui-selected) {
+    background: opacity-change("rgba", $color-primary-tea, 0.14);
+  }
+
+  :global(.MuiTabs-indicator) { display: none; }
+}
+
+.detailGrid {
+  gap: spacing(md);
+
+  @include respond-to(map-get($breakpoints, lg)) {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+    align-items: start;
+  }
+}
+
+.wideColumn,
+.sideColumn {
+  display: flex;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.dividerRow {
+  padding: spacing(xs) 0;
+  border-bottom: 1px solid $border;
+
+  &:last-child { border-bottom: 0; }
+}
+
+.pagination {
+  flex-wrap: wrap;
+  padding-top: spacing(sm);
+}
+
+.emptyState {
+  align-items: center;
+  min-height: 260px;
+  padding: spacing(xl);
+  text-align: center;
+}
+
+.emptyIcon {
+  width: 56px !important;
+  height: 56px !important;
+  margin-bottom: spacing(sm);
+  color: $color-primary-tea;
+}
+
+.emptyTitle {
+  margin-bottom: spacing(xs) !important;
+  color: $text;
+  font-size: 18px !important;
+  font-weight: 800 !important;
+}
+
+.errorCode {
+  margin-top: spacing(xxs) !important;
+  font-family: monospace !important;
+  font-size: 12px !important;
+}
+
+.danger { color: $danger !important; }
+
+.metric {
+  min-width: 110px;
+  padding: spacing(sm);
+  border-radius: 14px;
+  background: opacity-change("rgba", $color-primary-tea, 0.1);
+}
+
+.metricValue {
+  color: $text;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+}
+
+.rating {
+  color: #a66f00;
+  font-weight: 800 !important;
+}
+
+.preWrap { white-space: pre-wrap; }
+
+// ── Глобальные переопределения MUI ────────────────────────────────────────────
+// Диалоги: заголовок +2px (caption * 2.75 = 22px).
+:global(.MuiDialogTitle-root) {
+  font-size: $font-unit * 2.75 !important;
+}
+
+// Кнопки: +1px (caption * 1.875 = 15px).
+:global(.MuiButton-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Алерты: +2px (caption * 2 = 16px).
+:global(.MuiAlert-root) {
+  font-size: $font-unit * 2 !important;
+}
+
+// Чипы (статус, канал, клиент): +1px (caption * 1.875 = 15px).
+:global(.MuiChip-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Табы: +1px (caption * 1.875 = 15px).
+:global(.MuiTab-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Лейблы (InputLabel / FormLabel): +1px (caption * 1.875 = 15px).
+:global(.MuiInputLabel-root),
+:global(.MuiFormLabel-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Селекты (MenuItem): +1px (caption * 1.875 = 15px).
+:global(.MuiMenuItem-root) {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Таблицы/строки деталей: текст +1px (caption * 1.875 = 15px).
+.row {
+  font-size: $font-unit * 1.875 !important;
+}
+
+// Панели: заголовки секций +1px (caption * 2.125 = 17px).
+.sectionTitle {
+  font-size: $font-unit * 2.125 !important;
+}
+
+// Заголовки карточек +1px (caption * 2.375 = 19px).
+.cardTitle {
+  font-size: $font-unit * 2.375 !important;
+}
+
+// Мета-текст +1px (caption * 1.75 = 14px).
+.meta {
+  font-size: $font-unit * 1.75 !important;
+}
+
+// Метрики: значение +1px (caption * 2.625 = 21px).
+.metricValue {
+  font-size: $font-unit * 2.625 !important;
+}
+
+// Пустые состояния: заголовок +1px (caption * 2.375 = 19px).
+.emptyTitle {
+  font-size: $font-unit * 2.375 !important;
+}
+
+// Typography body1 (дефолтный <p>): +2px (caption * 2.25 = 18px).
+:global(.MuiTypography-body1) {
+  font-size: $font-unit * 2.25 !important;
+}

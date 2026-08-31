@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Typography,
@@ -33,6 +33,7 @@ import { authApi } from "../api/authAPI";
 import { translateError, extractError } from "../utils/translateError";
 import type { MenuKey, MenuItem, ProfileFormState, PasswordFormState } from "../interfaces/profile";
 import styles from "../scss/pages/ProfilePage.module.scss";
+import CustomerOrdersPanel from "../components/customer/CustomerOrdersPanel";
 
 const MENU_ITEMS: MenuItem[] = [
   { key: "profile", label: "Профиль", icon: <PersonOutlineIcon fontSize="medium" /> },
@@ -86,9 +87,18 @@ const EMPTY_PASSWORDS: PasswordFormState = {
 
 export default function ProfilePage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading, isAdmin, isSeller, isManager, isCourier, logout, refreshUser } = useAuth();
 
-  const [activeKey, setActiveKey] = useState<MenuKey>("profile");
+  // Раздел хранится в URL, поэтому ссылка из шапки сразу открывает заказы.
+  const requestedSection = searchParams.get("section") as MenuKey | null;
+  const [activeKey, setActiveKey] = useState<MenuKey>(
+    requestedSection && MENU_ITEMS.some((item) => item.key === requestedSection) ? requestedSection : "profile",
+  );
+  const changeSection = (key: MenuKey) => {
+    setActiveKey(key);
+    setSearchParams(key === "profile" ? {} : { section: key }, { replace: true });
+  };
   const [profile, setProfile] = useState<ProfileFormState>(EMPTY_PROFILE);
   const [passwords, setPasswords] = useState<PasswordFormState>(EMPTY_PASSWORDS);
   const [saving, setSaving] = useState(false);
@@ -370,7 +380,13 @@ export default function ProfilePage() {
         {error && <Typography className={styles.fieldError}>{error}</Typography>}
         {ok && <Typography className={styles.fieldOk}>{ok}</Typography>}
 
-        {activeKey === "profile" ? renderProfile() : renderPlaceholder(activeKey)}
+        {/* Заказы уже получают реальные данные; остальные будущие разделы пока
+            используют общий экран-заглушку. */}
+        {activeKey === "profile"
+          ? renderProfile()
+          : activeKey === "orders"
+            ? <CustomerOrdersPanel />
+            : renderPlaceholder(activeKey)}
       </>
     );
   };
@@ -388,7 +404,7 @@ export default function ProfilePage() {
           <ListItemButton
             key={item.key}
             selected={activeKey === item.key}
-            onClick={() => setActiveKey(item.key)}
+            onClick={() => changeSection(item.key)}
             className={styles.menuItem}
             classes={{ selected: styles.menuItemActive }}
             disableRipple={true}

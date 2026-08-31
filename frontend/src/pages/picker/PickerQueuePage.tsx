@@ -12,6 +12,8 @@ import {
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import Inventory2Icon from "@mui/icons-material/Inventory2";
 import HandymanIcon from "@mui/icons-material/Handyman";
+import { usePageVisibility } from "../../hooks/usePageVisibility";
+import { useRecursivePolling } from "../../hooks/useRecursivePolling";
 import { usePicker } from "../../picker/PickerContext";
 import type { PickerJobType, PickerOrder } from "../../picker/types";
 import styles from "../../scss/pages/PickerQueue.module.scss";
@@ -31,8 +33,18 @@ const JOB_TABS: { id: JobFilter; label: string }[] = [
  *    - mode="mine"  → «Моя работа» (заказы, которые уже у нас в работе). */
 export default function PickerQueuePage({ mode }: { mode: "queue" | "mine" }) {
   const navigate = useNavigate();
-  const { queue, myOrders, take, loading, error, refresh } = usePicker();
+  const { queue, myOrders, take, loading, error, online, refresh } = usePicker();
   const [jobFilter, setJobFilter] = useState<JobFilter>("all");
+  const visiblePage = usePageVisibility();
+
+  // Layout уже загрузил списки при старте, поэтому первый polling откладываем.
+  // После возврата online/из скрытой вкладки таймер создастся заново.
+  useRecursivePolling({
+    enabled: online && visiblePage,
+    intervalMs: 30_000,
+    refresh,
+    runImmediately: false,
+  });
 
   // Берём нужный список в зависимости от режима страницы.
   const orders = mode === "mine" ? myOrders : queue;
@@ -52,10 +64,21 @@ export default function PickerQueuePage({ mode }: { mode: "queue" | "mine" }) {
         <Typography component="h1" className={styles.pageTitle}>
           {title}
         </Typography>
-        <Button variant="outlined" size="small" onClick={() => refresh()} disabled={loading}>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={() => refresh()}
+          disabled={loading || !online}
+        >
           Обновить
         </Button>
       </Box>
+
+      <Typography className={styles.pageSubtitle}>
+        {mode === "mine"
+          ? "Только взятые вами активные задания; после завершения они уходят из списка"
+          : "Свободные подтверждённые задания; обновление каждые 30 секунд"}
+      </Typography>
 
       {/* Фильтры по типу работы */}
       <Tabs
@@ -79,7 +102,7 @@ export default function PickerQueuePage({ mode }: { mode: "queue" | "mine" }) {
             <Inventory2Icon className={styles.emptyIcon} />
             <Typography className={styles.emptyText}>
               {mode === "mine"
-                ? "Вы не взяли ни одного заказа"
+                ? "Активных заданий нет"
                 : "В очереди пусто"}
             </Typography>
           </Box>
@@ -90,6 +113,7 @@ export default function PickerQueuePage({ mode }: { mode: "queue" | "mine" }) {
             order={order}
             onOpen={() => navigate(`/picker/orders/${order.id}`)}
             onTake={() => take(order.id)}
+            online={online}
           />
         ))}
       </Box>
@@ -104,10 +128,12 @@ function OrderCard({
   order,
   onOpen,
   onTake,
+  online,
 }: {
   order: PickerOrder;
   onOpen: () => void;
   onTake: () => void;
+  online: boolean;
 }) {
   const giftCount = order.gifts.length;
   const itemCount = order.items.length;
@@ -168,6 +194,7 @@ function OrderCard({
               e.stopPropagation(); // не открывать детали при клике на кнопку
               onTake();
             }}
+            disabled={!online}
           >
             Взять
           </Button>

@@ -1,316 +1,73 @@
 import { useCallback, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
-import StageZero from "../components/constructor/StageZero";
-import StageOne from "../components/constructor/StageOne";
-import StageTwo from "../components/constructor/StageTwo";
-import StageThree from "../components/constructor/StageThree";
-import ThreeScene from "../components/constructor/ThreeScene";
-import type { ScenePhase, GiftType } from "../components/constructor/three/sceneConfig";
-import { isScripted } from "../components/constructor/three/sceneConfig";
-import type { ConstructorItem } from "../data/constructorMockData";
-import styles from "../scss/pages/ConstructorPage.module.scss";
+import { useAuth } from "../hooks/useAuth";
+import { useConstructorResource } from "../hooks/useConstructorResource";
+import { giftConstructorApi } from "../api/giftConstructorAPI";
+import ConstructorEditor from "../components/constructor/ConstructorEditor";
+import ConstructorCatalogStatus from "../components/constructor/ConstructorCatalogStatus";
+import { ConstructorBoxPicker, ConstructorModePicker, type ConstructorMode } from "../components/constructor/ConstructorChoice";
+import ConstructorSteps from "../components/constructor/ConstructorSteps";
+import styles from "../scss/pages/ConstructorWorkspace.module.scss";
 
-export type { GiftType };
+// Совместимость старых компонентов анимации.
+export type { GiftType } from "../components/constructor/three/sceneConfig";
 export type ConstructorStage = 0 | 1 | 2 | 3;
 
-const STAGE_LABELS = ["Тип подарка", "Выберите чаи", "Выберите десерт", "Подтверждение"];
+function Workspace({ userId }: { userId: number }) {
+  const [mode, setMode] = useState<ConstructorMode | null>(null);
+  const [step, setStep] = useState<"mode" | "box" | "editor">("box");
+  const [boxId, setBoxId] = useState<number | null>(null);
+  const [busy, setBusy] = useState(false);
+  // Advanced options содержит все активные коробки, включая simple_requirements.
+  // Размер выбирается до режима; смена режима не перезагружает тот же каталог.
+  const loadOptions = useCallback((signal: AbortSignal) => giftConstructorApi.loadOptions("advanced", signal), []);
+  const options = useConstructorResource(`${userId}:boxes`, true, loadOptions);
+  const boxes = options.data?.boxes ?? [];
+  const loadProducts = useCallback((signal: AbortSignal) => giftConstructorApi.getBoxProducts(boxId!, signal), [boxId]);
+  const products = useConstructorResource(`${userId}:${boxId}`, boxId !== null, loadProducts);
+  // Реконнект не размонтирует уже открытый редактор/созданный Gift, даже если
+  // коробку сняли с публикации. Quote и create всё равно проверяются сервером.
+  const box = boxes.find((candidate) => candidate.id === boxId) ?? products.data?.box;
 
-/** Подписи, вписанные в саму сцену — они меняются вместе с фазой */
-const HERO_CAPTIONS: Record<ConstructorStage, { title: string; sub: string }> = {
-  0: {
-    title: "Выберите тип набора",
-    sub: "Наведите на коробку, чтобы рассмотреть, и нажмите, чтобы собрать",
-  },
-  1: { title: "Соберите чайную часть", sub: "Выберите два чая и упакуйте их в коробку" },
-  2: { title: "Добавьте десерт", sub: "Один десерт к чаю — и набор готов" },
-  3: { title: "Всё готово", sub: "Проверьте состав и отправьте подарок в корзину" },
-};
-
-const stageVariants = {
-  enter: { opacity: 0, y: 16 },
-  center: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -12 },
-};
+  return <>
+    {step !== "editor" && <ConstructorSteps current={step === "box" ? 0 : 1} onBack={() => setStep("box")} />}
+    {options.loading && !options.data && <p role="status">Загружаем коробки…</p>}
+    {options.error && <div role="alert" className={styles.notice}><p>{options.error}</p><button type="button" disabled={!options.online || busy} onClick={options.retry}>Повторить загрузку коробок</button><Link to="/login">Войти заново</Link></div>}
+    {!options.loading && options.data && !boxes.length && step === "box" && <p role="status">Сейчас нет активных коробок.</p>}
+    {step === "box" && <>
+      {!!boxes.length && <ConstructorBoxPicker boxes={boxes} selectedId={boxId} cellSizeMm={options.data?.cell_size_mm} onSelect={(next) => {
+        if (next.id !== boxId) setMode(null);
+        setBoxId(next.id); setStep("mode");
+      }} />}
+    </>}
+    {step === "mode" && box && <ConstructorModePicker box={products.data?.box ?? box} onSelect={(next) => { setMode(next); setStep("editor"); }} />}
+    <div hidden={step !== "editor"}>
+    {step === "editor" && !products.data && <ConstructorSteps current={2} onBack={(index) => setStep(index === 0 ? "box" : "mode")} />}
+    {box && products.loading && <p role="status">Загружаем товары…</p>}
+    {box && products.error && <div role="alert" className={styles.notice}><p>{products.error}</p><button type="button" disabled={!products.online} onClick={products.retry}>Повторить загрузку товаров</button></div>}
+    {mode && box && products.data?.product_sizes.length === 0 && <ConstructorCatalogStatus box={box} mode={mode}
+      availableCount={options.error || options.loading ? null : options.data?.product_sizes.length ?? null}
+      onRetry={() => { options.retry(); products.retry(); }}
+      retryDisabled={busy || !products.online || products.loading || options.loading} />}
+    {mode && box && products.data && <ConstructorEditor key={box.id} mode={mode} box={products.data.box} sizes={products.data.product_sizes} onBusy={setBusy}
+      active={step === "editor"} startEditing onBackToMode={() => setStep("mode")}
+      onBackToBoxes={() => setStep("box")} cellSizeMm={options.data?.cell_size_mm} />}
+    </div>
+  </>;
+}
 
 export default function ConstructorPage() {
-  const [stage, setStage] = useState<ConstructorStage>(0);
-  const [giftType, setGiftType] = useState<GiftType | null>(null);
-  const [selectedTeas, setSelectedTeas] = useState<ConstructorItem[]>([]);
-  const [selectedSweet, setSelectedSweet] = useState<ConstructorItem | null>(null);
-
-  // ── Состояние 3D ──────────────────────────────────────────────────────────
-  const [phase, setPhase] = useState<ScenePhase>({ kind: "chooseType" });
-  /** Сколько чаёв уже лежит в коробке — растёт по мере проигрывания анимаций */
-  const [packedTeas, setPackedTeas] = useState(0);
-  const [packedSweet, setPackedSweet] = useState(false);
-
-  const busy = isScripted(phase);
-
-  // ── Этап 0 ────────────────────────────────────────────────────────────────
-
-  const handleSelectGiftType = useCallback((type: GiftType) => {
-    setGiftType(type);
-    // Даём коробке доехать до центра, прежде чем передать управление
-    // основной модели: подмена объекта в этот момент не видна.
-    window.setTimeout(() => setPhase({ kind: "assembleBox" }), 620);
-  }, []);
-
-  // ── Этап 1 ────────────────────────────────────────────────────────────────
-
-  const handleToggleTea = useCallback(
-    (item: ConstructorItem) => {
-      if (busy) return;
-      setSelectedTeas((prev) => {
-        const exists = prev.find((t) => t.id === item.id);
-        if (exists) return prev.filter((t) => t.id !== item.id);
-        if (prev.length >= 2) return prev;
-        return [...prev, item];
-      });
-    },
-    [busy],
-  );
-
-  /** Запускает упаковку выбранных чаёв — по одному, начиная с первого */
-  const handlePackTeas = useCallback(() => {
-    if (busy || selectedTeas.length !== 2) return;
-    setPackedTeas(0);
-    setPhase({ kind: "packTea", slot: 0 });
-  }, [busy, selectedTeas.length]);
-
-  // ── Этап 2 ────────────────────────────────────────────────────────────────
-
-  const handleSelectSweet = useCallback(
-    (item: ConstructorItem) => {
-      if (busy) return;
-      setSelectedSweet((prev) => (prev?.id === item.id ? null : item));
-    },
-    [busy],
-  );
-
-  const handlePackSweet = useCallback(() => {
-    if (busy || !selectedSweet) return;
-    setPhase({ kind: "packSweet" });
-  }, [busy, selectedSweet]);
-
-  // ── Этап 3 ────────────────────────────────────────────────────────────────
-
-  const handleSeal = useCallback(() => {
-    if (busy) return;
-    setPhase({ kind: "sealAndFly" });
-  }, [busy]);
-
-  // ── Завершение скриптовых фаз ─────────────────────────────────────────────
-
-  const handlePhaseComplete = useCallback((finished: ScenePhase) => {
-    switch (finished.kind) {
-      case "assembleBox":
-        setPhase({ kind: "idleBox" });
-        setStage(1);
-        break;
-
-      case "packTea": {
-        const next = finished.slot + 1;
-        setPackedTeas(next);
-        if (next < 2) {
-          setPhase({ kind: "packTea", slot: 1 });
-        } else {
-          setPhase({ kind: "idleBox" });
-          setStage(2);
-        }
-        break;
-      }
-
-      case "packSweet":
-        setPackedSweet(true);
-        setPhase({ kind: "idleBox" });
-        setStage(3);
-        break;
-
-      case "sealAndFly":
-        setPhase({ kind: "done" });
-        break;
-
-      default:
-        break;
-    }
-  }, []);
-
-  // ── Навигация назад ───────────────────────────────────────────────────────
-
-  const handleBack = useCallback(() => {
-    if (busy) return;
-    if (stage === 1) {
-      setStage(0);
-      setGiftType(null);
-      setSelectedTeas([]);
-      setPackedTeas(0);
-      setPhase({ kind: "chooseType" });
-    } else if (stage === 2) {
-      setStage(1);
-      setSelectedTeas([]);
-      setPackedTeas(0);
-      setPhase({ kind: "idleBox" });
-    } else if (stage === 3) {
-      setStage(2);
-      setSelectedSweet(null);
-      setPackedSweet(false);
-      setPhase({ kind: "idleBox" });
-    }
-  }, [stage, busy]);
-
-  const handleReset = useCallback(() => {
-    setStage(0);
-    setGiftType(null);
-    setSelectedTeas([]);
-    setSelectedSweet(null);
-    setPackedTeas(0);
-    setPackedSweet(false);
-    setPhase({ kind: "chooseType" });
-  }, []);
-
-  const totalPrice = [
-    ...selectedTeas.map((t) => t.price),
-    selectedSweet ? selectedSweet.price : 0,
-  ].reduce((a, b) => a + b, 0);
-
-  const caption = HERO_CAPTIONS[stage];
-
-  return (
-    <div className={styles.page}>
-      <Header />
-      <div className={styles.content}>
-        <button
-          className={styles.backButton}
-          onClick={handleBack}
-          disabled={busy}
-          style={{ visibility: stage === 0 ? "hidden" : "visible" }}
-        >
-          ← Назад
-        </button>
-
-        <h1 className={styles.pageTitle}>Конструктор подарков</h1>
-
-        {/* Прогресс по этапам */}
-        <div className={styles.progressBar}>
-          {STAGE_LABELS.map((label, i) => (
-            <div key={i} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-              <div
-                className={`${styles.progressStep} ${
-                  i === stage ? styles.active : i < stage ? styles.completed : ""
-                }`}
-              >
-                <div className={styles.progressDot}>{i < stage ? "✓" : i + 1}</div>
-                <span>{label}</span>
-              </div>
-              {i < STAGE_LABELS.length - 1 && (
-                <div className={`${styles.progressLine} ${i < stage ? styles.filled : ""}`} />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* ── Сцена ── */}
-        <div className={styles.heroStage}>
-          <ThreeScene
-            phase={phase}
-            giftType={giftType ?? "simplified"}
-            packedTeas={packedTeas}
-            packedSweet={packedSweet}
-            selectedType={giftType}
-            onSelectType={handleSelectGiftType}
-            onPhaseComplete={handlePhaseComplete}
-          />
-
-          <div className={styles.heroOverlay}>
-            <div className={styles.heroCaption}>
-              <p className={styles.heroCaptionTitle}>{caption.title}</p>
-              <p className={styles.heroCaptionSub}>{caption.sub}</p>
-            </div>
-            {!busy && stage > 0 && (
-              <div className={styles.heroHint}>Потяните, чтобы осмотреть коробку</div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Панель этапа ── */}
-        <div className={`${styles.stagePanel} ${busy ? styles.stageLocked : ""}`}>
-          <AnimatePresence mode="wait">
-            {stage === 0 && (
-              <motion.div
-                key="stage-0"
-                variants={stageVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                <StageZero onSelect={handleSelectGiftType} selected={giftType} disabled={busy} />
-              </motion.div>
-            )}
-
-            {stage === 1 && (
-              <motion.div
-                key="stage-1"
-                variants={stageVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                <StageOne
-                  selected={selectedTeas}
-                  onToggle={handleToggleTea}
-                  onPack={handlePackTeas}
-                  packing={busy}
-                />
-              </motion.div>
-            )}
-
-            {stage === 2 && (
-              <motion.div
-                key="stage-2"
-                variants={stageVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                <StageTwo
-                  selected={selectedSweet}
-                  onSelect={handleSelectSweet}
-                  onPack={handlePackSweet}
-                  packing={busy}
-                />
-              </motion.div>
-            )}
-
-            {stage === 3 && (
-              <motion.div
-                key="stage-3"
-                variants={stageVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{ duration: 0.3, ease: "easeInOut" }}
-              >
-                <StageThree
-                  giftType={giftType ?? "simplified"}
-                  teas={selectedTeas}
-                  sweet={selectedSweet!}
-                  totalPrice={totalPrice}
-                  onSeal={handleSeal}
-                  sealed={phase.kind === "done"}
-                  sealing={phase.kind === "sealAndFly"}
-                  onReset={handleReset}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      </div>
-      <Footer />
-    </div>
-  );
+  const { user, loading } = useAuth();
+  return <div className={styles.page}>
+    <Header />
+    <main className={styles.content}>
+      <h1>Конструктор подарков</h1>
+      {loading ? <p role="status">Проверяем вход…</p> : user
+        ? <Workspace key={user.id} userId={user.id} />
+        : <div className={styles.notice}><p>Войдите в аккаунт: каталог конструктора и сохранение подарков требуют авторизации.</p><Link className={styles.primary} to="/login">Войти</Link></div>}
+    </main>
+    <Footer />
+  </div>;
 }

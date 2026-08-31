@@ -1,0 +1,63 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+@import "../abstracts/mixins";
+
+// Палитра наследует личный кабинет, общие токены отвечают за ритм отступов.
+$ink: #3a2c22;
+$muted: #88796b;
+$line: #e8dccd;
+$accent: #4a3428;
+
+.state,
+.empty {
+  // Все служебные состояния занимают одну область, поэтому кабинет не скачет по высоте.
+  @include flex-centre();
+  min-height: 260px;
+  flex-direction: column;
+  gap: spacing(md);
+}
+
+.empty {
+  border: 1px dashed $line;
+  border-radius: 18px !important;
+  background: #fffdf9 !important;
+  color: $muted;
+  > svg { font-size: 52px; color: #bea98f; }
+  :global(.MuiButton-contained) { background: $accent; text-transform: none; }
+}
+
+.list { display: grid; gap: spacing(md); }
+
+.card {
+  display: grid;
+  gap: spacing(md);
+  padding: spacing(lg);
+  border: 1px solid $line;
+  border-radius: 18px !important;
+  background: #fffdf9 !important;
+  transition: border-color 0.2s ease, transform 0.2s ease;
+  &:hover { border-color: #cbb69e; transform: translateY(-2px); }
+}
+
+.cardTop,
+.cardBottom { @include flex-any(space-between, center); gap: spacing(md); }
+.number { color: $ink; font-size: font-size(body) !important; font-weight: 750 !important; }
+.date { color: $muted; font-size: font-size(caption) !important; }
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(lg);
+  color: $muted;
+  > div { display: flex; align-items: center; gap: spacing(xs); font-size: font-size(body-sm); }
+  svg { font-size: 18px; }
+}
+
+.total { color: $ink; font-size: font-size(body) !important; font-weight: 800 !important; }
+.cardBottom button { color: $accent; text-transform: none; font-weight: 700; }
+
+@media (max-width: 620px) {
+  // На телефоне статус переносится над номером.
+  .cardTop, .cardBottom { align-items: flex-start; }
+  .cardTop { flex-direction: column-reverse; }
+}

@@ -11,7 +11,9 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  MenuItem,
   Paper,
+  Select,
   Typography,
 } from "@mui/material";
 import DashboardIcon from "@mui/icons-material/Dashboard";
@@ -21,7 +23,9 @@ import SyncIcon from "@mui/icons-material/Sync";
 import StorefrontIcon from "@mui/icons-material/Storefront";
 import WifiIcon from "@mui/icons-material/Wifi";
 import WifiOffIcon from "@mui/icons-material/WifiOff";
+import { ThemeProvider } from "@mui/material/styles";
 import { useSeller } from "../contexts/SellerContext";
+import { sellerTheme } from "../theme/sellerTheme";
 import styles from "../scss/pages/SellerLayout.module.scss";
 
 const NAV = [
@@ -53,17 +57,20 @@ export default function LayoutSeller() {
 
   if (loading) {
     return (
-      <Box className={styles.centerWrap}>
-        <CircularProgress />
-        <Typography className={styles.loadingText}>Загрузка рабочей точки...</Typography>
-      </Box>
+      <ThemeProvider theme={sellerTheme}>
+        <Box className={styles.centerWrap}>
+          <CircularProgress />
+          <Typography className={styles.loadingText}>Загрузка рабочей точки...</Typography>
+        </Box>
+      </ThemeProvider>
     );
   }
 
   if (!ready) {
     return (
-      <Box className={styles.centerWrap}>
-        <Paper className={styles.pickerCard} elevation={0}>
+      <ThemeProvider theme={sellerTheme}>
+        <Box className={styles.centerWrap}>
+          <Paper className={styles.pickerCard} elevation={0}>
           <StorefrontIcon className={styles.pickerIcon} />
           <Typography component="h1" className={styles.pickerTitle}>
             Выберите рабочую точку
@@ -87,8 +94,9 @@ export default function LayoutSeller() {
               </Button>
             ))}
           </Box>
-        </Paper>
-      </Box>
+          </Paper>
+        </Box>
+      </ThemeProvider>
     );
   }
 
@@ -130,13 +138,6 @@ export default function LayoutSeller() {
       <Divider className={styles.sidebarDivider} />
 
       <Box className={styles.sidebarMeta}>
-        <Chip
-          size="small"
-          icon={<StorefrontIcon />}
-          label={session?.warehouse_name ?? "—"}
-          className={styles.warehouseChip}
-          variant="outlined"
-        />
         {pendingCount > 0 && (
           <Button
             size="small"
@@ -153,13 +154,29 @@ export default function LayoutSeller() {
   );
 
   return (
-    <Box className={styles.app}>
+    <ThemeProvider theme={sellerTheme}>
+      <Box className={styles.app}>
       {/* Шапка: название приложения + статус сети */}
       <Box className={styles.header}>
         <Box className={styles.headerBrand}>
           <Typography className={styles.brand}>Продажи</Typography>
         </Box>
         <Box className={styles.headerRight}>
+          <Select
+            size="small"
+            value={session?.warehouse_id ?? ""}
+            displayEmpty
+            onChange={(event) => {
+              const next = event.target.value ? Number(event.target.value) : null;
+              if (next !== null) selectWarehouse(next);
+            }}
+            className={styles.warehouseSelect}
+            aria-label="Рабочая точка"
+          >
+            {workLocations.map((loc) => (
+              <MenuItem key={loc.id} value={loc.id}>{loc.name}</MenuItem>
+            ))}
+          </Select>
           <Chip
             size="small"
             icon={online ? <WifiIcon /> : <WifiOffIcon />}
@@ -179,6 +196,7 @@ export default function LayoutSeller() {
           <Outlet />
         </Box>
       </Box>
-    </Box>
+      </Box>
+    </ThemeProvider>
   );
 }

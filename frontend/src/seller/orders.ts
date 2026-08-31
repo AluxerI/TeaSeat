@@ -4,6 +4,7 @@ import { previewOrderTotal } from "./quantity";
 import type {
   LocalOrder,
   LocalOrderItem,
+  LocalProduct,
   OutboxAction,
   OutboxEvent,
   PaymentMethod,
@@ -55,6 +56,25 @@ export async function createDraft(warehouseId: number): Promise<LocalOrder> {
   return draft;
 }
 
+/** На одной кассе держим один активный черновик точки. Транзакция защищает от
+ * двойного запуска React effect (StrictMode) и быстрых повторных кликов. */
+export async function createOrResumeDraft(
+  warehouseId: number
+): Promise<LocalOrder> {
+  const occurredAt = (await serverNow()).toISOString();
+  return db.transaction("rw", db.orders, async () => {
+    const drafts = await db.orders.where("status").equals("draft").toArray();
+    const existing = drafts
+      .filter((order) => order.warehouse_id === warehouseId)
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at))[0];
+    if (existing) return existing;
+
+    const draft = emptyOrder(warehouseId, occurredAt);
+    await db.orders.put(draft);
+    return draft;
+  });
+}
+
 export async function getOrder(clientOrderId: string): Promise<LocalOrder | undefined> {
   return db.orders.get(clientOrderId);
 }
@@ -95,6 +115,46 @@ export function removeItem(
   productId: number
 ): LocalOrderItem[] {
   return items.filter((i) => i.product_id !== productId);
+}
+
+/** Атомарно добавляет товар в черновик. Чтение из IndexedDB внутри транзакции
+ * не даёт быстрым кликам перезаписать друг друга устаревшим React state. */
+export async function addProductToDraft(
+  clientOrderId: string,
+  product: LocalProduct,
+  quantity = product.sale_step
+): Promise<LocalOrder> {
+  return db.transaction("rw", db.orders, async () => {
+    const order = await db.orders.get(clientOrderId);
+    if (!order) throw new Error(`Заказ ${clientOrderId} не найден`);
+
+    const existing = order.items.find((item) => item.product_id === product.id);
+    const step = Math.max(1, Math.trunc(product.sale_step) || 1);
+    const requested = (existing?.quantity ?? 0) + quantity;
+    const nextQuantity = Math.max(step, Math.round(requested / step) * step);
+    if (nextQuantity > product.stock.available_quantity) {
+      throw new Error("Количество превышает доступный остаток");
+    }
+
+    const item: LocalOrderItem = {
+      product_id: product.id,
+      quantity: nextQuantity,
+      pricing_token: product.pricing_token,
+      name: product.name,
+      unit_price: product.pricing.unit_price,
+      price_unit_quantity: product.price_unit_quantity,
+      stock_unit: product.stock_unit,
+      sale_step: product.sale_step,
+    };
+    const next: LocalOrder = {
+      ...order,
+      items: upsertItem(order.items, item),
+      updated_at: new Date().toISOString(),
+    };
+    next.totals_preview = previewOrderTotal(next.items);
+    await db.orders.put(next);
+    return next;
+  });
 }
 
 /** Ставит в очередь `upsert`. Если непосланный `upsert` уже висит — заменяет

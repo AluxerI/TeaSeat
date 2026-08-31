@@ -62,6 +62,15 @@ $color-danger: #c9564e;
   font-weight: 700 !important;
 }
 
+.warehouseSelect {
+  min-width: 170px;
+  font-size: $font-unit * 1.875 !important;
+
+  :global(.MuiSelect-select) {
+    font-weight: 600 !important;
+  }
+}
+
 // ── Каркас кабинета (меню + контент) ────────────────────────────────────────
 
 .cabinet {
@@ -141,10 +150,15 @@ $color-danger: #c9564e;
 .menuIcon {
   min-width: 36px !important;
   color: inherit;
+
+  // MUI по умолчанию даёт 24px; увеличиваем навигационные иконки на 4px.
+  :global(.MuiSvgIcon-root) {
+    font-size: 28px;
+  }
 }
 
 .menuLabel {
-  font-size: font-size(body) - 6px !important;
+  font-size: $font-unit * 2 !important;
   font-weight: 700 !important;
   color: inherit;
 }

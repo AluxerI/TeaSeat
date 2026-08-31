@@ -1,0 +1,240 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+@import "../abstracts/mixins";
+
+// Цвета повторяют тёплую палитру каталога; размеры и отступы берём из общих функций.
+$ink: #3a2c22;
+$muted: #88796b;
+$line: #e8dccd;
+$surface: #fffdf9;
+$accent: #4a3428;
+$cream: #faf5ee;
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: $cream;
+  color: $ink;
+}
+
+.center {
+  @include flex-centre();
+  flex: 1;
+  min-height: 50vh;
+}
+
+.checkoutPage {
+  width: 100%;
+  max-width: max-width(xl);
+  margin: 0 auto;
+  padding: spacing(lg) spacing(xl) spacing(xxl);
+
+  @media (max-width: 900px) { padding: spacing(md); }
+}
+
+.backButton,
+.textButton {
+  color: $muted !important;
+  text-transform: none !important;
+}
+
+.pageTitle {
+  margin: spacing(md) 0 spacing(lg) !important;
+  font-family: "Unbounded Variable", sans-serif !important;
+  font-size: font-size(h2) !important;
+  font-weight: 650 !important;
+}
+
+.alert { margin-bottom: spacing(md); }
+
+.layout {
+  // Форма занимает гибкую колонку, итог — 350px. На планшете они становятся одной колонкой.
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: spacing(xl);
+  align-items: start;
+
+  @media (max-width: 960px) { grid-template-columns: 1fr; }
+}
+
+.steps { display: grid; gap: spacing(md); }
+
+.stepCard,
+.summaryCard {
+  // Paper сохраняет семантику MUI, а класс приводит поверхность к стилю магазина.
+  padding: spacing(lg);
+  border: 1px solid $line;
+  border-radius: 18px !important;
+  background: $surface !important;
+}
+
+.stepHeading {
+  display: flex;
+  gap: spacing(sm);
+  align-items: flex-start;
+  margin-bottom: spacing(md);
+  color: $accent;
+
+  > svg { margin-top: 2px; }
+  h2 { font-size: font-size(body) !important; font-weight: 750 !important; }
+  p { color: $muted; font-size: font-size(caption) !important; }
+}
+
+.addressForm {
+  // Улица получает больше места, чем короткие поля города и индекса.
+  display: grid;
+  grid-template-columns: 1fr 2fr 1fr;
+  gap: spacing(sm);
+  @media (max-width: 720px) { grid-template-columns: 1fr; }
+}
+
+.formActions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: spacing(sm);
+
+  :global(.MuiButton-contained) { background: $accent; text-transform: none; }
+}
+
+.tabButtons {
+  display: flex;
+  gap: spacing(sm);
+  margin-bottom: spacing(md);
+
+  @media (max-width: 720px) { flex-direction: column; }
+}
+
+.tabButton {
+  flex: 1;
+  padding: 10px spacing(md);
+  border: 1px solid $line;
+  border-radius: 12px;
+  background: #fff;
+  color: $muted;
+  font: inherit;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: #8f6c51;
+    color: $ink;
+  }
+}
+
+.tabButtonActive {
+  border-color: #8f6c51;
+  background: #faf3e9;
+  color: $ink;
+  box-shadow: 0 0 0 2px rgba(143, 108, 81, 0.12);
+}
+
+.pickupHint { margin-bottom: spacing(md); }
+
+.slotSection {
+  margin-top: spacing(md);
+  padding-top: spacing(md);
+  border-top: 1px solid $line;
+}
+
+.slotLabel {
+  font-size: font-size(body-sm);
+  font-weight: 700;
+  color: $ink;
+  margin-bottom: spacing(sm);
+}
+
+.dateButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: spacing(sm);
+  margin-bottom: spacing(md);
+}
+
+.dateButton {
+  padding: 8px 14px;
+  border: 1px solid $line;
+  border-radius: 10px;
+  background: #fff;
+  color: $muted;
+  font: inherit;
+  font-size: font-size(caption);
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, box-shadow 0.15s, background 0.15s;
+
+  &:hover {
+    border-color: #8f6c51;
+    color: $ink;
+  }
+}
+
+.dateButtonActive {
+  border-color: #8f6c51;
+  background: #faf3e9;
+  color: $ink;
+  box-shadow: 0 0 0 2px rgba(143, 108, 81, 0.12);
+}
+
+.methodList { display: grid !important; gap: spacing(sm); }
+
+.optionCard {
+  border: 1px solid $line;
+  border-radius: 12px !important;
+  background: #fff !important;
+
+  &:has(:global(.Mui-checked)) {
+    // Выбранный radio подчёркиваем всей карточкой, а не только кружком.
+    border-color: #8f6c51;
+    box-shadow: 0 0 0 2px rgba(143, 108, 81, 0.12);
+  }
+
+  :global(.MuiFormControlLabel-root) { width: 100%; margin: 0; padding: spacing(sm); }
+}
+
+.optionTitle { color: $ink; font-weight: 700 !important; }
+.optionMeta { color: $muted; font-size: font-size(caption) !important; }
+
+.summary {
+  // Sticky полезен на desktop, но на телефоне занял бы слишком много высоты.
+  position: sticky;
+  top: spacing(md);
+  @media (max-width: 960px) { position: static; }
+}
+
+.summaryCard { display: grid; gap: spacing(sm); }
+.summaryTitle { font-size: font-size(body) !important; font-weight: 750 !important; margin-bottom: spacing(xs) !important; }
+
+.row,
+.total {
+  display: flex;
+  justify-content: space-between;
+  gap: spacing(md);
+  color: $muted;
+  font-size: font-size(body-sm);
+  strong { color: $ink; text-align: right; }
+}
+
+.discount { color: #527f35; strong { color: #527f35; } }
+.total { color: $ink; font-size: font-size(body); font-weight: 750; }
+
+.submitButton {
+  margin-top: spacing(xs) !important;
+  padding: 12px spacing(md) !important;
+  border-radius: 12px !important;
+  background: $accent !important;
+  color: #fff !important;
+  text-transform: none !important;
+  font-weight: 750 !important;
+  &:disabled { background: #c9beb2 !important; }
+}
+
+.hint {
+  color: $muted;
+  font-size: font-size(caption) !important;
+  line-height: 1.45 !important;
+  text-align: center;
+}
