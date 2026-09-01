@@ -1,0 +1,11 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+.page { min-height: 70vh; background: #fbf7f1; padding-bottom: spacing(xxl); }
+.hero, .values, .note, .actions { width: min(100%, max-width(xl)); margin-inline: auto; padding-inline: spacing(lg); }
+.hero { padding-block: space-mult(xxl, 1.4); }
+.values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: spacing(md); }
+.values article { display: flex; flex-direction: column; gap: spacing(xs); padding: spacing(lg); border-top: 2px solid #c7a777; background: #fffdf8; }
+.values article > span { color: $color-primary-tea; font-size: font-size(body-sm); font-weight: 700; }.values strong { color: $color-secondary-coffee; font-size: $font-unit * 2.6; }.values p { margin: 0; color: #7a6452; font-size: font-size(body-sm); line-height: 1.6; }
+.note { display: grid; grid-template-columns: .8fr 1.2fr; gap: spacing(xl); margin-top: spacing(xxl); padding-top: spacing(xl); border-top: 1px solid #e7d9c8; }.note span { color: $color-primary-tea; font-size: font-size(body-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }.note h2 { margin: spacing(xs) 0 0; color: $color-secondary-coffee; font-size: $font-unit * 3.5; }.note p { margin: 0; color: #7a6452; font-size: font-size(body); line-height: 1.7; }
+.actions { display: flex; flex-wrap: wrap; gap: spacing(lg); padding-top: spacing(xl); }.actions a { color: $color-primary-tea; font-size: font-size(body); font-weight: 700; text-decoration: none; }
+@media(max-width:760px){.hero,.values,.note,.actions{padding-inline:spacing(md)}.values{grid-template-columns:1fr}.note{grid-template-columns:1fr}}

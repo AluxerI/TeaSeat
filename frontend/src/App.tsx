@@ -1,5 +1,7 @@
 import React from 'react';
-import { PageCategory } from './pages/Category';
+import HomePage from './pages/HomePage';
+import AboutPage from './pages/AboutPage';
+import CategoryLandingPage from './pages/CategoryLandingPage';
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PageCatalog } from './pages/Catalog';
@@ -56,10 +58,10 @@ const App: React.FC = () => {
         <AuthProvider>
           <CustomerCartProvider>
            <Routes>
-             <Route path='/' element={<Navigate to='/catalog' replace />} />
              <Route path='*' element={<Navigate to='/catalog' replace />} />
-             <Route path='category' Component={PageCategory}/>
-            
+             <Route path='/' Component={HomePage}/>
+             <Route path='category' Component={CategoryLandingPage}/>
+             <Route path='about' Component={AboutPage}/>
              <Route path='catalog' Component={PageCatalog}/>
              <Route path='register' Component={RegisterPage}/>
              <Route path='login' Component={LoginPage}/>

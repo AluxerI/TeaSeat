@@ -1,0 +1,11 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.heading { display: flex; min-width: 0; flex-direction: column; align-items: flex-start; gap: spacing(xs); }
+.heading[data-align="center"] { align-items: center; text-align: center; }
+.eyebrow { color: $color-primary-tea; font-size: font-size(body-sm); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.heading h1, .heading h2 { max-width: 52rem; margin: 0; color: $color-secondary-coffee; font-size: clamp(#{$font-unit * 3.5}, 4.3vw, #{$font-unit * 6}); line-height: 1.04; }
+.heading p { max-width: 48rem; margin: spacing(xs) 0 0; color: #7a6452; font-size: font-size(body); line-height: 1.65; }
+.action { display: inline-flex; align-items: center; gap: spacing(xs); margin-top: spacing(sm); color: $color-primary-tea; font-size: font-size(body); font-weight: 700; text-decoration: none; }
+.action span { transition: transform .2s ease; }
+.action:hover span, .action:focus-visible span { transform: translateX(spacing(xs)); }
