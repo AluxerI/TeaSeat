@@ -26,7 +26,6 @@ export default function HomePage() {
         <div className={styles.heroVisual} aria-hidden="true">
           <span className={styles.heroCard} data-card="tea"><img src="/pages/catalog/tea_back.svg" alt="" /></span>
           <span className={styles.heroCard} data-card="coffee"><img src="/pages/catalog/coffe_back.svg" alt="" /></span>
-          <span className={styles.steam}>TeaSeat</span>
         </div>
       </section>
 

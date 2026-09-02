@@ -62,6 +62,19 @@ export default defineConfig({
             },
           },
           {
+            // Публичные изображения товаров можно кешировать независимо от пользователя.
+            urlPattern: /^https?:\/\/[^/]+\/storage\/.*\.(?:avif|gif|jpe?g|png|svg|webp)(?:\?.*)?$/i,
+            handler: "CacheFirst",
+            options: {
+              cacheName: "teaseat-product-images",
+              cacheableResponse: { statuses: [0, 200] },
+              expiration: {
+                maxEntries: 160,
+                maxAgeSeconds: 60 * 60 * 24 * 14,
+              },
+            },
+          },
+          {
             urlPattern: /^https?:\/\/.*\/storage\//,
             handler: "CacheFirst",
             options: {

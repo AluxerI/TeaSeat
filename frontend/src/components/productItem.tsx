@@ -68,6 +68,8 @@ export const ProductItem = ({
   const hasStock = isAvailable && maximumQuantity >= step;
   const [quantity, setQuantity] = useState(() => getInitialQuantity(measurement.stockUnit, step, priceBase, maximumQuantity));
   const [message, setMessage] = useState("");
+  const [imageReady, setImageReady] = useState(false);
+  const [titleExpanded, setTitleExpanded] = useState(false);
 
   const unitLabel = getProductUnitLabel(measurement.stockUnit);
   const shownPrice = calculateShownPrice(finalPrice, quantity, priceBase);
@@ -137,7 +139,17 @@ export const ProductItem = ({
   return (
     <article className="product-card">
       <div className={`product-card__head ${favoriteStyles.head}`}>
-        <img src={image} alt={label} className="product-card__image" />
+        {!imageReady && <span className="product-card__image-loader" aria-hidden="true" />}
+        <img
+          src={image}
+          alt={label}
+          className="product-card__image"
+          data-ready={imageReady ? "true" : "false"}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setImageReady(true)}
+          onError={() => setImageReady(true)}
+        />
         {discountPercent > 0 && <span className="product-card__discount">−{discountPercent}%</span>}
         <IconButton
           type="button"
@@ -158,7 +170,17 @@ export const ProductItem = ({
       >
         <section className="section">
           <p className="product-card__brand">{brand}</p>
-          <h5 className="label-product">{label}</h5>
+          <h5 className="label-product" data-expanded={titleExpanded || undefined}>{label}</h5>
+          {label.length > 34 && (
+            <button
+              type="button"
+              className="product-card__title-toggle"
+              aria-expanded={titleExpanded}
+              onClick={() => setTitleExpanded((current) => !current)}
+            >
+              {titleExpanded ? "Свернуть" : "Показать название"}
+            </button>
+          )}
           <div className="product-card__rating" aria-label={ratingAverage == null ? "У товара пока нет оценок" : `Средняя оценка ${ratingAverage.toFixed(1)} из 5, отзывов: ${reviewsCount}`}>
             <span className="product-card__rating-star" aria-hidden="true">★</span>
             <strong>{ratingAverage == null ? "—" : ratingAverage.toFixed(1)}</strong>

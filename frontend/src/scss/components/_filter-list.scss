@@ -267,3 +267,93 @@ $filter-btn-reset-color: #6b7280;
     }
   }
 }
+
+// v18: фильтр не задаёт ширину всей странице и нормально переносит длинные категории.
+.filter-panel {
+  width: min(100%, #{$filter-panel-width});
+  max-width: 100%;
+  min-width: 0;
+  height: auto;
+  box-sizing: border-box;
+
+  &__section, &__list, &__tree, &__tree-children, &__tree-row, &__checkbox-label { min-width: 0; }
+  &__tree-row { align-items: flex-start; }
+  &__checkbox-label { align-items: flex-start; flex: 1 1 auto; }
+  &__checkbox-text { min-width: 0; white-space: normal; overflow-wrap: anywhere; word-break: normal; }
+  &__count { flex: 0 0 auto; }
+  &__price-input { min-width: 0; width: 100%; box-sizing: border-box; }
+}
+
+@media (max-width: 760px) {
+  .filter-panel {
+    width: 100%;
+    padding: 16px 14px;
+    border-radius: 14px;
+    box-shadow: none;
+    &__title { margin-bottom: 14px; }
+    &__section { margin-bottom: 16px; }
+    &__list { gap: 6px; }
+    &__tree-row { gap: 2px; }
+  }
+}
+
+@media (max-width: 420px) {
+  .filter-panel {
+    padding-inline: 12px;
+    &__price-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    &__checkbox-text, &__rating-label { font-size: 13px; line-height: 18px; }
+    &__count { font-size: 12px; }
+    &__btn--primary { height: 42px; }
+  }
+}
+
+// v19: category hierarchy is grouped, bounded and readable.
+.filter-panel {
+  &__title { font-size: var(--ts-title-sm); line-height: 1.2; }
+  &__section {
+    padding-block: 12px;
+    margin: 0 !important;
+    border-top: 1px solid #eee6da;
+  }
+  &__section:first-of-type { padding-top: 6px; border-top: 0; }
+  &__section-title { margin-bottom: 9px; font-size: 13px; font-weight: 750; letter-spacing: .025em; }
+  &__tree {
+    display: grid;
+    max-height: min(52vh, 520px);
+    overflow: auto;
+    gap: 7px;
+    padding: 2px 5px 6px 1px;
+    scrollbar-gutter: stable;
+    overscroll-behavior: contain;
+  }
+  &__tree > * {
+    min-width: 0;
+    padding: 7px 7px 7px 5px;
+    border: 1px solid #ebe2d5;
+    border-radius: 10px;
+    background: #fffdf9;
+  }
+  &__tree > * > &__tree-row { font-weight: 700; }
+  &__tree-row { min-height: 30px; padding-block: 2px; gap: 4px; }
+  &__tree-children {
+    margin: 3px 0 1px 12px !important;
+    padding-left: 9px !important;
+    border-left: 1px solid #ded4c6;
+  }
+  &__tree-children &__tree-children {
+    margin-left: 8px !important;
+    padding-left: 7px !important;
+    border-left-style: dashed;
+  }
+  &__checkbox-label { min-height: 28px; gap: 6px; }
+  &__checkbox-text { font-size: 13px; line-height: 1.3; }
+  &__count { color: #978a7d; font-size: 11px; }
+  &__list { max-height: 250px; overflow: auto; padding-right: 4px; scrollbar-gutter: stable; }
+}
+
+@media (max-width: 760px) {
+  .catalog-filter-menu[open] { border-radius: 14px; }
+  .catalog-filter-menu__body { max-height: min(72vh, 650px) !important; overflow: auto !important; }
+  .filter-panel__tree { max-height: min(45vh, 430px); }
+  .filter-panel__tree > * { padding: 7px 6px; }
+}

@@ -4,6 +4,7 @@ import type { GiftSizeProfile } from "../../interfaces/giftConstructor";
 import { supportsSimple } from "../../utils/simpleGiftValidation";
 import { ConstructorSceneFallback, type SceneChoice } from "./ConstructorSceneChoice";
 import choiceStyles from "../../scss/pages/ConstructorChoiceScene.module.scss";
+import "../../scss/pages/ConstructorMobileV18.scss";
 
 export type ConstructorMode = "simple" | "advanced";
 export { supportsSimple } from "../../utils/simpleGiftValidation";

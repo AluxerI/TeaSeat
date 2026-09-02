@@ -12,7 +12,6 @@
 .heroVisual { position: relative; min-height: space-mult(xxl, 6); perspective: 900px; }
 .heroCard { position: absolute; display: block; width: min(64%, space-mult(xxl, 5)); aspect-ratio: 1.1; overflow: hidden; border: spacing(xs) solid #fff8ec; border-radius: spacing(lg); box-shadow: 0 space-mult(sm, 1.4) space-mult(xl, 1.6) #4b2f1826; }
 .heroCard img { width: 100%; height: 100%; object-fit: cover; }.heroCard[data-card="tea"] { left: 3%; top: 9%; transform: rotate(-6deg); }.heroCard[data-card="coffee"] { right: 1%; bottom: 4%; transform: rotate(7deg); }
-.steam { position: absolute; left: 50%; top: 50%; display: grid; width: space-mult(xxl, 2); aspect-ratio: 1; place-items: center; border-radius: 50%; color: #fff; background: $color-primary-tea; font-size: $font-unit * 2.4; font-weight: 700; box-shadow: 0 spacing(sm) spacing(xl) #36521b2e; transform: translate(-50%, -50%); }
 .section, .story { width: min(100%, max-width(xl)); margin-inline: auto; padding: spacing(xxl) spacing(lg); }
 .section { display: grid; gap: spacing(xl); }
 .directionGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: spacing(md); }

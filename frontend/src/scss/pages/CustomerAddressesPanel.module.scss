@@ -1,0 +1,88 @@
+.panel {
+  display: grid;
+  gap: 16px;
+  margin-top: 20px;
+  padding: 22px;
+  border: 1px solid #e8dccd;
+  border-radius: 18px;
+  color: #3f3028;
+  background: #fffdf9;
+  box-shadow: 0 10px 28px rgba(62, 43, 30, .055);
+}
+
+.header {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+
+.headerIcon,
+.cardIcon {
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #6b7f42;
+  background: #eef2e3;
+}
+.headerIcon { width: 44px; height: 44px; }
+.headerIcon svg { font-size: 25px; }
+.headerCopy { min-width: 0; }
+.title { margin: 0 !important; font-size: var(--ts-title-sm) !important; font-weight: 750 !important; line-height: 1.2 !important; }
+.subtitle { margin-top: 3px !important; color: #786b5e; font-size: 15px !important; line-height: 1.45 !important; }
+.addButton { min-height: 42px; border-color: #8a9b60 !important; color: #566b31 !important; text-transform: none !important; }
+.alert { font-size: 14px; }
+
+.list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.card {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  align-items: start;
+  gap: 11px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #eee3d5;
+  border-radius: 14px;
+  background: #fffaf3;
+}
+.cardIcon { width: 40px; height: 40px; }
+.cardIcon svg { font-size: 22px; }
+.cardTitle { margin: 0 0 3px !important; font-size: 16px !important; font-weight: 750 !important; line-height: 1.3 !important; }
+.address { color: #66594e; font-size: 15px; font-style: normal; line-height: 1.5; overflow-wrap: anywhere; }
+
+.form {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr 1fr;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid #e5dacb;
+  border-radius: 14px;
+  background: #faf5ed;
+}
+.formTitle { grid-column: 1 / -1; margin: 0 !important; font-size: 17px !important; font-weight: 750 !important; }
+.actions { display: flex; grid-column: 1 / -1; justify-content: flex-end; gap: 8px; }
+.actions button { min-height: 42px; text-transform: none !important; }
+.actions :global(.MuiButton-contained) { background: #4a3428; }
+.state { display: grid; min-height: 96px; place-items: center; align-content: center; gap: 10px; color: #786b5e; font-size: 15px; text-align: center; }
+.retryButton { justify-self: start; color: #6b7f42 !important; text-transform: none !important; }
+
+@media (max-width: 760px) {
+  .panel { gap: 14px; margin-top: 14px; padding: 16px; border-radius: 15px; }
+  .header { grid-template-columns: 40px minmax(0, 1fr); }
+  .headerIcon { width: 40px; height: 40px; }
+  .addButton { grid-column: 1 / -1; width: 100%; }
+  .list { grid-template-columns: minmax(0, 1fr); }
+  .form { grid-template-columns: minmax(0, 1fr); padding: 13px; }
+  .formTitle,
+  .actions { grid-column: 1; }
+  .actions { flex-wrap: wrap; }
+  .actions button { flex: 1 1 140px; }
+}
+
+@media (max-width: 390px) {
+  .panel { padding: 13px; }
+  .subtitle,
+  .address { font-size: 14px !important; }
+  .card { grid-template-columns: 36px minmax(0, 1fr); padding: 12px; }
+  .cardIcon { width: 36px; height: 36px; }
+}

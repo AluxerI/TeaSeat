@@ -1,7 +1,11 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import CatalogHeader from "../components/catalog-part/CatalogHeaderSort/CatalogHeaderProps";
+import { catalogRouteCandidates, filterProductsByQuery, getCatalogQuery, getCatalogRouteCategory, normalizeRouteLabel } from "../utils/catalogRouteFilter";
 import FilterPanel, {PRICE_RANGES, FilterState, CategoryTreeNode, BrandProp, PriceRangeProp} from "../components/catalog-part/FilterList";
 import { ProductList } from "../components/productList";
+import CatalogLoading from "../components/catalog-part/CatalogLoading";
+import "../scss/pages/CatalogCardsV19.scss";
 import ProductQuickViewDialog from "../components/catalog/ProductQuickViewDialog";
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
@@ -9,6 +13,11 @@ import { catalogApi } from "../api/catalogAPI";
 import { useAsync } from "../hooks/useAsync";
 import { Category, Product } from "../interfaces/catalog";
 import { sort_by_brands } from "../utils/product_methods";
+
+// Сколько товаров показываем на «страницу» (клиентский ленивый пагинатор).
+// Каталог целиком приходит с бэкенда одним ответом, поэтому разбиваем его
+// порциями при рендере, чтобы не создавать сотни карточек разом.
+const PAGE_SIZE = 12;
 
 // Дефолтное состояние — все фильтры пустые (показаны все товары)
 const DEFAULT_FILTERS: FilterState = {
@@ -67,6 +76,27 @@ function flattenCategoryTree(nodes: CategoryTreeNode[]): Record<string, { level:
   }
   walk(nodes);
   return lookup;
+}
+
+// Ищем узел дерева (любого уровня) по категории из URL: сначала точное
+// совпадение имени (включая алиасы), затем — вхождение подстроки.
+function matchCategoryNode(
+  lookup: Record<string, { level: "category" | "subcategory" | "sub_subcategory"; label: string }>,
+  raw: string
+): { id: string; level: "category" | "subcategory" | "sub_subcategory"; label: string } | null {
+  const requestedKey = normalizeRouteLabel(raw);
+  const candidates = catalogRouteCandidates(raw).concat(requestedKey);
+  const nodes = Object.entries(lookup).map(([id, entry]) => ({ id, ...entry }));
+  const exact = nodes.find((node) => candidates.includes(normalizeRouteLabel(node.label)));
+  if (exact) return exact;
+  if (requestedKey.length >= 3) {
+    const fuzzy = nodes.find((node) => {
+      const key = normalizeRouteLabel(node.label);
+      return key.includes(requestedKey) || requestedKey.includes(key);
+    });
+    if (fuzzy) return fuzzy;
+  }
+  return null;
 }
 
 // Превращает текущие фильтры в массив тегов для хедера.
@@ -158,6 +188,25 @@ export const PageCatalog = () => {
   // выбранный товар, поэтому сотня товаров не создаёт сотню скрытых окон.
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
+  // Категория из URL (приходим с лендинга категории: /catalog?category=Чай).
+  // Как только дерево категорий собрано, подставляем её в фильтры.
+  const location = useLocation();
+  const urlCategory = useMemo(
+    () => getCatalogRouteCategory(location.search),
+    [location.search]
+  );
+  const urlQuery = useMemo(
+    () => getCatalogQuery(location.search),
+    [location.search]
+  );
+  const navigate = useNavigate();
+  const appliedUrlCategoryRef = useRef<{ value: string; nodeId: string } | null>(null);
+
+  // Клиентская пагинация: показываем первые PAGE_SIZE позиций, остальные
+  // подтягиваются по мере прокрутки (infinite scroll).
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+
   // Загрузка данных с бэкенда (один раз при монтировании)
   const products = useAsync(() => catalogApi.getProducts(), true);
   const categories = useAsync(() => catalogApi.getCategory(), true);
@@ -171,6 +220,32 @@ export const PageCatalog = () => {
 
   // Плоский lookup id → { level, label } для быстрой фильтрации
   const categoryLookup = useMemo(() => flattenCategoryTree(categoryTree), [categoryTree]);
+
+  // Применяем категорию из QueryString к списку фильтров ровно один раз
+  // на каждый уникальный ?category (повторная навигация — новый объект ид).
+  // При снятии параметра из URL (кнопка на бейдже) — убираем и фильтр.
+  useEffect(() => {
+    const applied = appliedUrlCategoryRef.current;
+    if (urlCategory) {
+      if (applied?.value === urlCategory) return;
+      const node = matchCategoryNode(categoryLookup, urlCategory);
+      if (node) {
+        appliedUrlCategoryRef.current = { value: urlCategory, nodeId: node.id };
+        setFilters((prev) => ({
+          ...prev,
+          categories: [...prev.categories.filter((c) => c !== node.id), node.id],
+        }));
+      }
+      return;
+    }
+    if (applied) {
+      appliedUrlCategoryRef.current = null;
+      setFilters((prev) => ({
+        ...prev,
+        categories: prev.categories.filter((c) => c !== applied.nodeId),
+      }));
+    }
+  }, [urlCategory, categoryLookup]);
 
   // Собираем уникальные бренды через Set (sort_by_brands), превращаем в BrandProp[]
   const brand_prop: BrandProp[] = useMemo(() => {
@@ -191,7 +266,8 @@ export const PageCatalog = () => {
   }, [brand_prop]);
 
   const filtered = useMemo(() => {
-    const f = filterProducts(products.data ?? [], filters, categoryLookup, brand_prop);
+    const base = filterProductsByQuery(products.data ?? [], urlQuery);
+    const f = filterProducts(base, filters, categoryLookup, brand_prop);
     switch (sortValue) {
       case "price_asc":
         return [...f].sort((a, b) => a.final_price - b.final_price);
@@ -203,18 +279,52 @@ export const PageCatalog = () => {
       default:
         return [...f].sort((a, b) => b.sold_count - a.sold_count);
     }
-  }, [products.data, filters, categoryLookup, brand_prop, sortValue]);
+  }, [products.data, filters, categoryLookup, brand_prop, sortValue, urlQuery]);
+
+  // При изменении фильтров/сортировки возвращаемся к первой «странице»
+  useEffect(() => setVisibleCount(PAGE_SIZE), [filtered]);
+
+  const visibleProducts = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
+
+  // Бесконечная лента: когда сентинел внизу списка попадает в вьюпорт
+  // (с запасом 300px вперёд), докидываем следующую порцию товаров.
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setVisibleCount((count) => Math.min(count + PAGE_SIZE, filtered.length));
+        }
+      },
+      { rootMargin: "300px 0px" }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [filtered.length]);
 
   // Обработчики для FilterPanel
   const handleChange = (next: FilterState) => setFilters(next);
   const handleReset = () => setFilters(DEFAULT_FILTERS);
 
   // Теги активных фильтров (показываются в CatalogHeader как чипы)
-  const filterTags = useMemo(() => filtersToTags(filters, categoryLookup, brandLabelsRecord, PRICE_RANGES), [filters, categoryLookup, brandLabelsRecord]);
+  const filterTags = useMemo(() => {
+    const tags = filtersToTags(filters, categoryLookup, brandLabelsRecord, PRICE_RANGES);
+    if (urlQuery) tags.unshift({ id: "search", label: `Поиск: «${urlQuery}»` });
+    return tags;
+  }, [filters, categoryLookup, brandLabelsRecord, urlQuery]);
 
   // Когда пользователь тыкает крестик на чипе → убираем соответствующий фильтр
   const handleRemoveTag = (tagId: string) => {
-    if (tagId.startsWith("cat_") || tagId.startsWith("sub_") || tagId.startsWith("subsub_")) {
+    if (tagId === "search") {
+      const params = new URLSearchParams(location.search);
+      params.delete("q");
+      const suffix = params.toString();
+      navigate(`/catalog${suffix ? `?${suffix}` : ""}`);
+    } else if (tagId.startsWith("cat_") || tagId.startsWith("sub_") || tagId.startsWith("subsub_")) {
       setFilters((prev) => ({
         ...prev,
         categories: prev.categories.filter((c) => c !== tagId),
@@ -232,7 +342,13 @@ export const PageCatalog = () => {
     }
   };
 
-  const handleShowAll = () => setFilters(DEFAULT_FILTERS);
+  const handleShowAll = () => {
+    setFilters(DEFAULT_FILTERS);
+    const params = new URLSearchParams(location.search);
+    params.delete("q");
+    const suffix = params.toString();
+    navigate(`/catalog${suffix ? `?${suffix}` : ""}`);
+  };
 
   return (
     <>
@@ -249,7 +365,13 @@ export const PageCatalog = () => {
             onSortChange={setSortValue}
           />
           {/* Карточки получают остаток и правила измерения прямо из ProductResource. */}
-          <ProductList products={filtered} onQuickView={setQuickViewProduct}/>
+          {products.loading && !products.data ? (
+            <CatalogLoading showSpinner />
+          ) : (
+            <ProductList products={visibleProducts} onQuickView={setQuickViewProduct}/>
+          )}
+          {/* Сентинел для бесконечной ленты (ловит достижение низа списка). */}
+          <div ref={sentinelRef} className="catalog-sentinel" aria-hidden="true" />
         </div>
       </span>
       <Footer />

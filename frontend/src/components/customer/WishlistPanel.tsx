@@ -75,7 +75,12 @@ export default function WishlistPanel({ userId }: { userId: number }) {
           return (
             <article key={entry.id || product.id} className={styles.card}>
               <div className={styles.imageWrap}>
-                <img src={assetUrl(product.image ?? product.image_url)} alt={product.name} loading="lazy" />
+                <img
+                  src={assetUrl(product.image ?? product.image_url)}
+                  alt={product.name}
+                  loading="lazy"
+                  decoding="async"
+                />
                 <IconButton
                   className={styles.remove}
                   aria-label={`Удалить ${product.name} из избранного`}

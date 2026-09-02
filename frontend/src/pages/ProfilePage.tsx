@@ -36,6 +36,7 @@ import type { MenuKey, MenuItem, ProfileFormState, PasswordFormState } from "../
 import styles from "../scss/pages/ProfilePage.module.scss";
 import CustomerOrdersPanel from "../components/customer/CustomerOrdersPanel";
 import WishlistPanel from "../components/customer/WishlistPanel";
+import CustomerAddressesPanel from "../components/customer/CustomerAddressesPanel";
 import { getAdminPanelUrl } from "../utils/adminUrl";
 import staffStyles from "../scss/pages/StaffProfile.module.scss";
 
@@ -389,7 +390,7 @@ export default function ProfilePage() {
         {/* Заказы уже получают реальные данные; остальные будущие разделы пока
             используют общий экран-заглушку. */}
         {activeKey === "profile"
-          ? renderProfile()
+          ? <>{renderProfile()}<CustomerAddressesPanel /></>
           : activeKey === "orders"
             ? <CustomerOrdersPanel />
             : activeKey === "favorites" && user

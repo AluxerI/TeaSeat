@@ -4,7 +4,10 @@ import { useAuth } from "../../hooks/useAuth";
 import { useCustomerCart } from "../../hooks/useCustomerCart";
 import { useWishlist } from "../../hooks/useWishlist";
 import { getAdminPanelUrl } from "../../utils/adminUrl";
+import HeaderMiniCartPopover from "../../components/customer/HeaderMiniCartPopover";
 import "./../../scss/main.scss";
+import "../../scss/base/_typography-v19.scss";
+import "../../scss/components/HeaderUxV17.scss";
 
 function MenuIcon({ size = 22 }: { size?: number }) {
   return (
@@ -70,9 +73,13 @@ function Logo() {
 }
 
 export default function Header() {
-  const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState(() =>
+    window.location.pathname === "/catalog" ? new URLSearchParams(window.location.search).get("q") ?? "" : "",
+  );
+  const [miniCartAnchor, setMiniCartAnchor] = useState<HTMLElement | null>(null);
+  const navigate = useNavigate();
   const { user, isAuthenticated, isAdmin, loading, logout } = useAuth();
   const {
     cart,
@@ -80,12 +87,11 @@ export default function Header() {
     initialized: cartInitialized,
     itemCount,
     refreshCart,
-    openMiniCart,
   } = useCustomerCart();
   const wishlist = useWishlist(user?.id ?? null);
 
   // Шапка загружает корзину один раз, чтобы Badge был правильным и после
-  // обновления страницы. Ошибка появится внутри Drawer при его открытии.
+  // обновления страницы. Ошибка загрузки содержимого появится внутри мини-корзины.
   useEffect(() => {
     if (isAuthenticated && !cartInitialized && !cartLoading) {
       void refreshCart().catch(() => undefined);
@@ -100,12 +106,24 @@ export default function Header() {
     navigate("/profile?section=favorites");
   };
 
+  const runHeaderSearch = () => {
+    const query = searchQuery.trim();
+    const params = window.location.pathname === "/catalog"
+      ? new URLSearchParams(window.location.search)
+      : new URLSearchParams();
+    if (query) params.set("q", query);
+    else params.delete("q");
+    const suffix = params.toString();
+    navigate(`/catalog${suffix ? `?${suffix}` : ""}`);
+    setMenuOpen(false);
+  };
+
   const handleCartClick = () => {
     if (!isAuthenticated) {
       navigate("/login", { state: { from: "/cart" } });
       return;
     }
-    openMiniCart();
+    setMiniCartAnchor(document.getElementById("constructor-cart-target"));
     if (!cart && !cartLoading) void refreshCart().catch(() => undefined);
   };
 
@@ -120,7 +138,7 @@ export default function Header() {
   ];
 
   return (
-    <header className="header">
+    <header className="header" data-menu-open={menuOpen || undefined}>
       <img className="header__leaf header__leaf--left"  src="/header/leaves.png" alt="" aria-hidden="true" />
       <img className="header__leaf header__leaf--right" src="/header/leaves.png" alt="" aria-hidden="true" />
 
@@ -177,7 +195,27 @@ export default function Header() {
                   placeholder="Поиск товаров..."
                   className="header__search-input"
                   aria-label="Поиск товаров"
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      runHeaderSearch();
+                    }
+                  }}
                 />
+                <button
+                  type="button"
+                  className="header__search-submit"
+                  aria-label="Найти товары"
+                  title="Найти"
+                  onClick={runHeaderSearch}
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="7" />
+                    <path d="m20 20-3.5-3.5" />
+                  </svg>
+                </button>
               </div>
             </div>
 
@@ -193,8 +231,8 @@ export default function Header() {
               <HeartIcon size={20} />
               {wishlist.count > 0 && <span className="header__cart-badge">{wishlist.count > 99 ? "99+" : wishlist.count}</span>}
             </button>
-            {/* id остаётся целью анимации конструктора, но клик теперь открывает
-                общий Drawer без ухода с текущей страницы. */}
+            {/* id остаётся целью анимации конструктора; клик открывает компактную
+                корзину поверх текущей страницы. */}
             <button
               type="button"
               className="header__icon-btn header__cart-button"
@@ -270,11 +308,36 @@ export default function Header() {
                 placeholder="Поиск товаров..."
                 className="header__search-input"
                 aria-label="Поиск товаров"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    runHeaderSearch();
+                  }
+                }}
               />
+              <button
+                type="button"
+                className="header__search-submit"
+                aria-label="Найти товары"
+                title="Найти"
+                onClick={runHeaderSearch}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="11" cy="11" r="7" />
+                  <path d="m20 20-3.5-3.5" />
+                </svg>
+              </button>
             </div>
           </nav>
         )}
       </div>
+      <HeaderMiniCartPopover
+        open={Boolean(miniCartAnchor)}
+        anchorEl={miniCartAnchor}
+        onClose={() => setMiniCartAnchor(null)}
+      />
     </header>
   );
 }

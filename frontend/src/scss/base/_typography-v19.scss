@@ -1,0 +1,67 @@
+/* v19: one local type scale. No network font is required. */
+:root {
+  --ts-font-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ts-text-xs: 0.8125rem;
+  --ts-text-sm: 0.9375rem;
+  --ts-text-md: 1rem;
+  --ts-text-lg: 1.125rem;
+  --ts-title-sm: clamp(1.125rem, 1.04rem + 0.35vw, 1.35rem);
+  --ts-title-md: clamp(1.35rem, 1.15rem + 0.75vw, 1.8rem);
+  --ts-title-lg: clamp(1.75rem, 1.45rem + 1.25vw, 2.55rem);
+  --ts-leading-copy: 1.55;
+  --ts-leading-title: 1.18;
+}
+
+html { font-family: var(--ts-font-sans); font-size: 16px; text-size-adjust: 100%; }
+body,
+button,
+input,
+select,
+textarea,
+.MuiTypography-root,
+.MuiButton-root { font-family: var(--ts-font-sans) !important; }
+
+body {
+  font-size: var(--ts-text-md);
+  line-height: var(--ts-leading-copy);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  margin-block-start: 0;
+  color: #3f3028;
+  font-family: var(--ts-font-sans);
+  font-weight: 700;
+  line-height: var(--ts-leading-title);
+  text-wrap: balance;
+}
+:where(h1) { font-size: var(--ts-title-lg); }
+:where(h2) { font-size: var(--ts-title-md); }
+:where(h3) { font-size: var(--ts-title-sm); }
+:where(h4) { font-size: var(--ts-text-lg); }
+:where(h5) { font-size: 1.0625rem; }
+:where(h6) { font-size: var(--ts-text-md); }
+:where(p, li, label, input, select, textarea) { line-height: var(--ts-leading-copy); }
+
+.MuiTypography-body2,
+.MuiFormControlLabel-label,
+.MuiMenuItem-root {
+  font-size: var(--ts-text-sm) !important;
+  line-height: 1.45 !important;
+}
+.MuiButton-root { font-size: var(--ts-text-sm) !important; line-height: 1.3 !important; }
+.MuiInputBase-input { font-size: var(--ts-text-md) !important; }
+.MuiFormLabel-root { font-size: var(--ts-text-sm) !important; }
+.MuiFormHelperText-root { font-size: var(--ts-text-xs) !important; line-height: 1.4 !important; }
+
+:where(.page-title, .catalog-header h1, .catalog-header h2) {
+  font-size: var(--ts-title-md) !important;
+  line-height: var(--ts-leading-title) !important;
+}
+
+@media (max-width: 760px) {
+  :where(h1) { font-size: clamp(1.65rem, 7vw, 2rem); }
+  :where(h2) { font-size: clamp(1.3rem, 5.5vw, 1.65rem); }
+  .MuiInputBase-input { font-size: 16px !important; }
+}

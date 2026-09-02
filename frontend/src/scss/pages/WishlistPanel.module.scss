@@ -17,15 +17,20 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(space-mult(xxl, 2.7), 1fr));
+  // auto-fill сохраняет пустые tracks: одна карточка больше не растягивается
+  // на всю ширину вкладки профиля.
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 320px));
   align-items: stretch;
-  gap: spacing(md);
+  justify-content: start;
+  gap: spacing(lg);
 }
 
 .card {
   display: flex;
   min-width: 0;
   overflow: hidden;
+  width: 100%;
+  max-width: 320px;
   flex-direction: column;
   border: 1px solid #eadfce;
   border-radius: spacing(md);
@@ -39,7 +44,13 @@
   overflow: hidden;
   background: #f5ede2;
 
-  img { width: 100%; height: 100%; object-fit: cover; }
+  img {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    padding: spacing(sm);
+    object-fit: contain;
+  }
 }
 
 .remove {
@@ -118,5 +129,63 @@
 
 @media (max-width: 720px) {
   .grid { grid-template-columns: 1fr; }
+  .card { max-width: none; }
   .footer { align-items: flex-start; flex-direction: column; }
+}
+
+// v19: favorites are a compact list on narrow profile content, not giant posters.
+@media (max-width: 760px) {
+  .wrap { gap: 12px; }
+  .meta { align-items: center; min-height: 28px; }
+  .grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .card {
+    display: grid;
+    grid-template-columns: clamp(118px, 32vw, 166px) minmax(0, 1fr);
+    width: 100%;
+    max-width: 580px;
+    min-height: 178px;
+    justify-self: start;
+    border-radius: 15px;
+  }
+  .imageWrap {
+    min-width: 0;
+    min-height: 100%;
+    aspect-ratio: auto;
+    border-right: 1px solid #eadfce;
+  }
+  .imageWrap img { padding: 10px; object-fit: contain; }
+  .remove { top: 7px; right: 7px; width: 36px; height: 36px; }
+  .body { min-width: 0; gap: 5px; padding: 13px; }
+  .brand {
+    overflow: hidden;
+    font-size: 12px;
+    line-height: 1.2;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .name {
+    display: -webkit-box;
+    min-height: 2.5em;
+    overflow: hidden;
+    font-size: 16px !important;
+    line-height: 1.25 !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .rating { flex-wrap: wrap; gap: 3px 6px; font-size: 13px; line-height: 1.35; }
+  .footer {
+    align-items: center;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding-top: 6px;
+  }
+  .footer > strong { margin-right: auto; font-size: 17px; }
+  .footer button { min-height: 38px; padding-inline: 10px; font-size: 13px; }
+}
+
+@media (max-width: 430px) {
+  .card { grid-template-columns: 104px minmax(0, 1fr); min-height: 164px; }
+  .body { padding: 11px; }
+  .footer button { width: 100%; }
 }
