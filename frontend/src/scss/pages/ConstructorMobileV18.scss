@@ -1,0 +1,45 @@
+/* v18 — only responsive overrides that can rely on semantic constructor markup. */
+@media (max-width: 760px) {
+  nav[aria-label="Шаги конструктора"] {
+    width: 100%; max-width: 100%; box-sizing: border-box; gap: 6px; overflow: hidden;
+  }
+  nav[aria-label="Шаги конструктора"] > ol {
+    display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); width: 100%; min-width: 0; gap: 6px !important; padding: 0 !important;
+  }
+  nav[aria-label="Шаги конструктора"] > ol > li { min-width: 0; }
+  nav[aria-label="Шаги конструктора"] > ol button {
+    display: flex; width: 100%; min-width: 0; min-height: 44px; padding: 7px 5px !important;
+    align-items: center; justify-content: center; gap: 5px; box-sizing: border-box;
+    font-size: 12px !important; line-height: 1.15; text-align: center; white-space: normal !important; overflow-wrap: anywhere;
+  }
+  nav[aria-label="Шаги конструктора"] > ol button > span { flex: 0 0 auto; }
+  nav[aria-label="Шаги конструктора"] > button[aria-label="Назад"] { flex: 0 0 44px; width: 44px; min-width: 44px; }
+
+  /* Advanced product pages become a touch carousel instead of a dense grid. */
+  section[aria-roledescription="карусель"] [aria-label^="Страница "] {
+    display: flex !important; grid-template-columns: none !important; gap: 10px !important;
+    overflow-x: auto; overflow-y: hidden; padding: 4px 2px 12px; scroll-snap-type: x mandatory;
+    scrollbar-width: thin; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch;
+  }
+  section[aria-roledescription="карусель"] [aria-label^="Страница "] > article {
+    flex: 0 0 clamp(150px, 43vw, 210px); width: clamp(150px, 43vw, 210px); scroll-snap-align: start;
+  }
+  section[aria-roledescription="карусель"] article[data-picked="true"] {
+    outline: 2px solid #87a617; outline-offset: 2px; background: #f7faef;
+  }
+  section[aria-roledescription="карусель"] article[data-picked="true"]::after {
+    content: "Выбрано — укажите место"; display: block; margin-top: 6px; color: #67820f; font-size: 11px; font-weight: 700; text-align: center;
+  }
+}
+
+@media (max-width: 520px) {
+  nav[aria-label="Шаги конструктора"] > ol { min-width: 0; }
+  nav[aria-label="Шаги конструктора"] > ol button { min-height: 42px; padding-inline: 3px !important; font-size: 10.5px !important; }
+}
+
+@media (max-width: 760px) {
+  [aria-label="Каталог форматов"],
+  [aria-label="Дно коробки, вид сверху"],
+  [aria-label="Упаковка"] { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+  [data-constructor-pick-mode="active"] { border-radius: 14px; background: rgba(135,166,23,.035); }
+}

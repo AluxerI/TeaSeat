@@ -38,6 +38,9 @@ export interface Product {
     code: string;
   } | null;
   discount_percent: number;
+  /** Aggregates only; full reviews are loaded on demand. */
+  rating_average?: number | null;
+  reviews_count?: number;
   galery: typeof Images[];
   weight_grams: number;
   // Backend задаёт единицу хранения, минимальный шаг продажи и количество,

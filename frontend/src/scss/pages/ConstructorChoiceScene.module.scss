@@ -1,0 +1,347 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.section {
+  width: min(100%, max-width(xl));
+  margin-inline: auto;
+  padding: spacing(sm) spacing(lg) spacing(lg);
+  box-sizing: border-box;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: max-width(md);
+  margin: 0 auto spacing(md);
+  text-align: center;
+
+  h2 {
+    margin: spacing(xs) 0 0;
+    font-size: $font-unit * 4;
+    line-height: 1.15;
+  }
+
+  p {
+    max-width: max-width(sm);
+    margin: spacing(xs) 0 0;
+    color: $color-secondary-coffee;
+    font-size: font-size(body-sm);
+    line-height: 1.4;
+  }
+}
+
+/* Такой же визуальный язык, как у category heading: маленький зелёный label над заголовком. */
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  min-height: spacing(lg);
+  padding: 0 spacing(sm);
+  border: 1px solid #dfe7ca;
+  border-radius: 999px;
+  background: #f4f7ec;
+  color: $color-primary-tea;
+  font-size: font-size(body-sm);
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.transitionStage {
+  transform-origin: 50% 45%;
+
+  &:not([data-native="true"]) {
+    animation: fallbackEnter .26s cubic-bezier(.2, .72, .2, 1) both;
+  }
+
+  &[data-fallback-leaving="true"] {
+    pointer-events: none;
+    animation: fallbackLeave .28s cubic-bezier(.4, 0, .2, 1) both;
+  }
+}
+
+.scene {
+  width: min(100%, space-mult(xxl, 15));
+  margin-inline: auto;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(space-mult(xxl, 4.6), space-mult(xxl, 5.8)));
+  justify-content: center;
+  gap: spacing(md);
+  align-items: start;
+
+  &[data-single="true"] { grid-template-columns: minmax(space-mult(xxl, 4.6), space-mult(xxl, 5.8)); }
+}
+
+.card {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid #e3cfb5;
+  border-radius: spacing(lg);
+  background: #fffaf3;
+  box-shadow: 0 spacing(xs) spacing(lg) rgba(76, 48, 31, .055);
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease;
+
+  &:hover:not([data-disabled="true"]),
+  &:focus-within:not([data-disabled="true"]) {
+    transform: translateY(-2px);
+    border-color: #d3b994;
+    box-shadow: 0 spacing(sm) space-mult(lg, 1.1) rgba(76, 48, 31, .09);
+  }
+
+  &[data-selected="true"] {
+    border-color: $color-accent-tea;
+    box-shadow: 0 0 0 1px rgba(135, 166, 23, .14), 0 spacing(sm) space-mult(lg, 1.1) rgba(76, 48, 31, .08);
+  }
+
+  &[data-disabled="true"] { opacity: .58; }
+}
+
+.model {
+  position: relative;
+  height: space-mult(xxl, 3.55);
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 76%, #edddc5 0%, #faf5ee 62%, #fffaf4 100%);
+
+  canvas { display: block; }
+}
+
+.modelFallback {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  color: $color-secondary-coffee;
+  font-size: font-size(body-sm);
+}
+
+.label {
+  display: flex;
+  width: 100%;
+  padding: spacing(sm) spacing(md) spacing(md);
+  box-sizing: border-box;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(xs);
+  border: 0;
+  border-top: 1px solid #eadfce;
+  background: #fffdf9;
+  color: inherit;
+  text-align: center;
+  cursor: pointer;
+
+  strong {
+    font-size: $font-unit * 2.6;
+    line-height: 1.15;
+  }
+
+  &:disabled { cursor: not-allowed; }
+  &:focus-visible { outline: 3px solid $color-accent-tea; outline-offset: -3px; }
+}
+
+.caption {
+  max-width: max-width(xs);
+  color: $color-secondary-coffee;
+  font-size: font-size(body-sm);
+  line-height: 1.35;
+}
+
+.action {
+  margin-top: spacing(xs);
+  color: $color-primary-tea;
+  font-size: font-size(body-sm);
+  font-weight: 700;
+}
+
+/* Второй шаг: одна выбранная коробка, а не две визуальные копии. */
+.modeScene {
+  display: flex;
+  width: min(100%, space-mult(xxl, 14));
+  margin-inline: auto;
+  flex-direction: column;
+  align-items: center;
+  gap: spacing(sm);
+}
+
+.modeHero {
+  width: min(100%, space-mult(xxl, 8.8));
+  height: space-mult(xxl, 4.1);
+  overflow: hidden;
+  border: 1px solid #e3cfb5;
+  border-radius: spacing(lg);
+  background: radial-gradient(ellipse at 50% 76%, #edddc5 0%, #faf5ee 62%, #fffaf4 100%);
+  box-shadow: 0 spacing(xs) spacing(lg) rgba(76, 48, 31, .05);
+
+  canvas { display: block; }
+}
+
+.selectedBoxName {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: spacing(xs);
+  margin: 0 0 spacing(xs);
+  color: $color-secondary-coffee;
+  font-size: font-size(body-sm);
+
+  span::after { content: " ·"; }
+  strong { color: #4b3529; font-weight: 700; }
+}
+
+.modeOptions {
+  display: grid;
+  width: min(100%, space-mult(xxl, 12));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: spacing(sm);
+  animation: optionsReveal .38s .18s cubic-bezier(.2, .72, .2, 1) both;
+}
+
+.modeOption {
+  display: flex;
+  min-width: 0;
+  padding: spacing(md);
+  flex-direction: column;
+  align-items: flex-start;
+  gap: spacing(xs);
+  border: 1px solid #eadfce;
+  border-radius: spacing(md);
+  background: #fffaf3;
+  color: #3f3028;
+  text-align: left;
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, box-shadow .2s ease, background .2s ease;
+
+  strong {
+    font-size: $font-unit * 2.6;
+    line-height: 1.15;
+  }
+
+  &:hover:not(:disabled), &:focus-visible:not(:disabled) {
+    transform: translateY(-2px);
+    border-color: #d3b994;
+    background: #fffdf8;
+    box-shadow: 0 spacing(xs) spacing(md) rgba(76, 48, 31, .08);
+  }
+
+  &[data-selected="true"] { border-color: $color-accent-tea; background: #fbfdf5; }
+  &:disabled { opacity: .55; cursor: not-allowed; }
+  &:focus-visible { outline: 3px solid $color-accent-tea; outline-offset: 2px; }
+}
+
+.modeKicker {
+  color: $color-primary-tea;
+  font-size: font-size(caption);
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.modeCaption {
+  color: $color-secondary-coffee;
+  font-size: font-size(body-sm);
+  line-height: 1.38;
+}
+
+/* Один и тот же visual id существует только у выбранной модели шага 1 и у hero шага 2. */
+.sharedBox { view-transition-name: constructor-selected-box; }
+
+:global(::view-transition-group(constructor-selected-box)) {
+  z-index: 80;
+  animation-duration: .62s;
+  animation-timing-function: cubic-bezier(.2, .76, .22, 1);
+}
+
+:global(::view-transition-old(constructor-selected-box)),
+:global(::view-transition-new(constructor-selected-box)) {
+  height: 100%;
+  mix-blend-mode: normal;
+  animation-duration: .62s;
+  animation-timing-function: cubic-bezier(.2, .76, .22, 1);
+}
+
+/* Остальная страница меняется мягко, но выбранная коробка не исчезает вместе с root snapshot. */
+:global(::view-transition-old(root)) {
+  animation: rootOld .2s ease-out both;
+}
+
+:global(::view-transition-new(root)) {
+  animation: rootNew .34s .1s cubic-bezier(.2, .72, .2, 1) both;
+}
+
+@keyframes rootOld { to { opacity: 0; } }
+@keyframes rootNew { from { opacity: 0; } to { opacity: 1; } }
+@keyframes optionsReveal {
+  from { opacity: 0; transform: translateY(spacing(sm)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fallbackEnter {
+  from { opacity: 0; transform: translateY(spacing(sm)) scale(.99); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fallbackLeave {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(-#{spacing(sm)}) scale(.985); }
+}
+
+@media (max-width: 760px) {
+  .section { padding-inline: spacing(md); }
+  .heading { margin-bottom: spacing(sm); }
+  .grid { grid-template-columns: minmax(0, space-mult(xxl, 5.6)); gap: spacing(sm); }
+  .model { height: space-mult(xxl, 3.25); }
+  .modeHero { height: space-mult(xxl, 3.8); }
+  .modeOptions { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .transitionStage,
+  .transitionStage[data-fallback-leaving="true"],
+  .modeOptions { animation: none; }
+  .card, .modeOption { transition: none; }
+  .card:hover:not([data-disabled="true"]), .card:focus-within:not([data-disabled="true"]),
+  .modeOption:hover:not(:disabled), .modeOption:focus-visible:not(:disabled) { transform: none; }
+}
+
+/* v18 mobile density: keep the continuity animation, remove unused vertical space. */
+@media (max-width: 760px) {
+  .section { padding: spacing(xs) spacing(sm) spacing(md); }
+  .heading { margin-bottom: spacing(sm); }
+  .heading h2 { font-size: $font-unit * 3.25; }
+  .heading p { margin-top: 4px; font-size: font-size(body-sm); }
+  .eyebrow { min-height: 26px; padding-inline: 10px; font-size: font-size(caption); }
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; max-width: 650px; gap: spacing(sm); }
+  .card { border-radius: spacing(md); }
+  .model { height: clamp(145px, 29vw, 205px); }
+  .label { padding: 10px 10px 12px; gap: 4px; }
+  .label strong { font-size: clamp(15px, 2.5vw, 19px); }
+  .caption { font-size: 12px; line-height: 1.3; }
+  .action { margin-top: 2px; font-size: 12px; }
+
+  .modeScene { gap: 8px; }
+  .modeHero { width: min(100%, 560px); height: clamp(180px, 34vw, 250px); border-radius: spacing(md); }
+  .selectedBoxName { margin-bottom: 2px; text-align: center; }
+  .modeOptions { width: min(100%, 680px); grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .modeOption {
+    min-height: 118px; padding: 14px 12px; align-items: center; justify-content: center;
+    border-color: rgba(177, 137, 91, .42);
+    background: linear-gradient(145deg, rgba(255,255,255,.72), rgba(243,232,214,.58));
+    backdrop-filter: blur(8px) saturate(1.08); -webkit-backdrop-filter: blur(8px) saturate(1.08);
+    text-align: center; box-shadow: 0 8px 22px rgba(76,48,31,.045);
+  }
+  .modeOption strong { font-size: clamp(16px, 2.6vw, 19px); }
+  .modeKicker { font-size: 10px; }
+  .modeCaption { max-width: 30ch; font-size: 12px; line-height: 1.35; }
+}
+
+@media (max-width: 480px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); max-width: 360px; gap: 8px; }
+  .model { height: 120px; }
+  .label { padding: 8px 6px 10px; }
+  .label strong { font-size: 14px; }
+  .caption, .action { font-size: 11px; }
+  .modeHero { height: 180px; }
+  .modeOptions { grid-template-columns: 1fr 1fr; }
+  .modeOption { min-height: 108px; padding: 12px 8px; }
+  .modeCaption { font-size: 11px; }
+}

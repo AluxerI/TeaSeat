@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { testBox, testQuote, testSizes } from "../components/constructor/testFixtures";
+import { testBox, testQuote, testSize, testSizes } from "../components/constructor/testFixtures";
 import type { BoxFloorSceneProps } from "../components/constructor/BoxFloorScene";
 import type { SimplePackingSceneProps } from "../components/constructor/SimplePackingScene";
 
@@ -14,7 +14,7 @@ vi.mock("../ui/footer/Footer", () => ({ default: () => null }));
 vi.mock("../hooks/useAuth", () => ({ useAuth: () => ({ user: mocks.user, loading: false }) }));
 vi.mock("../hooks/useCustomerCart", () => ({ useCustomerCart: () => ({ addGift: mocks.addGift }) }));
 vi.mock("../api/giftConstructorAPI", () => ({ giftConstructorApi: mocks }));
-vi.mock("../components/constructor/ConstructorBoxScene", () => ({ default: () => <div aria-label="Коробки в 3D" /> }));
+vi.mock("../components/constructor/ConstructorBoxScene", async () => ({ default: (await import("../components/constructor/ConstructorSceneChoice")).ConstructorSceneFallback }));
 vi.mock("../components/constructor/SimplePackingScene", () => ({ default: (props: SimplePackingSceneProps) => <div aria-label="Анимация упаковки подарка">{props.teas.length} + {props.sweets.length}</div> }));
 vi.mock("../components/constructor/BoxFloorScene", async () => {
   const { default: FloorGrid } = await import("../components/constructor/FloorGrid");
@@ -31,15 +31,16 @@ function renderPage(mode: "simple" | "advanced" | null = "simple") {
 async function chooseBox(name = testBox.name) {
   const button = await screen.findByRole("button", { name: `Выбрать коробку ${name}` });
   await act(async () => { fireEvent.click(button); });
-  if (requestedMode) await act(async () => { fireEvent.click(screen.getByRole("button", { name: requestedMode === "simple" ? "С анимацией" : "Вручную" })); });
+  if (requestedMode) await act(async () => { fireEvent.click(screen.getByRole("button", { name: requestedMode === "simple" ? "Быстрая сборка" : "Своя композиция" })); });
 }
 const addTea = () => fireEvent.click(screen.getByRole("button", { name: "Добавить Ассам, 50 г" }));
 const addSweet = () => fireEvent.click(screen.getByRole("button", { name: "Добавить Пастила, 50 г" }));
-async function fillSimple() {
+async function fillSimple(waitForApproval = true) {
   await chooseBox();
   await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
   for (let index = 0; index < 5; index += 1) addTea();
   addSweet(); addSweet();
+  if (waitForApproval) await waitFor(() => expect(screen.getByRole("button", { name: "К оформлению" })).toBeEnabled());
 }
 beforeEach(() => {
   vi.clearAllMocks();
@@ -62,7 +63,7 @@ describe("constructor workspace", () => {
     expect(screen.queryByLabelText(/Дно коробки/)).not.toBeInTheDocument();
     expect(await screen.findByLabelText("Анимация упаковки подарка")).toHaveTextContent("5 + 2");
     expect(screen.getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeDisabled();
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
     const submit = await screen.findByRole("button", { name: "Добавить подарок в корзину" });
     await waitFor(() => expect(submit).toBeEnabled());
     expect(mocks.quoteSimple).toHaveBeenCalledWith({ box_profile_id: 4, tea_product_size_ids: [11, 11, 11, 11, 11], sweet_product_size_ids: [21, 21], quantity: 1 }, expect.any(AbortSignal));
@@ -80,7 +81,7 @@ describe("constructor workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ячейка 3, 2" }));
     expect(screen.getByRole("button", { name: /^Позиция 1:/ })).toHaveStyle({ gridColumn: "3 / span 1" });
     expect(screen.queryByRole("spinbutton")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
     const submit = await screen.findByRole("button", { name: "Добавить подарок в корзину" });
     await waitFor(() => expect(submit).toBeEnabled());
     expect(mocks.validateAdvanced).toHaveBeenCalledWith({ box_profile_id: 4, items: [expect.objectContaining({ product_size_id: 11, position_x: 2, position_y: 1, is_rotated: false })] }, expect.any(AbortSignal));
@@ -103,7 +104,7 @@ describe("constructor workspace", () => {
     fireEvent.click(screen.getByRole("tab", { name: /Сладости/ }));
     addSweet();
     fireEvent.click(screen.getByRole("button", { name: "Повернуть вправо на 90°" }));
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
     expect(mocks.validateAdvanced).toHaveBeenCalledWith({ box_profile_id: 4, items: [{
       client_item_id: expect.any(String), product_size_id: 21, position_x: 0, position_y: 0, is_rotated: true,
@@ -116,14 +117,15 @@ describe("constructor workspace", () => {
 
   it("возвращается из проверки к наполнению без потери выбранных форматов", async () => {
     renderPage(); await fillSimple();
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Наполнение" }));
     expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
     expect(screen.getByLabelText("Количество Пастила, 50 г")).toHaveTextContent("2");
     expect(mocks.createSimpleGift).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
-    await waitFor(() => expect(mocks.quoteSimple).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.getByRole("button", { name: "К оформлению" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
+    await waitFor(() => expect(mocks.quoteSimple).toHaveBeenCalledTimes(4));
   });
 
   it("повторяет неудавшуюся загрузку без мокового fallback", async () => {
@@ -179,7 +181,7 @@ describe("constructor workspace", () => {
     mocks.getBoxProducts.mockResolvedValue({ box: testBox, product_sizes: [] });
     act(() => { Object.defineProperty(navigator, "onLine", { configurable: true, value: true }); window.dispatchEvent(new Event("online")); });
     await screen.findByText(/Часть выбранных форматов больше недоступна/);
-    expect(screen.getByRole("button", { name: "Проверить подарок и цену" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Очистить выбор" }));
     expect(screen.queryByText(/Часть выбранных форматов больше недоступна/)).not.toBeInTheDocument();
   });
@@ -200,6 +202,7 @@ describe("constructor workspace", () => {
     expect(screen.getByLabelText("Заполнение коробки")).toHaveTextContent("0 / 40");
     expect(screen.queryByRole("button", { name: /Добавить Ассам/ })).not.toBeInTheDocument();
     expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
   });
 
   it("не подставляет общий каталог, если backend отсеял форматы коробки", async () => {
@@ -223,9 +226,9 @@ describe("constructor workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Коробка" }));
     requestedMode = null;
     await chooseBox(second.name);
-    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Своя композиция" })).toBeInTheDocument();
     expect(screen.queryByLabelText("Дно коробки, вид сверху")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    fireEvent.click(screen.getByRole("button", { name: "Своя композиция" }));
     await screen.findByLabelText("Дно коробки, вид сверху");
   });
 
@@ -233,14 +236,14 @@ describe("constructor workspace", () => {
     renderPage(null);
     await screen.findByRole("button", { name: `Выбрать коробку ${testBox.name}` });
     expect(mocks.loadOptions).toHaveBeenCalledWith("advanced", expect.any(AbortSignal));
-    expect(screen.queryByRole("button", { name: "С анимацией" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Быстрая сборка" })).not.toBeInTheDocument();
     expect(mocks.getBoxProducts).not.toHaveBeenCalled();
     expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
     await chooseBox();
-    expect(screen.getByRole("button", { name: "С анимацией" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Быстрая сборка" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Своя композиция" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Добавить Ассам, 50 г" })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    fireEvent.click(screen.getByRole("button", { name: "Быстрая сборка" }));
     await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
     expect(mocks.getBoxProducts).toHaveBeenCalledWith(testBox.id, expect.any(AbortSignal));
   });
@@ -257,22 +260,23 @@ describe("constructor workspace", () => {
     renderPage(); await fillSimple();
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
     expect(screen.queryByLabelText("Анимация упаковки подарка")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    fireEvent.click(screen.getByRole("button", { name: "Своя композиция" }));
     await screen.findByLabelText("Дно коробки, вид сверху");
     addTea();
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
-    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    fireEvent.click(screen.getByRole("button", { name: "Быстрая сборка" }));
     expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
-    fireEvent.click(screen.getByRole("button", { name: "Вручную" }));
+    fireEvent.click(screen.getByRole("button", { name: "Своя композиция" }));
     expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("1");
     fireEvent.click(screen.getByRole("button", { name: "Очистить выбор" }));
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
-    fireEvent.click(screen.getByRole("button", { name: "С анимацией" }));
+    fireEvent.click(screen.getByRole("button", { name: "Быстрая сборка" }));
     expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("5");
     expect(mocks.getBoxProducts).toHaveBeenCalledOnce();
     expect(mocks.createSimpleGift).not.toHaveBeenCalled();
     expect(mocks.createAdvancedGift).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByRole("button", { name: "К оформлению" })).toBeEnabled());
   });
 
   it("позволяет вернуться во время загрузки товаров", async () => {
@@ -280,7 +284,7 @@ describe("constructor workspace", () => {
     renderPage(); await chooseBox();
     expect(screen.getByText("Загружаем товары…")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
-    expect(screen.getByRole("button", { name: "Вручную" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Своя композиция" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Назад" }));
     expect(screen.getByRole("button", { name: `Выбрать коробку ${testBox.name}` })).toBeInTheDocument();
   });
@@ -290,14 +294,14 @@ describe("constructor workspace", () => {
     mocks.loadOptions.mockResolvedValue({ boxes: [advancedOnly], product_sizes: testSizes });
     mocks.getBoxProducts.mockResolvedValue({ box: advancedOnly, product_sizes: testSizes });
     renderPage(null); await chooseBox();
-    expect(screen.getByRole("button", { name: "С анимацией" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Вручную" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Быстрая сборка" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Своя композиция" })).toBeEnabled();
   });
 
   it("не теряет созданный Gift, если при reconnect коробка исчезла из options", async () => {
     mocks.addGift.mockRejectedValue(new Error("Network unavailable"));
     renderPage(); await fillSimple();
-    fireEvent.click(screen.getByRole("button", { name: "Проверить подарок и цену" }));
+    fireEvent.click(screen.getByRole("button", { name: "К оформлению" }));
     await waitFor(() => expect(screen.getByRole("button", { name: "Добавить подарок в корзину" })).toBeEnabled());
     fireEvent.click(screen.getByRole("button", { name: "Добавить подарок в корзину" }));
     await screen.findByRole("button", { name: "Повторить добавление в корзину" });
@@ -313,5 +317,57 @@ describe("constructor workspace", () => {
     await screen.findByText("Подарок добавлен в корзину.");
     expect(mocks.createSimpleGift).toHaveBeenCalledOnce();
     expect(mocks.addGift.mock.calls[1][0]).toEqual(mocks.addGift.mock.calls[0][0]);
+  });
+
+  it("проверяет наполнение до оформления, независимо от проигрывания анимации", async () => {
+    let finish!: (value: typeof testQuote) => void;
+    mocks.quoteSimple.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    renderPage(); await fillSimple(false);
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
+    expect(screen.getByText("Проверяем раскладку, вес и наличие…")).toBeInTheDocument();
+    expect(screen.getByLabelText("Анимация упаковки подарка")).toHaveTextContent("5 + 2");
+    expect(mocks.createSimpleGift).not.toHaveBeenCalled();
+    await act(async () => finish(testQuote));
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeEnabled();
+    expect(screen.queryByRole("button", { name: "Добавить подарок в корзину" })).not.toBeInTheDocument();
+  });
+
+  it("ошибка наличия/раскладки видна сразу и выводится текстом без XSS", async () => {
+    const message = '<img src=x onerror="alert(1)"> Недостаточно товара';
+    mocks.quoteSimple.mockRejectedValue({ response: { status: 422, data: { message } } });
+    renderPage(); await fillSimple(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent(message);
+    expect(document.querySelector("img[onerror], script")).toBeNull();
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Повторить проверку" })).toBeEnabled();
+    expect(mocks.createSimpleGift).not.toHaveBeenCalled();
+    mocks.quoteSimple.mockResolvedValue(testQuote);
+    fireEvent.click(screen.getByRole("button", { name: "Повторить проверку" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "К оформлению" })).toBeEnabled());
+  });
+
+  it("объясняет нехватку площади до запроса цены и не предлагает бесполезный retry", async () => {
+    mocks.getBoxProducts.mockResolvedValue({ box: testBox, product_sizes: [testSize(11, "tea", 2, 2), testSizes[1]] });
+    renderPage(); await fillSimple(false);
+    expect(await screen.findByRole("alert")).toHaveTextContent(/мало места/);
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Повторить проверку" })).not.toBeInTheDocument();
+    expect(mocks.quoteSimple).not.toHaveBeenCalled();
+  });
+
+  it("смена аккаунта отменяет расчёт и не переносит допуск к покупке", async () => {
+    let finish!: (value: typeof testQuote) => void;
+    mocks.quoteSimple.mockReturnValue(new Promise((resolve) => { finish = resolve; }));
+    const view = renderPage(); await fillSimple(false);
+    const signal = mocks.quoteSimple.mock.calls[0][1] as AbortSignal;
+    mocks.user = { id: 8 };
+    view.rerender(<MemoryRouter><ConstructorPage /></MemoryRouter>);
+    expect(signal.aborted).toBe(true);
+    await act(async () => finish(testQuote));
+    await chooseBox();
+    await screen.findByRole("button", { name: "Добавить Ассам, 50 г" });
+    expect(screen.getByLabelText("Количество Ассам, 50 г")).toHaveTextContent("0");
+    expect(screen.getByRole("button", { name: "К оформлению" })).toBeDisabled();
+    expect(mocks.createSimpleGift).not.toHaveBeenCalled();
   });
 });

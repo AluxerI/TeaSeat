@@ -25,6 +25,7 @@ import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import SellIcon from '@mui/icons-material/Sell';
 import ManageAccountsIcon from '@mui/icons-material/ManageAccounts';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import WarehouseOutlinedIcon from '@mui/icons-material/WarehouseOutlined';
 
 import Header from "../ui/header/header";
 import Footer from "../ui/footer/Footer";
@@ -34,6 +35,10 @@ import { translateError, extractError } from "../utils/translateError";
 import type { MenuKey, MenuItem, ProfileFormState, PasswordFormState } from "../interfaces/profile";
 import styles from "../scss/pages/ProfilePage.module.scss";
 import CustomerOrdersPanel from "../components/customer/CustomerOrdersPanel";
+import WishlistPanel from "../components/customer/WishlistPanel";
+import CustomerAddressesPanel from "../components/customer/CustomerAddressesPanel";
+import { getAdminPanelUrl } from "../utils/adminUrl";
+import staffStyles from "../scss/pages/StaffProfile.module.scss";
 
 const MENU_ITEMS: MenuItem[] = [
   { key: "profile", label: "Профиль", icon: <PersonOutlineIcon fontSize="medium" /> },
@@ -89,6 +94,8 @@ export default function ProfilePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, loading, isAdmin, isSeller, isManager, isCourier, logout, refreshUser } = useAuth();
+  const isPicker = Boolean(user?.roles?.includes("picker"));
+  const hasStaffWorkspace = Boolean(isAdmin || isSeller || isManager || isPicker || isCourier);
 
   // Раздел хранится в URL, поэтому ссылка из шапки сразу открывает заказы.
   const requestedSection = searchParams.get("section") as MenuKey | null;
@@ -178,8 +185,8 @@ export default function ProfilePage() {
     navigate("/");
   };
 
-  const handleAdmin = () =>{
-    navigate("/admin");
+  const handleAdmin = () => {
+    window.location.assign(getAdminPanelUrl());
   };
   
   const handleSeller = ()=>{
@@ -383,10 +390,12 @@ export default function ProfilePage() {
         {/* Заказы уже получают реальные данные; остальные будущие разделы пока
             используют общий экран-заглушку. */}
         {activeKey === "profile"
-          ? renderProfile()
+          ? <>{renderProfile()}<CustomerAddressesPanel /></>
           : activeKey === "orders"
             ? <CustomerOrdersPanel />
-            : renderPlaceholder(activeKey)}
+            : activeKey === "favorites" && user
+              ? <WishlistPanel userId={user.id} />
+              : renderPlaceholder(activeKey)}
       </>
     );
   };
@@ -417,10 +426,15 @@ export default function ProfilePage() {
           </ListItemButton>
         ))}
       </List>
-      {isAdmin && (
+      {hasStaffWorkspace && (
         <>
           <Divider className={styles.sidebarDivider} />
-          <ListItemButton className={styles.adminItem} disableRipple onClick={() => navigate("/admin")}>
+          <Typography className={staffStyles.staffLabel}>Сотрудник · рабочие разделы</Typography>
+        </>
+      )}
+      {isAdmin && (
+        <>
+          <ListItemButton className={styles.adminItem} disableRipple onClick={handleAdmin}>
             <ListItemIcon className={styles.adminIcon}>
               <AdminPanelSettingsIcon fontSize="small" />
             </ListItemIcon>
@@ -433,13 +447,12 @@ export default function ProfilePage() {
       )}
       {isSeller && (
         <>
-          <Divider className={styles.sidebarDivider} />
           <ListItemButton className={styles.sellItem} disableRipple onClick={() => navigate("/seller")}>
             <ListItemIcon className={styles.sellIcon}>
               <SellIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText
-              primary="Продажи"
+              primary="Продавец"
               primaryTypographyProps={{ className: styles.sellLabel }}
             />
           </ListItemButton>
@@ -447,7 +460,6 @@ export default function ProfilePage() {
       )}
       {isManager && (
         <>
-          <Divider className={styles.sidebarDivider} />
           <ListItemButton className={styles.managerItem} disableRipple onClick={() => navigate("/manager")}>
             <ListItemIcon className={styles.managerIcon}>
               <ManageAccountsIcon fontSize="small" />
@@ -459,15 +471,25 @@ export default function ProfilePage() {
           </ListItemButton>
         </>
       )}
+      {isPicker && (
+        <ListItemButton className={staffStyles.pickerItem} disableRipple onClick={() => navigate("/picker")}>
+          <ListItemIcon className={staffStyles.pickerIcon}>
+            <WarehouseOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText
+            primary="Сборщик"
+            primaryTypographyProps={{ className: staffStyles.pickerLabel }}
+          />
+        </ListItemButton>
+      )}
       {isCourier && (
         <>
-          <Divider className={styles.sidebarDivider} />
           <ListItemButton className={styles.courierItem} disableRipple onClick={() => navigate("/courier")}>
             <ListItemIcon className={styles.courierIcon}>
               <LocalShippingIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText
-              primary="Доставка"
+              primary="Доставщик"
               primaryTypographyProps={{ className: styles.courierLabel }}
             />
           </ListItemButton>

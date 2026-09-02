@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import RotateLeftRounded from "@mui/icons-material/RotateLeftRounded";
 import RotateRightRounded from "@mui/icons-material/RotateRightRounded";
@@ -15,7 +15,7 @@ import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 import ConstructorSteps from "./ConstructorSteps";
 import { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import ProductTexture from "./ProductTexture";
-import { supportsSimple } from "./ConstructorChoice";
+import { useSimpleGiftQuote } from "../../hooks/useSimpleGiftQuote";
 
 // Каждый режим загружает свою сцену по требованию.
 const BoxFloorScene = lazy(() => import("./BoxFloorScene"));
@@ -42,9 +42,12 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   const [confirming, setConfirming] = useState(false);
   const [placementStarted, setPlacementStarted] = useState(startEditing);
   const animatedItems = useRef(new Set<string>());
+  const quoteStatusId = useId();
+  const simpleQuote = useSimpleGiftQuote(box, sizes, teas, sweets, mode === "simple" && active && !confirming);
   const [transforming, setTransforming] = useState(false);
   // Навигация каталога живёт столько же, сколько состав: возврат по шагам её не сбрасывает.
   const [browse, setBrowse] = useState(() => initialCatalogBrowse(sizes));
+  const [pendingSizeId, setPendingSizeId] = useState<number | null>(null);
   const requirements = box.simple_requirements;
   const selectedItem = items.find((item) => item.client_item_id === selectedId);
   const selectedSize = sizes.find((size) => size.id === selectedItem?.product_size_id);
@@ -57,7 +60,7 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   const selectedIds = mode === "simple" ? [...teas, ...sweets] : items.map((item) => item.product_size_id);
   const contents = selectedIds.map((id) => sizes.find((size) => size.id === id)).filter((size): size is ConstructorProductSize => Boolean(size));
   const ready = mode === "simple"
-    ? Boolean(supportsSimple(box) && requirements && teas.length === requirements.tea_count && sweets.length === requirements.sweet_count && contents.length === selectedIds.length)
+    ? Boolean(simpleQuote.approved)
     : items.length > 0 && !layoutError(box, sizes, items);
   const drag = useConstructorDrag({ box, sizes, items, onSelect: setSelectedId, onError: setError,
     onCommit: (placement, existing) => {
@@ -113,7 +116,7 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   };
   const floorProps = {
     box, sizes, items, selectedId, drag, cellSizeMm,
-    onSelect: setSelectedId,
+    onSelect: (id: string | null) => { setPendingSizeId(null); setSelectedId(id); },
     onRotate: (id: string, rotated: boolean) => {
       const item = items.find((candidate) => candidate.client_item_id === id);
       if (sizes.find((size) => size.id === item?.product_size_id)?.size.can_rotate) changeItem(id, { is_rotated: rotated });
@@ -121,6 +124,20 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
     onDelete: removeItem,
     onTransformBusy: setTransforming,
     onCell: (x: number, y: number) => {
+      const pendingSize = sizes.find((size) => size.id === pendingSizeId);
+      if (pendingSize) {
+        const placement: LayoutPlacement = {
+          client_item_id: createGiftInstanceId(), product_size_id: pendingSize.id,
+          position_x: x, position_y: y, is_rotated: false,
+        };
+        const message = layoutError(box, sizes, [...items, placement]);
+        if (message) { setError(message); return; }
+        setItems([...items, placement]);
+        setSelectedId(placement.client_item_id);
+        setPendingSizeId(null);
+        setError("");
+        return;
+      }
       if (!selectedId) { setError("Сначала выберите позицию в коробке или добавьте товар."); return; }
       changeItem(selectedId, { position_x: x, position_y: y });
     },
@@ -137,7 +154,7 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
       <div className={styles.simpleWorkspace}>
       {active && <section className={styles.floorPanel} aria-label="Упаковка">
         <Suspense fallback={<p role="status">Загружаем анимацию…</p>}>
-          <SimplePackingScene box={box} teas={teas} sweets={sweets} seen={animatedItems} />
+          <SimplePackingScene box={box} teas={teas} sweets={sweets} seen={animatedItems} layout={simpleQuote.approved?.layout} />
         </Suspense>
       </section>}
       <div className={styles.simpleColumns}>
@@ -164,14 +181,37 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
         {!placementStarted && <button type="button" className={styles.primary} aria-label="Выбрать коробку и расставить товары" onClick={() => setPlacementStarted(true)}>Расставить товары</button>}
         {placementStarted && <p role="status" className={styles.srOnly}>{drag.dragging ? drag.preview?.message ?? "Перенесите предмет на дно коробки" : "Выделите предмет. Стрелки — перемещение, R — поворот, Delete — удаление."}</p>}
       </section>
-      {placementStarted && <ConstructorCarousel box={box} options={sizes} selected={selectedIds} limit={MAX_LAYOUT_ITEMS} onAdd={addAdvanced} drag={{ ...drag, dragging: locked }} cellSizeMm={cellSizeMm} browse={browse} onBrowse={setBrowse} />}
+      {placementStarted && <div data-constructor-pick-mode={pendingSizeId ? "active" : undefined} onClick={(event) => {
+        if (locked) return;
+        const target = event.target as HTMLElement;
+        if (target.closest("button, input, a, select, textarea")) return;
+        const card = target.closest('article[aria-label]');
+        const label = card?.getAttribute("aria-label");
+        if (!label) return;
+        const size = sizes.find((candidate) => `${candidate.product.name}, ${candidate.label}` === label);
+        if (!size) return;
+        setPendingSizeId(size.id);
+        setSelectedId(null);
+        setError("");
+      }}>
+        <ConstructorCarousel box={box} options={sizes} selected={selectedIds} limit={MAX_LAYOUT_ITEMS} onAdd={addAdvanced} drag={{ ...drag, dragging: locked }} cellSizeMm={cellSizeMm} browse={browse} onBrowse={setBrowse} />
+        {pendingSizeId && <p role="status" className={styles.hint}>Товар выбран. Теперь нажмите на свободную ячейку коробки. Перетаскивание по‑прежнему работает.</p>}
+      </div>}
     </div>}
     {error && <p role="alert" className={styles.error}>{error}</p>}
-    {contents.length !== selectedIds.length && <p role="alert">Часть выбранных форматов больше недоступна. Удалите их или очистите выбор.</p>}
+    {mode === "advanced" && contents.length !== selectedIds.length && <p role="alert">Часть выбранных форматов больше недоступна. Удалите их или очистите выбор.</p>}
+    {mode === "simple" && <div id={quoteStatusId} className={styles.preflight} aria-live="polite">
+      {simpleQuote.error ? <p role="alert" className={styles.error}>{contents.length !== selectedIds.length
+        ? "Часть выбранных форматов больше недоступна. Удалите их или очистите выбор." : simpleQuote.error}</p>
+        : simpleQuote.loading ? <p role="status">Проверяем раскладку, вес и наличие…</p>
+        : simpleQuote.approved ? <p role="status">{new Intl.NumberFormat("ru-RU", { style: "currency", currency: "RUB" }).format(simpleQuote.approved.quote.totals.final_total)}</p>
+        : <p className={styles.hint}>Чай {teas.length}/{requirements?.tea_count ?? 0} · Сладости {sweets.length}/{requirements?.sweet_count ?? 0}</p>}
+      {simpleQuote.complete && !simpleQuote.loading && simpleQuote.error && !simpleQuote.localError && simpleQuote.online
+        && <button type="button" onClick={simpleQuote.retry}>Повторить проверку</button>}
+    </div>}
     {(mode === "simple" || placementStarted) && <div className={styles.actions}>
-      <button type="button" className={styles.primary} disabled={!ready || locked} onClick={() => setConfirming(true)}>Проверить подарок и цену</button>
+      <button type="button" className={styles.primary} disabled={!ready || locked} aria-describedby={mode === "simple" ? quoteStatusId : undefined} onClick={() => { if (ready) setConfirming(true); }}>К оформлению</button>
       <button type="button" disabled={!selectedIds.length || locked} onClick={reset}>Очистить выбор</button>
-      {mode === "simple" && !ready && <span className={styles.hint}>Для продолжения: чай {teas.length}/{requirements?.tea_count}, сладости {sweets.length}/{requirements?.sweet_count}.</span>}
     </div>}
     {drag.cursor && cursorSize && cursorFootprint && !cursorOverFloor && createPortal(<div className={styles.dragCursor} aria-hidden="true" style={{
       left: drag.cursor.clientX + 8, top: drag.cursor.clientY + 8,

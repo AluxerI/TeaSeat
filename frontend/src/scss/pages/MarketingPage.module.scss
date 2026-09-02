@@ -1,0 +1,45 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.hero, .section, .story, .about { width: min(100%, max-width(xl)); margin-inline: auto; padding-inline: spacing(lg); }
+.hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(space-mult(xxl, 3), .9fr); align-items: center; gap: spacing(xl); min-height: 62vh; padding-block: spacing(xxl); }
+.heroCopy { display: flex; flex-direction: column; align-items: flex-start; gap: spacing(sm); }
+.heroCopy h1, .aboutHero h1 { max-width: 48rem; margin: 0; font-size: $font-unit * 5; line-height: 1.05; }
+.heroCopy p, .aboutHero p { max-width: 44rem; margin: 0; color: #756553; font-size: font-size(body); }
+.eyebrow { color: #687e4c; font-size: font-size(body-sm); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.actions { display: flex; flex-wrap: wrap; gap: spacing(sm); margin-top: spacing(md); }
+.primary, .secondary { display: inline-flex; align-items: center; justify-content: center; min-height: space-mult(xl, 1.2); padding-inline: spacing(lg); border-radius: spacing(sm); font-size: font-size(body); font-weight: 700; text-decoration: none; }
+.primary { color: #fff; background: #4a3428; }
+.secondary { color: #4a3428; border: 1px solid #d7c8b5; background: #fff; }
+.heroArt { position: relative; display: grid; place-items: center; min-height: space-mult(xxl, 5); border-radius: spacing(xl); background: radial-gradient(circle at 45% 38%, #fff8e9, #dec8a6 62%, #b48b63); overflow: hidden; }
+.heroCup { display: grid; place-items: center; width: space-mult(xxl, 3.2); aspect-ratio: 1.35; border-radius: 0 0 spacing(xl) spacing(xl); color: #fff; background: #687e4c; font-size: $font-unit * 3; font-weight: 700; box-shadow: inset 0 spacing(xs) 0 #ffffff42, 0 spacing(sm) spacing(xl) #4a342822; }
+.heroLeaf { position: absolute; top: spacing(xl); right: spacing(xl); font-size: space-mult(xl, 1.6); transform: rotate(18deg); }
+.section { padding-block: spacing(xl); }
+.sectionHeading h2, .story h2 { margin: spacing(xs) 0 spacing(lg); font-size: $font-unit * 4; }
+.sectionHeading > span { color: #756553; font-size: font-size(body-sm); }
+.quickGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: spacing(md); }
+.quickCard { display: flex; min-height: space-mult(xxl, 2.5); flex-direction: column; justify-content: flex-end; gap: spacing(xs); padding: spacing(lg); border: 1px solid #eadfce; border-radius: spacing(lg); color: #3f3028; background: linear-gradient(145deg, #fffdf8, #f1e5d3); text-decoration: none; }
+.quickCard strong { font-size: $font-unit * 3; }
+.quickCard span { color: #756553; font-size: font-size(body-sm); }
+.story { display: grid; grid-template-columns: .8fr 1.2fr auto; align-items: end; gap: spacing(lg); padding-block: spacing(xxl); border-top: 1px solid #eadfce; }
+.story p { margin: 0; color: #756553; font-size: font-size(body); }
+.story a { color: #4a3428; font-weight: 700; text-decoration: none; }
+.about { padding-block: spacing(xxl); }
+.aboutHero { display: flex; flex-direction: column; gap: spacing(sm); max-width: 55rem; }
+.values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: spacing(md); margin-block: spacing(xxl); }
+.values article, .aboutBody > div { padding: spacing(lg); border: 1px solid #eadfce; border-radius: spacing(lg); background: #fffaf3; }
+.values strong { font-size: $font-unit * 3; }
+.values p, .aboutBody p { margin-bottom: 0; color: #756553; font-size: font-size(body-sm); }
+.aboutBody { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: spacing(md); }
+.aboutBody h2 { margin-top: 0; font-size: $font-unit * 3; }
+.aboutAction { margin-top: spacing(xl); }
+@media (max-width: 840px) {
+  .hero { grid-template-columns: 1fr; min-height: auto; }
+  .quickGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .story { grid-template-columns: 1fr; align-items: start; }
+}
+@media (max-width: 620px) {
+  .hero, .section, .story, .about { padding-inline: spacing(md); }
+  .quickGrid, .values, .aboutBody { grid-template-columns: 1fr; }
+  .heroArt { min-height: space-mult(xxl, 3.5); }
+}

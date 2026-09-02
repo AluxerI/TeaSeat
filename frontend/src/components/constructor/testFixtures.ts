@@ -15,6 +15,11 @@ export function testSize(id: number, role: "tea" | "sweet" = "tea", width = 1, h
 
 export const testSizes = [testSize(11), testSize(21, "sweet")];
 export const testQuote: SimpleGiftQuote = {
-  valid: true, box: testBox, layout: [], quantity: 1, required_products: {},
+  valid: true, box: testBox,
+  layout: [11, 11, 11, 11, 11, 21, 21].map((id, index) => ({
+    client_item_id: "test-position-" + index, product_size_id: id, product_id: id + 100, product_quantity: 50,
+    position_x: index % 4, position_y: Math.floor(index / 4), width_cells: 1, height_cells: 1, is_rotated: false, sort_order: index,
+  })),
+  quantity: 1, required_products: {},
   totals: { currency: "RUB", products_total: 700, gift_markup_total: 50, promotion_discount: 30, personal_discount: 0, cart_discount: 0, shipping_cost: 0, shipping_discount: 0, final_total: 720 },
 };

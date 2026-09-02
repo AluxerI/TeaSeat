@@ -1,0 +1,25 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+.page { background: #fbf7f1; color: $color-secondary-coffee; }
+.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(space-mult(xxl, 4.2), .95fr); align-items: center; gap: spacing(xl); min-height: min(72vh, space-mult(xxl, 10)); overflow: hidden; padding: space-mult(xxl, 1.4) max(spacing(lg), calc((100vw - #{max-width(xl)}) / 2)); background: radial-gradient(circle at 78% 35%, #f1d4a8 0, #ead2ae 24%, transparent 46%), linear-gradient(115deg, #f7ead7, #fffaf1 58%, #ead2ad); }
+.heroCopy { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: flex-start; gap: spacing(sm); }
+.eyebrow { color: $color-primary-tea; font-size: font-size(body-sm); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.hero h1 { max-width: 48rem; margin: 0; font-size: clamp(#{$font-unit * 4}, 5.3vw, #{$font-unit * 7}); line-height: .98; }
+.hero p { max-width: 43rem; margin: 0; color: #6f5d50; font-size: font-size(body); line-height: 1.65; }
+.heroActions { display: flex; flex-wrap: wrap; gap: spacing(sm); margin-top: spacing(md); }
+.primary, .secondary { display: inline-flex; min-height: space-mult(xl, 1.15); align-items: center; justify-content: center; padding-inline: spacing(lg); border-radius: spacing(sm); font-size: font-size(body); font-weight: 700; text-decoration: none; }
+.primary { color: #fff; background: $color-secondary-coffee; }.secondary { color: $color-secondary-coffee; border: 1px solid #ceb99f; background: #fffaf2b8; }
+.heroVisual { position: relative; min-height: space-mult(xxl, 6); perspective: 900px; }
+.heroCard { position: absolute; display: block; width: min(64%, space-mult(xxl, 5)); aspect-ratio: 1.1; overflow: hidden; border: spacing(xs) solid #fff8ec; border-radius: spacing(lg); box-shadow: 0 space-mult(sm, 1.4) space-mult(xl, 1.6) #4b2f1826; }
+.heroCard img { width: 100%; height: 100%; object-fit: cover; }.heroCard[data-card="tea"] { left: 3%; top: 9%; transform: rotate(-6deg); }.heroCard[data-card="coffee"] { right: 1%; bottom: 4%; transform: rotate(7deg); }
+.section, .story { width: min(100%, max-width(xl)); margin-inline: auto; padding: spacing(xxl) spacing(lg); }
+.section { display: grid; gap: spacing(xl); }
+.directionGrid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: spacing(md); }
+.direction { position: relative; min-height: space-mult(xxl, 3.1); overflow: hidden; border-radius: spacing(lg); color: #fff; background: #4a3428; text-decoration: none; box-shadow: 0 spacing(xs) spacing(lg) #39281712; }
+.direction::after { position: absolute; inset: 0; content: ""; background: linear-gradient(180deg, transparent 24%, #2e1f16dc); }
+.direction img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }.direction:hover img, .direction:focus-visible img { transform: scale(1.035); }
+.direction > span { position: absolute; z-index: 1; right: spacing(md); bottom: spacing(md); left: spacing(md); display: flex; flex-direction: column; gap: spacing(xs); }.direction strong { font-size: $font-unit * 2.7; }.direction small { font-size: font-size(body-sm); }
+.story { display: grid; grid-template-columns: minmax(0, 1fr) minmax(space-mult(xxl, 4), .8fr); align-items: end; gap: spacing(xl); border-top: 1px solid #eadfce; }
+.storyPoints { display: grid; gap: spacing(sm); }.storyPoints span { display: flex; align-items: center; gap: spacing(md); padding-block: spacing(sm); border-bottom: 1px solid #e6d7c5; font-size: font-size(body); }.storyPoints b { color: $color-primary-tea; font-size: font-size(body-sm); }
+@media (max-width: 900px) { .hero { grid-template-columns: 1fr; padding-inline: spacing(md); }.heroVisual { min-height: space-mult(xxl, 4.8); }.directionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.story { grid-template-columns: 1fr; }.section,.story { padding-inline: spacing(md); } }
+@media (max-width: 520px) { .hero { min-height: auto; padding-block: spacing(xl); }.heroVisual { min-height: space-mult(xxl, 3.7); }.directionGrid { grid-template-columns: 1fr 1fr; gap: spacing(sm); }.direction { min-height: space-mult(xxl, 2.5); }.direction strong { font-size: $font-unit * 2.2; } }

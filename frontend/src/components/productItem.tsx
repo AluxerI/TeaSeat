@@ -3,6 +3,8 @@ import { IconButton } from "@mui/material";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import KeyboardArrowUpRoundedIcon from "@mui/icons-material/KeyboardArrowUpRounded";
 import VisibilityOutlinedIcon from "@mui/icons-material/VisibilityOutlined";
+import FavoriteBorderRoundedIcon from "@mui/icons-material/FavoriteBorderRounded";
+import FavoriteRoundedIcon from "@mui/icons-material/FavoriteRounded";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useCustomerCart } from "../hooks/useCustomerCart";
@@ -17,6 +19,8 @@ import {
 } from "../utils/productQuantity";
 import { extractError, translateError } from "../utils/translateError";
 import type { ProductMeasurement } from "../types/productMeasurement";
+import { useWishlist } from "../hooks/useWishlist";
+import favoriteStyles from "../scss/components/WishlistButton.module.scss";
 
 interface ProductProp {
   productId: number;
@@ -24,6 +28,8 @@ interface ProductProp {
   backgroundImage: string;
   label: string;
   brand: string;
+  ratingAverage?: number | null;
+  reviewsCount?: number;
   finalPrice: number;
   originalPrice: number;
   discountPercent: number;
@@ -39,6 +45,8 @@ export const ProductItem = ({
   backgroundImage,
   label,
   brand,
+  ratingAverage,
+  reviewsCount = 0,
   finalPrice,
   originalPrice,
   discountPercent,
@@ -50,6 +58,7 @@ export const ProductItem = ({
   const navigate = useNavigate();
   const { user } = useAuth();
   const { addProduct, pendingActionKey } = useCustomerCart();
+  const wishlist = useWishlist(user?.id ?? null);
 
   // Все три параметра приходят одним measurement-prop. Так нельзя случайно
   // передать граммы от одного товара и шаг продажи от другого.
@@ -59,12 +68,16 @@ export const ProductItem = ({
   const hasStock = isAvailable && maximumQuantity >= step;
   const [quantity, setQuantity] = useState(() => getInitialQuantity(measurement.stockUnit, step, priceBase, maximumQuantity));
   const [message, setMessage] = useState("");
+  const [imageReady, setImageReady] = useState(false);
+  const [titleExpanded, setTitleExpanded] = useState(false);
 
   const unitLabel = getProductUnitLabel(measurement.stockUnit);
   const shownPrice = calculateShownPrice(finalPrice, quantity, priceBase);
   const adding = pendingActionKey === `add:${productId}`;
   const canDecrease = quantity - step >= step;
   const canIncrease = quantity + step <= maximumQuantity;
+  const favorite = wishlist.has(productId);
+  const favoritePending = wishlist.isPending(productId) || Boolean(user && !wishlist.loaded);
 
   const showLimitMessage = () => {
     setMessage(`Доступно не более ${maximumQuantity} ${unitLabel}`);
@@ -85,6 +98,19 @@ export const ProductItem = ({
     }
     setMessage("");
     setQuantity((current) => current + step);
+  };
+
+  const toggleFavorite = async () => {
+    if (!user) {
+      navigate("/login", { state: { from: "/catalog" } });
+      return;
+    }
+    setMessage("");
+    try {
+      await wishlist.toggle(productId);
+    } catch (error) {
+      setMessage(translateError(extractError(error)));
+    }
   };
 
   const addToCart = async () => {
@@ -112,9 +138,31 @@ export const ProductItem = ({
 
   return (
     <article className="product-card">
-      <div className="product-card__head">
-        <img src={image} alt={label} className="product-card__image" />
+      <div className={`product-card__head ${favoriteStyles.head}`}>
+        {!imageReady && <span className="product-card__image-loader" aria-hidden="true" />}
+        <img
+          src={image}
+          alt={label}
+          className="product-card__image"
+          data-ready={imageReady ? "true" : "false"}
+          loading="lazy"
+          decoding="async"
+          onLoad={() => setImageReady(true)}
+          onError={() => setImageReady(true)}
+        />
         {discountPercent > 0 && <span className="product-card__discount">−{discountPercent}%</span>}
+        <IconButton
+          type="button"
+          className={favoriteStyles.favoriteButton}
+          data-active={favorite}
+          aria-label={favorite ? `Удалить ${label} из избранного` : `Добавить ${label} в избранное`}
+          aria-pressed={favorite}
+          title={favorite ? "Убрать из избранного" : "В избранное"}
+          disabled={favoritePending}
+          onClick={toggleFavorite}
+        >
+          {favorite ? <FavoriteRoundedIcon fontSize="small" /> : <FavoriteBorderRoundedIcon fontSize="small" />}
+        </IconButton>
       </div>
       <div
         className="product-card__body"
@@ -122,7 +170,22 @@ export const ProductItem = ({
       >
         <section className="section">
           <p className="product-card__brand">{brand}</p>
-          <h5 className="label-product">{label}</h5>
+          <h5 className="label-product" data-expanded={titleExpanded || undefined}>{label}</h5>
+          {label.length > 34 && (
+            <button
+              type="button"
+              className="product-card__title-toggle"
+              aria-expanded={titleExpanded}
+              onClick={() => setTitleExpanded((current) => !current)}
+            >
+              {titleExpanded ? "Свернуть" : "Показать название"}
+            </button>
+          )}
+          <div className="product-card__rating" aria-label={ratingAverage == null ? "У товара пока нет оценок" : `Средняя оценка ${ratingAverage.toFixed(1)} из 5, отзывов: ${reviewsCount}`}>
+            <span className="product-card__rating-star" aria-hidden="true">★</span>
+            <strong>{ratingAverage == null ? "—" : ratingAverage.toFixed(1)}</strong>
+            <span>{reviewsCount > 0 ? `Отзывы: ${reviewsCount}` : "Нет отзывов"}</span>
+          </div>
           <p className="product-card__stock">Доступно: {maximumQuantity} {unitLabel}</p>
 
           <div className="gramm-and-price">

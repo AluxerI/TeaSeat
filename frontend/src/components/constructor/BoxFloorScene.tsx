@@ -18,6 +18,12 @@ import SweetItem, { createSweetDrive, SWEET_SIZE } from "./three/SweetItem";
 import type { ConstructorProductSize } from "../../interfaces/giftConstructor";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 
+// Условная высота визуальных моделей, не физический размер из backend.
+// Фольга и лента добавляют сладости 0.064; бортик немного выше любого предмета.
+export const FLOOR_ITEM_Y = .15;
+export const FLOOR_ITEM_TOP = FLOOR_ITEM_Y + Math.max(SACHET_SIZE.depthFull, SWEET_SIZE.h + .064, .2) / 2;
+export const FLOOR_WALL_HEIGHT = FLOOR_ITEM_TOP + .08;
+
 class WebGLBoundary extends Component<{ children: ReactNode; fallback: ReactNode; onFailure: () => void }, { failed: boolean }> {
   state = { failed: false };
   static getDerivedStateFromError() { return { failed: true }; }
@@ -110,7 +116,7 @@ function FloorContent({ box, sizes, items, editing, onChoose, previewRotation, o
     <FloorCamera width={width} height={height} editing={editing} previewRotation={previewRotation} onSettled={onSettled} />
     <ambientLight intensity={1.5} />
     <directionalLight position={[4, 8, 3]} intensity={2} />
-    <group scale={[width / (BW - THICK), 1, height / (BD - THICK)]}
+    <group scale={[width / (BW - THICK), showContents ? FLOOR_WALL_HEIGHT / BH : 1, height / (BD - THICK)]}
       onClick={(event) => { event.stopPropagation(); if (!showContents) onChoose(); }}>
       <GiftBox drive={drive} position={[0, BH / 2, 0]} showLid={!showContents} />
     </group>
@@ -124,7 +130,7 @@ function FloorContent({ box, sizes, items, editing, onChoose, previewRotation, o
       const product = sizes.find((size) => size.id === item.product_size_id);
       if (!product) return null;
       const [w, h] = footprint(product, item.is_rotated);
-      return <group key={item.client_item_id} position={[item.position_x - width / 2 + w / 2, .15, item.position_y - height / 2 + h / 2]}>
+      return <group key={item.client_item_id} position={[item.position_x - width / 2 + w / 2, FLOOR_ITEM_Y, item.position_y - height / 2 + h / 2]}>
         <FloorProduct product={product} rotated={item.is_rotated} />
       </group>;
     })}
@@ -138,8 +144,7 @@ export default function BoxFloorScene(props: BoxFloorSceneProps) {
   const [staticView, setStaticView] = useState(false);
   const [ready, setReady] = useState(false);
   const [rotation, setRotation] = useState(0);
-  const [overview, setOverview] = useState(false);
-  const editing = props.editing && !overview;
+  const editing = props.editing;
   const container = useRef<HTMLDivElement | null>(null);
   const orbit = useRef<{ id: number; x: number; start: number; moved: boolean } | null>(null);
   const suppressChoose = useRef(false);
@@ -172,10 +177,6 @@ export default function BoxFloorScene(props: BoxFloorSceneProps) {
     : <p className={styles.hint}>Предпросмотр 3D недоступен. Выберите коробку кнопкой ниже — плоская сетка останется рабочей.</p>;
   if (props.box.width_cells * props.box.height_cells > 1600) return <FloorGrid {...props} />;
   return <>
-    {props.editing && !lost && <div className={styles.viewControls} role="group" aria-label="Вид коробки">
-      <button type="button" aria-pressed={!overview} disabled={props.controlsLocked} onClick={() => setOverview(false)}>Сверху</button>
-      <button type="button" aria-pressed={overview} disabled={props.controlsLocked || staticView} onClick={() => setOverview(true)}>Обзор</button>
-    </div>}
     <div ref={container} className={`${styles.scene} ${!editing ? styles.previewOrbit : ""}`} aria-label={editing ? "Сетка на дне выбранной коробки" : "Предпросмотр подарочной коробки"}
       onPointerDownCapture={(event) => {
         if (editing || event.button !== 0 || event.isPrimary === false) return;
@@ -212,6 +213,6 @@ export default function BoxFloorScene(props: BoxFloorSceneProps) {
       <IconButton title="Сбросить ракурс" aria-label="Сбросить ракурс" onClick={() => setRotation(0)}><RestartAltRounded fontSize="small" /></IconButton>
       <IconButton title="Повернуть вправо" aria-label="Повернуть коробку вправо" disabled={rotation >= PREVIEW_ROTATION_LIMIT} onClick={() => setRotation((value) => clampPreviewRotation(value + .15))}><RotateRightRounded fontSize="small" /></IconButton>
     </div>}
-    {!lost && props.editing && <button type="button" className={styles.textButton} disabled={props.controlsLocked} onClick={() => { setOverview(false); setStaticView((value) => !value); }}>{staticView ? "Включить 3D" : "Без анимации"}</button>}
+    {!lost && props.editing && <button type="button" className={styles.textButton} disabled={props.controlsLocked} onClick={() => setStaticView((value) => !value)}>{staticView ? "Включить 3D" : "Без 3D"}</button>}
   </>;
 }

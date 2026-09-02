@@ -1,0 +1,16 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+
+.staffLabel {
+  display: block;
+  padding: spacing(sm) spacing(md) spacing(xs);
+  color: #8a7767;
+  font-size: font-size(caption) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+
+.pickerItem { border-radius: spacing(sm) !important; }
+.pickerIcon { min-width: spacing(xl) !important; color: #6f7d3d !important; }
+.pickerLabel { color: #4d5731; font-size: font-size(body-sm) !important; font-weight: 700 !important; }

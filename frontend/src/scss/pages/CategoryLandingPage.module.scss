@@ -1,0 +1,17 @@
+@import "../abstracts/variable";
+@import "../abstracts/functions";
+.page { min-height: 70vh; background: #fbf7f1; }
+.heading { width: min(100%, max-width(xl)); margin-inline: auto; padding: spacing(xl) spacing(lg) spacing(lg); }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: spacing(md); width: min(100%, max-width(xl)); margin-inline: auto; padding-inline: spacing(lg); }
+.card { display: grid; grid-template-columns: minmax(space-mult(xxl, 2.2), .82fr) minmax(0, 1.18fr); align-items: stretch; min-height: space-mult(xxl, 3.1); overflow: hidden; border: 1px solid #eadfce; border-radius: spacing(lg); color: $color-secondary-coffee; background: #fffdf8; text-decoration: none; box-shadow: 0 spacing(xs) spacing(lg) #39281708; transition: transform .2s ease, box-shadow .2s ease; }
+.card:hover, .card:focus-visible { transform: translateY(-2px); box-shadow: 0 spacing(sm) spacing(xl) #39281712; }
+.visual { min-width: 0; overflow: hidden; background: #f1e6d6; }
+.visual img { width: 100%; height: 100%; object-fit: cover; transition: transform .3s ease; }
+.card:hover img, .card:focus-visible img { transform: scale(1.025); }
+.copy { display: flex; min-width: 0; flex-direction: column; justify-content: center; gap: spacing(xs); padding: spacing(lg); }
+.copy strong { font-size: $font-unit * 3; line-height: 1.15; }
+.copy > span:not(.action) { color: #7a6452; font-size: font-size(body-sm); line-height: 1.5; }
+.action { display: inline-flex; gap: spacing(xs); margin-top: spacing(sm); color: $color-primary-tea; font-size: font-size(body-sm); font-weight: 700; }
+.action > span { transition: transform .2s ease; }.card:hover .action > span, .card:focus-visible .action > span { transform: translateX(spacing(xs)); }
+@media (max-width: 760px) { .heading, .grid { padding-inline: spacing(md); } .grid { grid-template-columns: 1fr; } .card { grid-template-columns: minmax(space-mult(xxl, 1.7), .7fr) minmax(0, 1.3fr); min-height: space-mult(xxl, 2.6); } }
+@media (max-width: 440px) { .card { grid-template-columns: 1fr; } .visual { height: space-mult(xxl, 2.5); } }

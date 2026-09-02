@@ -1,75 +1,145 @@
-import ArrowForwardRounded from "@mui/icons-material/ArrowForwardRounded";
-import ViewInArOutlined from "@mui/icons-material/ViewInArOutlined";
-import AutoAwesomeOutlined from "@mui/icons-material/AutoAwesomeOutlined";
-import CheckRounded from "@mui/icons-material/CheckRounded";
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import type { GiftSizeProfile } from "../../interfaces/giftConstructor";
-import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
+import { supportsSimple } from "../../utils/simpleGiftValidation";
+import { ConstructorSceneFallback, type SceneChoice } from "./ConstructorSceneChoice";
+import choiceStyles from "../../scss/pages/ConstructorChoiceScene.module.scss";
+import "../../scss/pages/ConstructorMobileV18.scss";
 
 export type ConstructorMode = "simple" | "advanced";
+export { supportsSimple } from "../../utils/simpleGiftValidation";
 const ConstructorBoxScene = lazy(() => import("./ConstructorBoxScene"));
 
-export function supportsSimple(box: GiftSizeProfile): boolean {
-  const rule = box.simple_requirements;
-  return Boolean(box.simple_constructor_enabled && rule && Number.isSafeInteger(rule.tea_count)
-    && rule.tea_count > 0 && Number.isSafeInteger(rule.sweet_count) && rule.sweet_count > 0);
+interface PendingChoice<T> {
+  id: string;
+  value: T;
 }
 
-/** Иллюстрация интерфейса, не фиктивный товар: размеры и список коробок приходят из API. */
-function BoxArtwork({ flat = false }: { flat?: boolean }) {
-  return <svg viewBox="0 0 240 170" aria-hidden="true" className={styles.boxArtwork}>
-    {flat ? <>
-      <rect x="38" y="22" width="164" height="126" rx="14" fill="#d7b68e" />
-      <rect x="47" y="31" width="146" height="108" rx="8" fill="#f4e9d7" />
-      <rect x="57" y="41" width="57" height="88" rx="8" fill="#687e4c" />
-      <path d="M74 67q21-20 21 0t-21 29q-15-12 0-29" fill="#c6d4a7" />
-      <rect x="124" y="41" width="59" height="39" rx="8" fill="#b7755f" />
-      <rect x="124" y="90" width="59" height="39" rx="8" fill="#dec887" />
-    </> : <>
-      <ellipse cx="123" cy="143" rx="87" ry="12" fill="#513624" opacity=".1" />
-      <path d="m33 70 99-39 78 38-99 43Z" fill="#eed9b9" />
-      <path d="m33 70 78 42v40l-78-43Z" fill="#bc9166" />
-      <path d="m111 112 99-43v40l-99 43Z" fill="#d5ad80" />
-      <path d="m87 48 79 40v40l-19 8V97L67 56Z" fill="#62764c" />
-      <path d="m65 88 96-40 18 9-96 41v39l-18-10Z" fill="#78905a" />
-      <path d="M122 72C77 73 91 34 122 62c30-44 61-1 0 10Z" fill="none" stroke="#4f653c" strokeWidth="9" strokeLinejoin="round" />
-    </>}
-  </svg>;
+interface ViewTransitionHandle {
+  finished: Promise<void>;
+}
+
+type TransitionDocument = Document & {
+  startViewTransition?: (update: () => void | Promise<void>) => ViewTransitionHandle;
+};
+
+function supportsNativeViewTransition(): boolean {
+  if (typeof document === "undefined") return false;
+  return typeof (document as TransitionDocument).startViewTransition === "function";
+}
+
+/**
+ * Для первого -> второго шага используем shared-element transition: снимок
+ * выбранной коробки из шага 1 превращается в единственную коробку шага 2.
+ * На старом браузере переход выполняется сразу, без искусственной задержки.
+ */
+function useChoiceTransition<T>(commit: (value: T) => void) {
+  const [pending, setPending] = useState<PendingChoice<T> | null>(null);
+  const pendingRef = useRef<PendingChoice<T> | null>(null);
+  const commitRef = useRef(commit);
+  const firstFrame = useRef<number | null>(null);
+  const secondFrame = useRef<number | null>(null);
+  commitRef.current = commit;
+  const native = supportsNativeViewTransition();
+
+  useEffect(() => () => {
+    if (firstFrame.current !== null) window.cancelAnimationFrame(firstFrame.current);
+    if (secondFrame.current !== null) window.cancelAnimationFrame(secondFrame.current);
+  }, []);
+
+  const choose = (id: string, value: T) => {
+    if (pendingRef.current) return;
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    if (reduced || !native) {
+      commitRef.current(value);
+      return;
+    }
+
+    const next = { id, value };
+    pendingRef.current = next;
+    setPending(next);
+
+    // Два кадра не создают видимую паузу: React только успевает назначить
+    // выбранной модели shared view-transition-name до old snapshot.
+    firstFrame.current = window.requestAnimationFrame(() => {
+      secondFrame.current = window.requestAnimationFrame(() => {
+        const current = pendingRef.current;
+        const start = (document as TransitionDocument).startViewTransition;
+        if (!current || !start) {
+          if (current) commitRef.current(current.value);
+          return;
+        }
+        try {
+          const transition = start.call(document, () => {
+            flushSync(() => {
+              pendingRef.current = null;
+              setPending(null);
+              commitRef.current(current.value);
+            });
+          });
+          transition.finished.catch(() => undefined);
+        } catch {
+          pendingRef.current = null;
+          setPending(null);
+          commitRef.current(current.value);
+        }
+      });
+    });
+  };
+
+  return { pendingId: pending?.id ?? null, choose, native };
+}
+
+function ChoiceTransitionStage({ native, children }: { native: boolean; children: ReactNode }) {
+  return <div className={choiceStyles.transitionStage} data-native={native || undefined}>{children}</div>;
+}
+
+function ChoiceHeading({ title, description }: { title: string; description?: string }) {
+  return <header className={choiceStyles.heading}>
+    <span className={choiceStyles.eyebrow}>Конструктор подарка</span>
+    <h2>{title}</h2>
+    {description && <p>{description}</p>}
+  </header>;
 }
 
 export function ConstructorModePicker({ box, onSelect }: { box: GiftSizeProfile; onSelect: (mode: ConstructorMode) => void }) {
-  return <section className={styles.choiceSection} aria-label="Выбор конструктора">
-    <h2>Как соберём подарок?</h2>
-    <div className={styles.modeCards}>
-      <button type="button" className={styles.modeCard} aria-label="С анимацией" disabled={!supportsSimple(box)} onClick={() => onSelect("simple")}>
-        <span className={styles.modeBadge}><AutoAwesomeOutlined fontSize="small" /></span>
-        <BoxArtwork flat />
-        <strong>С анимацией</strong><span>{supportsSimple(box) ? "Выбираете — упаковываем." : "Недоступно для этой коробки"}</span>
-        <ArrowForwardRounded className={styles.modeArrow} />
-      </button>
-      <button type="button" className={`${styles.modeCard} ${styles.modeCardAdvanced}`} aria-label="Вручную" onClick={() => onSelect("advanced")}>
-        <span className={styles.modeBadge}><ViewInArOutlined fontSize="small" /></span>
-        <BoxArtwork />
-        <strong>Вручную</strong><span>Каждый предмет на своём месте.</span>
-        <ArrowForwardRounded className={styles.modeArrow} />
-      </button>
-    </div>
+  const transition = useChoiceTransition(onSelect);
+  const choices: SceneChoice[] = [
+    { id: "simple", kind: "simple", box, title: "Быстрая сборка", ariaLabel: "Быстрая сборка",
+      caption: supportsSimple(box)
+        ? "Выберите чай и сладости — мы проверим вместимость и аккуратно уложим всё автоматически."
+        : "Для этой коробки быстрая сборка недоступна — выберите «Свою композицию».",
+      disabled: !supportsSimple(box), onSelect: () => transition.choose("simple", "simple") },
+    { id: "advanced", kind: "advanced", box, title: "Своя композиция", ariaLabel: "Своя композиция",
+      caption: "Выбирайте товары сами, задавайте им место и поворачивайте внутри коробки.",
+      onSelect: () => transition.choose("advanced", "advanced") },
+  ];
+  return <section className={choiceStyles.section} aria-label="Выбор конструктора">
+    <ChoiceHeading title="Как хотите собрать подарок?" description="Коробка уже выбрана — теперь только способ наполнения." />
+    <ChoiceTransitionStage native={transition.native}>
+      <Suspense fallback={<ConstructorSceneFallback choices={choices} selectedId={transition.pendingId} label="Способы сборки" />}>
+        <ConstructorBoxScene choices={choices} selectedId={transition.pendingId} label="Способы сборки в 3D" />
+      </Suspense>
+    </ChoiceTransitionStage>
   </section>;
 }
 
 export function ConstructorBoxPicker({ boxes, selectedId, onSelect, cellSizeMm }: {
   boxes: GiftSizeProfile[]; selectedId: number | null; onSelect: (box: GiftSizeProfile) => void; cellSizeMm?: number | null;
 }) {
-  return <section className={styles.choiceSection} aria-label="Выбор коробки">
-    <h2>Выберите коробку</h2>
-    <Suspense fallback={<p role="status">Загружаем модели…</p>}>
-      <ConstructorBoxScene boxes={boxes} selectedId={selectedId} onSelect={onSelect} />
-    </Suspense>
-    <div className={styles.boxCards}>{boxes.map((box) => <button key={box.id} type="button"
-      className={styles.boxCard} aria-label={`Выбрать коробку ${box.name}`} aria-pressed={selectedId === box.id} onClick={() => onSelect(box)}>
-      <strong>{box.name}</strong>
-      <span>{box.width_cells * (cellSizeMm || 1)} × {box.height_cells * (cellSizeMm || 1)} {cellSizeMm ? "мм" : "клеток"}</span>
-      {selectedId === box.id && <CheckRounded className={styles.boxChecked} />}
-    </button>)}</div>
+  const transition = useChoiceTransition(onSelect);
+  const choices: SceneChoice[] = boxes.map((box) => ({
+    id: String(box.id), kind: "box", box, title: box.name, ariaLabel: "Выбрать коробку " + box.name,
+    caption: box.width_cells * (cellSizeMm || 1) + " × " + box.height_cells * (cellSizeMm || 1) + (cellSizeMm ? " мм" : " клеток"),
+    onSelect: () => transition.choose(String(box.id), box),
+  }));
+  const scene = { choices, selectedId: transition.pendingId ?? (selectedId === null ? null : String(selectedId)), label: "Коробки в 3D" };
+  return <section className={choiceStyles.section} aria-label="Выбор коробки">
+    <ChoiceHeading title="Выберите коробку" description="Выбранная коробка плавно перейдёт с вами к наполнению." />
+    <ChoiceTransitionStage native={transition.native}>
+      <Suspense fallback={<ConstructorSceneFallback {...scene} />}>
+        <ConstructorBoxScene {...scene} />
+      </Suspense>
+    </ChoiceTransitionStage>
   </section>;
 }
-import { lazy, Suspense } from "react";
