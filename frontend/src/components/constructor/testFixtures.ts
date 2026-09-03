@@ -8,7 +8,8 @@ export const testBox: GiftSizeProfile = {
 
 export function testSize(id: number, role: "tea" | "sweet" = "tea", width = 1, height = 1): ConstructorProductSize {
   return { id, label: "50 г", constructor_role: role, product_quantity: 50,
-    product: { id: id + 100, name: role === "tea" ? "Ассам" : "Пастила", price: 200, stock_unit: "gram", price_unit_quantity: 100, image: null },
+    packaging_template: null,
+    product: { id: id + 100, name: role === "tea" ? "Ассам" : "Пастила", price: 200, stock_unit: "gram", price_unit_quantity: 100, image: null, total_quantity: 1000 },
     size: { ...testBox, id: 100 + id, kind: "item", width_cells: width, height_cells: height, can_rotate: true, simple_requirements: null },
   };
 }

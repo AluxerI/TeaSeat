@@ -11,18 +11,23 @@ use Illuminate\Pagination\LengthAwarePaginator;
 
 class LocationService
 {
+    public function __construct(
+        private ProductRatingService $productRatingService
+    ) {
+    }
+
     /**
      * Получить товары доступные в конкретном городе
      */
     public function getProductsAvailableInCity(string $city, array $filters = [])
     {         
-        $query = Product::with([
+        $query = $this->productRatingService->withPublicAggregates(Product::with([
             'brand', 
             'sub_subcategories.subcategory.category',
             'promotions', 
             'inventories.warehouse',
             'suppliers'
-        ])->individualSale();
+        ]))->individualSale();
 
         // 🎯 ФИЛЬТРАЦИЯ ПО ТИПУ ДОСТУПНОСТИ
         if (!empty($filters['availability'])) {

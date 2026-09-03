@@ -55,6 +55,7 @@ function productSize(id: number, name: string, role: "tea" | "sweet"): Construct
       stock_unit: "gram",
       price_unit_quantity: 100,
       image: null,
+      total_quantity: 1000,
     },
     size: box,
   };

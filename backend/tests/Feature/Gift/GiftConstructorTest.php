@@ -4,6 +4,7 @@ namespace Tests\Feature\Gift;
 
 use App\Models\Brand;
 use App\Models\AddressClient;
+use App\Models\ConstructorPackagingTemplate;
 use App\Models\GiftSizeProfile;
 use App\Models\Inventory;
 use App\Models\InventoryMovement;
@@ -154,10 +155,18 @@ class GiftConstructorTest extends TestCase
 
     public function test_box_catalog_returns_only_product_sizes_that_fit(): void
     {
-        [, $regularSize] = $this->constructorProduct(
+        [$regularProduct, $regularSize] = $this->constructorProduct(
             'Подходящий чай',
             ProductSize::ROLE_TEA
         );
+        $regularInventory = Inventory::query()
+            ->where('product_id', $regularProduct->id)
+            ->where('warehouse_id', $this->warehouse->id)
+            ->firstOrFail();
+        $regularInventory->update([
+            'reserved_online_quantity' => 2,
+            'reserved_seller_quantity' => 1,
+        ]);
 
         $rotatableProfile = GiftSizeProfile::query()->create([
             'code' => 'item-1x2-rotatable',
@@ -222,9 +231,53 @@ class GiftConstructorTest extends TestCase
         $this->assertNotContains($oversizedSize->id, $ids);
         $this->assertNotContains($unavailableSize->id, $ids);
 
+        $regular = collect($response->json('data.product_sizes'))
+            ->firstWhere('id', $regularSize->id);
+        $this->assertSame(7, $regular['product']['total_quantity']);
+
         $this->getJson(
             "/api/gift-constructor/boxes/{$this->itemSize->id}/products"
         )->assertNotFound();
+    }
+
+    public function test_packaging_template_is_returned_only_to_advanced_constructor_for_general_product(): void
+    {
+        $template = ConstructorPackagingTemplate::query()->create([
+            'code' => 'glass-jar',
+            'name' => 'Стеклянная баночка',
+            'kind' => ConstructorPackagingTemplate::KIND_JAR,
+            'image_path' => 'constructor-packaging/glass-jar.webp',
+            'disk' => 'public',
+            'is_active' => true,
+        ]);
+        [, $jarSize] = $this->constructorProduct(
+            'Мёд в баночке',
+            ProductSize::ROLE_GENERAL
+        );
+        $jarSize->update(['packaging_template_id' => $template->id]);
+
+        $advanced = $this->getJson('/api/gift-constructor/advanced/options')
+            ->assertOk();
+        $advancedSize = collect($advanced->json('data.product_sizes'))
+            ->firstWhere('id', $jarSize->id);
+
+        $this->assertNotNull($advancedSize);
+        $this->assertSame('glass-jar', $advancedSize['packaging_template']['code']);
+        $this->assertSame('jar', $advancedSize['packaging_template']['kind']);
+        $this->assertStringEndsWith(
+            '/storage/constructor-packaging/glass-jar.webp',
+            $advancedSize['packaging_template']['image_url']
+        );
+
+        $simple = $this->getJson('/api/gift-constructor/simple/options')
+            ->assertOk();
+        $simpleIds = collect($simple->json('data.tea_product_sizes'))
+            ->merge($simple->json('data.sweet_product_sizes'))
+            ->pluck('id')
+            ->map(fn ($id): int => (int) $id)
+            ->all();
+
+        $this->assertNotContains($jarSize->id, $simpleIds);
     }
 
     public function test_advanced_layout_rejects_overlapping_items(): void

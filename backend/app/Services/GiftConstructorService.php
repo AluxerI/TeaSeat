@@ -268,6 +268,7 @@ class GiftConstructorService
             ->whereIn('id', $uniqueIds)
             ->with([
                 'sizeProfile',
+                'packagingTemplate',
                 'product.sub_subcategories.subcategory.category',
                 'product.images',
             ])
@@ -287,7 +288,7 @@ class GiftConstructorService
                 ->where('kind', GiftSizeProfile::KIND_ITEM)
                 ->where('is_active', true))
             ->whereHas('product', fn ($query) => $query->where('is_available', true))
-            ->with(['sizeProfile', 'product.images', 'product.brand'])
+            ->with(['sizeProfile', 'packagingTemplate', 'product.images', 'product.brand'])
             ->orderBy('product_id')
             ->orderBy('product_quantity')
             ->get();
@@ -338,6 +339,7 @@ class GiftConstructorService
         return [
             'sizeProfile',
             'items.productSize.sizeProfile',
+            'items.productSize.packagingTemplate',
             'items.productSize.product.images',
         ];
     }

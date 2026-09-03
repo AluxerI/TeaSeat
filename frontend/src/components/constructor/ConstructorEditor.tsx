@@ -16,6 +16,12 @@ import ConstructorSteps from "./ConstructorSteps";
 import { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import ProductTexture from "./ProductTexture";
 import { useSimpleGiftQuote } from "../../hooks/useSimpleGiftQuote";
+import {
+  constructorHasStock,
+  constructorItemQuantity,
+  constructorRemainingStock,
+  constructorStockLabel,
+} from "../../utils/giftConstructor";
 
 // Каждый режим загружает свою сцену по требованию.
 const BoxFloorScene = lazy(() => import("./BoxFloorScene"));
@@ -64,6 +70,9 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
     : items.length > 0 && !layoutError(box, sizes, items);
   const drag = useConstructorDrag({ box, sizes, items, onSelect: setSelectedId, onError: setError,
     onCommit: (placement, existing) => {
+      const size = sizes.find((candidate) => candidate.id === placement.product_size_id);
+      const stockProblem = !existing && size ? stockError(size) : null;
+      if (stockProblem) { setError(stockProblem); return; }
       const next = existing ? items.map((item) => item.client_item_id === placement.client_item_id ? placement : item) : [...items, placement];
       const problem = layoutError(box, sizes, next);
       if (problem) { setError(problem); return; }
@@ -87,6 +96,8 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
   }
 
   function addAdvanced(size: ConstructorProductSize) {
+    const stockProblem = stockError(size);
+    if (stockProblem) { setError(stockProblem); return; }
     const placement = firstFreePlacement(box, sizes, items, size, createGiftInstanceId());
     if (!placement) { setError("Нет места для этого формата. Переместите или удалите позиции."); return; }
     setItems([...items, placement]); setSelectedId(placement.client_item_id); setError("");
@@ -114,6 +125,21 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
     const index = list.lastIndexOf(id);
     return list.filter((_, current) => current !== index);
   };
+  const addSimple = (size: ConstructorProductSize, role: "tea" | "sweet") => {
+    const stockProblem = stockError(size);
+    if (stockProblem) { setError(stockProblem); return; }
+    if (role === "tea") {
+      setTeas((current) => current.length < (requirements?.tea_count ?? 0) ? [...current, size.id] : current);
+    } else {
+      setSweets((current) => current.length < (requirements?.sweet_count ?? 0) ? [...current, size.id] : current);
+    }
+    setError("");
+  };
+  function stockError(size: ConstructorProductSize): string | null {
+    if (constructorHasStock(size, selectedIds, sizes)) return null;
+    const remaining = constructorRemainingStock(size, selectedIds, sizes);
+    return `Недостаточно товара «${size.product.name}»: для позиции нужно ${constructorItemQuantity(size)}, доступно ${constructorStockLabel(size, remaining)}.`;
+  }
   const floorProps = {
     box, sizes, items, selectedId, drag, cellSizeMm,
     onSelect: (id: string | null) => { setPendingSizeId(null); setSelectedId(id); },
@@ -126,6 +152,8 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
     onCell: (x: number, y: number) => {
       const pendingSize = sizes.find((size) => size.id === pendingSizeId);
       if (pendingSize) {
+        const stockProblem = stockError(pendingSize);
+        if (stockProblem) { setError(stockProblem); setPendingSizeId(null); return; }
         const placement: LayoutPlacement = {
           client_item_id: createGiftInstanceId(), product_size_id: pendingSize.id,
           position_x: x, position_y: y, is_rotated: false,
@@ -158,11 +186,11 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
         </Suspense>
       </section>}
       <div className={styles.simpleColumns}>
-        <ConstructorCatalog title="Чай" box={box} options={teaSizes} selected={teas} limit={requirements?.tea_count ?? 0} cellSizeMm={cellSizeMm}
-          onAdd={(size) => setTeas((prev) => prev.length < (requirements?.tea_count ?? 0) ? [...prev, size.id] : prev)}
+        <ConstructorCatalog title="Чай" box={box} options={teaSizes} selected={teas} stockSelected={selectedIds} stockOptions={sizes} limit={requirements?.tea_count ?? 0} cellSizeMm={cellSizeMm}
+          onAdd={(size) => addSimple(size, "tea")}
           onRemove={(size) => setTeas((prev) => removeOne(prev, size.id))} />
-        <ConstructorCatalog title="Сладости" box={box} options={sweetSizes} selected={sweets} limit={requirements?.sweet_count ?? 0} cellSizeMm={cellSizeMm}
-          onAdd={(size) => setSweets((prev) => prev.length < (requirements?.sweet_count ?? 0) ? [...prev, size.id] : prev)}
+        <ConstructorCatalog title="Сладости" box={box} options={sweetSizes} selected={sweets} stockSelected={selectedIds} stockOptions={sizes} limit={requirements?.sweet_count ?? 0} cellSizeMm={cellSizeMm}
+          onAdd={(size) => addSimple(size, "sweet")}
           onRemove={(size) => setSweets((prev) => removeOne(prev, size.id))} />
       </div>
       </div>
@@ -190,6 +218,8 @@ export default function ConstructorEditor({ mode, box, sizes, onBusy, cellSizeMm
         if (!label) return;
         const size = sizes.find((candidate) => `${candidate.product.name}, ${candidate.label}` === label);
         if (!size) return;
+        const stockProblem = stockError(size);
+        if (stockProblem) { setError(stockProblem); return; }
         setPendingSizeId(size.id);
         setSelectedId(null);
         setError("");

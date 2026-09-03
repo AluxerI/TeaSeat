@@ -15,7 +15,7 @@ class ProductSize extends Model
     public const ROLE_GENERAL = 'general';
 
     protected $fillable = [
-        'product_id', 'gift_size_profile_id', 'label', 'product_quantity',
+        'product_id', 'gift_size_profile_id', 'packaging_template_id', 'label', 'product_quantity',
         'constructor_role', 'is_active',
     ];
 
@@ -32,6 +32,14 @@ class ProductSize extends Model
     public function sizeProfile()
     {
         return $this->belongsTo(GiftSizeProfile::class, 'gift_size_profile_id');
+    }
+
+    public function packagingTemplate()
+    {
+        return $this->belongsTo(
+            ConstructorPackagingTemplate::class,
+            'packaging_template_id'
+        );
     }
 
     public function assertConstructorReady(): void

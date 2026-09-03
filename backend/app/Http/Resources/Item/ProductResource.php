@@ -57,6 +57,10 @@ class ProductResource extends JsonResource
             'total_quantity' => $data['total_quantity'],
             'is_available' => $data['is_available'],
             'sold_count' => $data['sold_count'],
+            'rating_average' => $this->rating_average !== null
+                ? round((float) $this->rating_average, 2)
+                : null,
+            'reviews_count' => (int) ($this->reviews_count ?? 0),
             
             'created_at' => $data['created_at'],
             'updated_at' => $this->updated_at?->format('d.m.Y H:i'),

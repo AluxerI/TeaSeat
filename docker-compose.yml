@@ -1,15 +1,13 @@
 services:
   backend:
     container_name: backend
+    image: teaseat-backend:dev
     build:
       context: ./backend
       dockerfile: dockerfile
     ports:
       - "8000:8000"
       - "6001:6001" 
-    volumes:
-      - ./backend:/app/backend:cached
-      - /app/backend/vendor  
     environment:
       - OCTANE_SERVER=roadrunner
     depends_on:
@@ -27,18 +25,14 @@ services:
       start_period: 10s
 
   worker:
-    build:
-      context: ./backend
-      dockerfile: dockerfile
     container_name: worker
-    command: php artisan queue:work --sleep=3 --tries=3
+    image: teaseat-backend:dev
+    command: php artisan queue:work --sleep=3 --tries=3 --timeout=120
     depends_on:
       pgsql:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend:/app/backend:cached
     networks:
       - app
     environment:
@@ -47,16 +41,12 @@ services:
 
   frontend:
     container_name: frontend
+    image: teaseat-frontend:dev
     build:
       context: ./frontend
       dockerfile: dockerfile
     ports:
       - "3000:3000"
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - WATCHPACK_POLLING=true
-    volumes:
-      - ./frontend:/app/frontend
     depends_on:
       - backend
     networks:
@@ -87,7 +77,7 @@ services:
   # Отдельная одноразовая PostgreSQL для PHPUnit.
   # Запуск: docker compose --profile test up -d pgsql_test
   pgsql_test:
-    image: postgres:13
+    image: postgres:15
     profiles: ["test"]
     environment:
       - POSTGRES_USER=my_user
@@ -125,6 +115,6 @@ networks:
     driver: bridge
 
 volumes:
-  postgres_data:
-    driver: local
+  backend_vendor:
+  frontend_node_modules:
     

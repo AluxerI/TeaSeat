@@ -232,12 +232,23 @@ class ProductResource extends Resource
                                                     ->required()
                                                     ->searchable()
                                                     ->preload(),
+                                                Forms\Components\Select::make('packaging_template_id')
+                                                    ->label('Шаблон упаковки')
+                                                    ->relationship(
+                                                        'packagingTemplate',
+                                                        'name',
+                                                        fn ($query) => $query->where('is_active', true)
+                                                    )
+                                                    ->searchable()
+                                                    ->preload()
+                                                    ->nullable()
+                                                    ->helperText('В сложном конструкторе товар будет показан в этой упаковке.'),
                                                 Forms\Components\Select::make('constructor_role')
-                                                    ->label('Роль в простом конструкторе')
+                                                    ->label('Роль товара в конструкторе')
                                                     ->options([
                                                         'tea' => 'Чай',
                                                         'sweet' => 'Сладость',
-                                                        'general' => 'Обычный компонент',
+                                                        'general' => 'Обычный компонент (только сложный)',
                                                     ])
                                                     ->default('general')
                                                     ->required(),
