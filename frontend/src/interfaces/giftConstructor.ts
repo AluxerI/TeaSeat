@@ -34,7 +34,15 @@ export interface ConstructorProduct {
   sold_count?: number;
   sku?: string | null;
   brand?: string | null;
-  total_quantity?: number;
+  total_quantity: number;
+}
+
+export interface ConstructorPackagingTemplate {
+  id: number;
+  code: string;
+  name: string;
+  kind: "pouch" | "wrapper" | "jar" | "other" | string;
+  image_url: string;
 }
 
 export interface ConstructorProductSize {
@@ -42,6 +50,7 @@ export interface ConstructorProductSize {
   label: string;
   constructor_role: "tea" | "sweet" | "general";
   product_quantity: number;
+  packaging_template?: ConstructorPackagingTemplate | null;
   product: ConstructorProduct;
   size: GiftSizeProfile;
 }

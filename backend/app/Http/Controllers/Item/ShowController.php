@@ -5,18 +5,24 @@ namespace App\Http\Controllers\Item;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Http\Resources\Item\ItemResource;
+use App\Services\ProductRatingService;
 
 class ShowController extends Controller
 {
+    public function __construct(
+        private ProductRatingService $productRatingService
+    ) {
+    }
+
     public function __invoke($productId)
     {
         // Загружаем необходимые связи для кеша
-        $product = Product::with([
+        $product = $this->productRatingService->withPublicAggregates(Product::with([
             'sub_subcategories.subcategory.category',
             'brand',
             'inventories.warehouse',
             'discounts'
-        ])->individualSale()->find($productId);
+        ]))->individualSale()->find($productId);
 
         if (!$product) {
             return response()->json(['error' => 'Товар не найден'], 404);

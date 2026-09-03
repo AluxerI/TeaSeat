@@ -6,11 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Item\CatalogResource;
 use App\Models\Product;
 use App\Models\Category;
+use App\Services\ProductRatingService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 
 class IndexController extends Controller
 {
+    public function __construct(
+        private ProductRatingService $productRatingService
+    ) {
+    }
+
     public function __invoke(Request $request)
     {
         $cacheKey = $this->generateCacheKey($request);
@@ -22,10 +28,10 @@ class IndexController extends Controller
                 ->get();
 
             // Получаем товары
-            $productsQuery = Product::with([
+            $productsQuery = $this->productRatingService->withPublicAggregates(Product::with([
                 'brand',
                 'inventories.warehouse',
-            ])->individualSale()->whereHas('inventories', function($query) {
+            ]))->individualSale()->whereHas('inventories', function($query) {
                 $query->availableForOnline();
             });
             

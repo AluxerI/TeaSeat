@@ -24,11 +24,19 @@ function validProfile(box: GiftSizeProfile): boolean {
 }
 
 function validSize(size: ConstructorProductSize): boolean {
-  return Boolean(size && Number.isInteger(size.id) && validProfile(size.size)
+  const packaging = size?.packaging_template;
+  const validPackaging = packaging === null || packaging === undefined || Boolean(
+    Number.isInteger(packaging.id) && packaging.id > 0
+    && typeof packaging.code === "string" && typeof packaging.name === "string"
+    && typeof packaging.kind === "string" && typeof packaging.image_url === "string",
+  );
+  return Boolean(size && Number.isInteger(size.id) && validProfile(size.size) && validPackaging
     && ["tea", "sweet", "general"].includes(size.constructor_role) && typeof size.label === "string"
     && size.product && typeof size.product.name === "string"
     && ["gram", "piece"].includes(size.product.stock_unit)
     && Number.isFinite(size.product.price) && size.product.price_unit_quantity > 0
+    && Number.isSafeInteger(size.product.total_quantity)
+    && size.product.total_quantity >= 0
     && Number.isInteger(size.product_quantity) && size.product_quantity > 0);
 }
 

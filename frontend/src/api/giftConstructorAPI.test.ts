@@ -80,6 +80,14 @@ describe("gift constructor api", () => {
     await expect(giftConstructorApi.getBoxProducts(4, new AbortController().signal)).rejects.toThrow(/Некорректный ответ/);
   });
 
+  it("отклоняет некорректный онлайн-остаток", async () => {
+    mocks.get.mockResolvedValue({ data: { box: testBox, product_sizes: [{
+      ...testSizes[0],
+      product: { ...testSizes[0].product, total_quantity: -1 },
+    }] } });
+    await expect(giftConstructorApi.getBoxProducts(4, new AbortController().signal)).rejects.toThrow(/Некорректный ответ/);
+  });
+
   it("использует advanced validate, quote и gifts без подмены item ids", async () => {
     const request = { box_profile_id: 4, items: [{ client_item_id: "11111111-1111-4111-8111-111111111111", product_size_id: 11, position_x: 2, position_y: 1, is_rotated: true }] };
     const signal = new AbortController().signal;

@@ -15,6 +15,17 @@ class ProductSizeResource extends JsonResource
             'label' => $this->label,
             'constructor_role' => $this->constructor_role,
             'product_quantity' => (int) $this->product_quantity,
+            'packaging_template' => $this->whenLoaded(
+                'packagingTemplate',
+                fn (): ?array => $this->packagingTemplate?->is_active ? [
+                    'id' => $this->packagingTemplate->id,
+                    'code' => $this->packagingTemplate->code,
+                    'name' => $this->packagingTemplate->name,
+                    'kind' => $this->packagingTemplate->kind,
+                    'image_url' => $this->packagingTemplate->image_url,
+                ] : null,
+                null
+            ),
             'product' => $product ? [
                 'id' => $product->id,
                 'name' => $product->name,

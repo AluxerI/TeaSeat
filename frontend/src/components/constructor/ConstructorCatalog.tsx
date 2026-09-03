@@ -5,7 +5,12 @@ import RemoveRounded from "@mui/icons-material/RemoveRounded";
 import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
-import { constructorItemPrice } from "../../utils/giftConstructor";
+import {
+  constructorHasStock,
+  constructorItemPrice,
+  constructorRemainingStock,
+  constructorStockLabel,
+} from "../../utils/giftConstructor";
 import ProductDetailsModal from "./ProductDetailsModal";
 import FootprintDiagram from "./FootprintDiagram";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
@@ -17,6 +22,8 @@ interface Props {
   box: GiftSizeProfile;
   options: ConstructorProductSize[];
   selected: number[];
+  stockSelected?: number[];
+  stockOptions?: ConstructorProductSize[];
   limit: number;
   onAdd: (size: ConstructorProductSize) => void;
   onRemove?: (size: ConstructorProductSize) => void;
@@ -24,7 +31,7 @@ interface Props {
 }
 
 /** Простой режим остаётся списком с пагинацией по карточкам. */
-export default function ConstructorCatalog({ title, box, options, selected, limit, onAdd, onRemove, cellSizeMm }: Props) {
+export default function ConstructorCatalog({ title, box, options, selected, stockSelected = selected, stockOptions = options, limit, onAdd, onRemove, cellSizeMm }: Props) {
   const [page, setPage] = useState(0);
   const [details, setDetails] = useState<ConstructorProductSize | null>(null);
   const pages = Math.max(1, Math.ceil(options.length / PAGE_SIZE));
@@ -39,18 +46,21 @@ export default function ConstructorCatalog({ title, box, options, selected, limi
     <ul className={styles.productList}>
       {pageItems.map((size) => {
         const count = selected.filter((id) => id === size.id).length;
-        return <li key={size.id}>
+        const remainingStock = constructorRemainingStock(size, stockSelected, stockOptions);
+        const hasStock = constructorHasStock(size, stockSelected, stockOptions);
+        return <li key={size.id} data-unavailable={!hasStock}>
           <img src={normalizeAssetUrl(size.product.image) || "/pages/catalog/details/tea.svg"} alt="" loading="lazy" draggable={false} />
           <div className={styles.productDescription}>
             <strong>{size.product.name}</strong>
             <span>{size.label}</span>
             <span>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽</span>
+            <span className={styles.stock} data-stock-empty={!hasStock}>Доступно: {constructorStockLabel(size, remainingStock)}</span>
           </div>
           <FootprintDiagram compact box={box} width={size.size.width_cells} height={size.size.height_cells} cellSizeMm={cellSizeMm} className={styles.listFootprint} />
           <div className={styles.counter}>
             {onRemove && <IconButton disabled={!count} title="Убрать" aria-label={`Убрать ${size.product.name}, ${size.label}`} onClick={() => onRemove(size)}><RemoveRounded fontSize="small" /></IconButton>}
             <output aria-label={`Количество ${size.product.name}, ${size.label}`}>{count}</output>
-            <IconButton className={styles.addButton} disabled={selected.length >= limit} title="Добавить в коробку" aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}><AddShoppingCartRounded fontSize="small" /></IconButton>
+            <IconButton className={styles.addButton} disabled={selected.length >= limit || !hasStock} title={hasStock ? "Добавить в коробку" : "Недостаточно товара"} aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}><AddShoppingCartRounded fontSize="small" /></IconButton>
             <IconButton className={styles.detailsButton} title="Подробнее" aria-label={`Подробнее о ${size.product.name}`} onClick={() => setDetails(size)}><VisibilityOutlined fontSize="small" /></IconButton>
           </div>
         </li>;
@@ -63,6 +73,7 @@ export default function ConstructorCatalog({ title, box, options, selected, limi
       </Fragment>)}
       <span className={styles.pageTotal} role="status">из {pages}</span>
     </nav>}
-    {details && <ProductDetailsModal box={box} size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={selected.length >= limit} />}
+    {details && <ProductDetailsModal box={box} size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={selected.length >= limit}
+      remainingStock={constructorRemainingStock(details, stockSelected, stockOptions)} />}
   </section>;
 }

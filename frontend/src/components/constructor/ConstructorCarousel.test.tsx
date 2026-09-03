@@ -98,6 +98,19 @@ describe("сеточная карусель конструктора", () => {
     expect(screen.getByText(/Достигнут лимит 40 позиций/)).toBeInTheDocument();
   });
 
+  it("показывает оставшийся онлайн-остаток и запрещает лишний повтор", () => {
+    const limited = {
+      ...sizes[0],
+      product: { ...sizes[0].product, total_quantity: 100 },
+    };
+    render(<Harness options={[limited]} selected={[limited.id, limited.id]} />);
+
+    const card = screen.getByRole("article", { name: "Ассам, 50 г" });
+    expect(within(card).getByText("Доступно: 0 г")).toHaveAttribute("data-stock-empty", "true");
+    expect(card).toHaveAttribute("data-unavailable", "true");
+    expect(within(card).getByRole("button", { name: "Добавить Ассам, 50 г" })).toBeDisabled();
+  });
+
   it("не интерпретирует названия и поиск как HTML или SVG", () => {
     const unsafe = '<svg onload="alert(1)">';
     const { container } = render(<Harness options={[{ ...sizes[0], product: { ...sizes[0].product, name: unsafe } }]} />);

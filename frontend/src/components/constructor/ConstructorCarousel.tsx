@@ -5,7 +5,12 @@ import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
 import type { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
-import { constructorItemPrice } from "../../utils/giftConstructor";
+import {
+  constructorHasStock,
+  constructorItemPrice,
+  constructorRemainingStock,
+  constructorStockLabel,
+} from "../../utils/giftConstructor";
 import ProductDetailsModal from "./ProductDetailsModal";
 import FootprintDiagram from "./FootprintDiagram";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
@@ -113,24 +118,28 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
                   {groupItems.map((size) => {
                     const fp = footprint(size);
                     const active = size.id === filtered[index]?.id;
+                    const remainingStock = constructorRemainingStock(size, selected, options);
+                    const hasStock = constructorHasStock(size, selected, options);
                     return <article key={size.id} className={`${styles.carouselCard}${active ? ` ${styles.carouselActive}` : ""}`}
                       aria-roledescription="слайд" aria-label={`${size.product.name}, ${size.label}`} tabIndex={active ? 0 : -1} data-active={active}
+                      data-unavailable={!hasStock}
                       data-dragging={drag.dragging && drag.cursor?.placement.product_size_id === size.id}
-                      onFocus={() => selectIndex(filtered.findIndex((candidate) => candidate.id === size.id))} onPointerDown={(event) => { if (!atLimit && !interactive(event.target)) drag.startCatalog(size, event); }}
-                      onTouchStart={(event) => { if (!interactive(event.target)) drag.startCatalogTouch(size, event, shiftPage, !atLimit); }}
+                      onFocus={() => selectIndex(filtered.findIndex((candidate) => candidate.id === size.id))} onPointerDown={(event) => { if (!atLimit && hasStock && !interactive(event.target)) drag.startCatalog(size, event); }}
+                      onTouchStart={(event) => { if (!interactive(event.target)) drag.startCatalogTouch(size, event, shiftPage, !atLimit && hasStock); }}
                       onContextMenu={drag.preventTouchMenu} onClickCapture={drag.allowCatalogClick}>
                       <img className={styles.carouselImage} src={normalizeAssetUrl(size.product.image) || "/pages/catalog/details/tea.svg"} alt="" loading="lazy" draggable={false} />
                       <div className={styles.productDescription}>
                         <strong>{size.product.name}</strong>
                         <span>{size.label}</span>
                         <span>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽</span>
+                        <span className={styles.stock} data-stock-empty={!hasStock}>Доступно: {constructorStockLabel(size, remainingStock)}</span>
                       </div>
                       <div className={styles.cardActions}>
                         <FootprintDiagram compact box={box} width={fp.width} height={fp.height} cellSizeMm={cellSizeMm} />
                         <output data-empty={!selected.includes(size.id)} aria-label={`Количество ${size.product.name}, ${size.label}`}>{selected.filter((item) => item === size.id).length}</output>
                         <div className={styles.cardButtons}>
                           <IconButton className={styles.detailsButton} disabled={drag.dragging} title="Подробнее" aria-label={`Подробнее о ${size.product.name}`} onClick={() => setDetails(size)}><VisibilityOutlined fontSize="small" /></IconButton>
-                          <IconButton className={styles.addButton} disabled={atLimit || drag.dragging} title="Добавить в коробку" aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}><AddShoppingCartRounded fontSize="small" /></IconButton>
+                          <IconButton className={styles.addButton} disabled={atLimit || drag.dragging || !hasStock} title={hasStock ? "Добавить в коробку" : "Недостаточно товара"} aria-label={`Добавить ${size.product.name}, ${size.label}`} onClick={() => onAdd(size)}><AddShoppingCartRounded fontSize="small" /></IconButton>
                         </div>
                       </div>
                     </article>;
@@ -140,7 +149,8 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
             </div>
           </div>
           {pageCount > 1 && <p className={styles.pageIndicator} role="status">Страница {pageIndex + 1} из {pageCount}</p>}
-          {details && <ProductDetailsModal box={box} size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={atLimit} />}
+          {details && <ProductDetailsModal box={box} size={details} cellSizeMm={cellSizeMm} onClose={() => setDetails(null)} onAdd={onAdd} atLimit={atLimit}
+            remainingStock={constructorRemainingStock(details, selected, options)} />}
         </section>}
       {atLimit && <p role="status">Достигнут лимит {limit} позиций. Удалите позицию, чтобы добавить другую.</p>}
     </>}

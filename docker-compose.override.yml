@@ -1,3 +1,23 @@
 services:
   backend:
     command: php artisan octane:start --server=roadrunner --host=0.0.0.0 --port=8000
+    volumes:
+      - ./backend:/app/backend:cached
+      - backend_vendor:/app/backend/vendor
+
+  worker:
+    volumes:
+      - ./backend:/app/backend:cached
+      - backend_vendor:/app/backend/vendor
+
+  frontend:
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./frontend:/app/frontend:cached
+      - frontend_node_modules:/app/frontend/node_modules
+
+volumes:
+  backend_vendor:
+  frontend_node_modules:

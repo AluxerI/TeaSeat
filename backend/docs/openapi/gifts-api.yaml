@@ -600,7 +600,7 @@ components:
 
     ConstructorProduct:
       type: object
-      required: [id, name, price, stock_unit, price_unit_quantity]
+      required: [id, name, price, stock_unit, price_unit_quantity, total_quantity]
       properties:
         id:
           type: integer
@@ -617,6 +617,10 @@ components:
           minimum: 1
         image:
           type: [string, 'null']
+        total_quantity:
+          type: integer
+          minimum: 0
+          description: Доступный для онлайн-заказов остаток во всех активных точках с учётом резервов
 
     ProductSize:
       type: object
@@ -638,10 +642,30 @@ components:
         product_quantity:
           type: integer
           minimum: 1
+        packaging_template:
+          oneOf:
+            - $ref: '#/components/schemas/ConstructorPackagingTemplate'
+            - type: 'null'
         product:
           $ref: '#/components/schemas/ConstructorProduct'
         size:
           $ref: '#/components/schemas/GiftSizeProfile'
+
+    ConstructorPackagingTemplate:
+      type: object
+      required: [id, code, name, kind, image_url]
+      properties:
+        id:
+          type: integer
+        code:
+          type: string
+        name:
+          type: string
+        kind:
+          type: string
+          enum: [pouch, wrapper, jar, other]
+        image_url:
+          type: string
 
     LayoutItemInput:
       type: object
