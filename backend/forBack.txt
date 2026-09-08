@@ -32,6 +32,11 @@ docker-compose build --no-cache                          === пересобра�
 Если бд делает мозги, удали папку data!!!
 Если бд делает мозги, удали папку data!!!
 Если бд делает мозги, удали папку data!!!
+
+для развёртки
+----
+ssh -p 443 -o ServerAliveInterval=30 -o ServerAliveCountMax=3 -R0:127.0.0.1:8080 -t free.pinggy.io x:https
+---
  
 
 docker compose --profile test up -d pgsql_test

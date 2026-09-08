@@ -121,6 +121,7 @@ class Order extends Model
     const STATUS_READY_FOR_DELIVERY = 'ready_for_delivery';
     const STATUS_SHIPPED = 'shipped';
     const STATUS_AWAITING_RECEIPT = 'awaiting_receipt';
+    const STATUS_PACKED = 'packed';
     const STATUS_DELIVERED = 'delivered';
     const STATUS_CANCELLED = 'cancelled';
     const STATUS_SELLER_REVIEW = 'seller_review';
@@ -344,6 +345,7 @@ class Order extends Model
             self::STATUS_READY_FOR_DELIVERY => 'Готов к передаче',
             self::STATUS_SHIPPED => 'Отправлен',
             self::STATUS_AWAITING_RECEIPT => 'Ожидает приёмки',
+            self::STATUS_PACKED => 'Собран',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
             self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',
@@ -396,6 +398,7 @@ class Order extends Model
                         self::STATUS_READY_FOR_DELIVERY,
                         self::STATUS_SHIPPED,
                         self::STATUS_AWAITING_RECEIPT,
+                        self::STATUS_PACKED,
                         self::STATUS_DELIVERED,
                     ]);
             })
@@ -451,6 +454,7 @@ class Order extends Model
             self::STATUS_READY_FOR_DELIVERY => 'Готов к передаче',
             self::STATUS_SHIPPED => 'Отправлен',
             self::STATUS_AWAITING_RECEIPT => 'Ожидает приёмки',
+            self::STATUS_PACKED => 'Собран',
             self::STATUS_DELIVERED => 'Доставлен',
             self::STATUS_CANCELLED => 'Отменен',
             self::STATUS_SELLER_REVIEW => 'Требует проверки продавца',

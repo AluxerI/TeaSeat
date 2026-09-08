@@ -18,13 +18,15 @@ use App\Models\Subcategory;
 use App\Models\Sub_Subcategory;
 use App\Models\Inventory;
 use App\Models\Warehouse;
+use App\Services\ProductImportStorage;
 use Illuminate\Support\Facades\Cache;
+use Throwable;
 
 class ImportProductsJob implements ShouldQueue
 {
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    protected $filePath;
+    protected string $filePath;
     public $timeout = 600;
     public $failOnTimeout = false;
 
@@ -33,9 +35,10 @@ class ImportProductsJob implements ShouldQueue
         $this->filePath = $filePath;
     }
 
-    public function handle(): void
+    public function handle(ProductImportStorage $importStorage): void
     {
         if ($this->batch() && $this->batch()->cancelled()) {
+            $importStorage->delete($this->filePath);
             return;
         }
 
@@ -46,7 +49,15 @@ class ImportProductsJob implements ShouldQueue
         $duplicates = 0;
 
         try {
-            $spreadsheet = IOFactory::load($this->filePath);
+            if (!$importStorage->exists($this->filePath)) {
+                throw new \RuntimeException(
+                    "Файл импорта '{$this->filePath}' отсутствует в общем хранилище"
+                );
+            }
+
+            $spreadsheet = IOFactory::load(
+                $importStorage->path($this->filePath)
+            );
             $worksheet = $spreadsheet->getActiveSheet();
             $rows = $worksheet->toArray();
 
@@ -285,7 +296,7 @@ class ImportProductsJob implements ShouldQueue
                 }
             }
 
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
             Log::error('Import job failed: ' . $e->getMessage());
             $errors[] = 'Общая ошибка: ' . $e->getMessage();
         }
@@ -301,9 +312,18 @@ class ImportProductsJob implements ShouldQueue
             'errors' => $errors,
         ];
         
-        if ($batchId) {
-            Log::info('Saving import result', ['batch_id' => $batchId, 'result' => $result]);
-            Cache::put('import_result_' . $batchId, $result, now()->addHour());
+        try {
+            if ($batchId) {
+                Log::info('Saving import result', ['batch_id' => $batchId, 'result' => $result]);
+                Cache::put('import_result_' . $batchId, $result, now()->addHour());
+            }
+        } finally {
+            $importStorage->delete($this->filePath);
         }
+    }
+
+    public function failed(Throwable $exception): void
+    {
+        app(ProductImportStorage::class)->delete($this->filePath);
     }
 }

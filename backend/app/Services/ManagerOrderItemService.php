@@ -597,6 +597,7 @@ class ManagerOrderItemService
                 Order::STATUS_READY_FOR_DELIVERY,
                 Order::STATUS_SHIPPED,
                 Order::STATUS_AWAITING_RECEIPT,
+                Order::STATUS_PACKED,
                 Order::STATUS_DELIVERED,
                 Order::STATUS_CANCELLED,
                 Order::STATUS_COMPLETED,

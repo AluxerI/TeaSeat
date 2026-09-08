@@ -2263,7 +2263,7 @@ components:
           enum: [source, consolidation]
         status:
           type: string
-          enum: [confirmed, processing, ready_for_delivery, shipped, awaiting_receipt, delivered, manager_review]
+          enum: [confirmed, processing, ready_for_delivery, shipped, awaiting_receipt, packed, manager_review]
         status_name: {type: string}
         warehouse: {type: [object, 'null'], additionalProperties: true}
         destination_warehouse: {type: [object, 'null'], additionalProperties: true}

@@ -120,7 +120,7 @@ class OrderFulfillmentService
             if (!$order->isWarehouseTransfer()) {
                 throw new DomainException('Заказ не является межскладским перемещением');
             }
-            if ($order->status === Order::STATUS_DELIVERED
+            if ($order->status === Order::STATUS_PACKED
                 && $order->received_at !== null) {
                 return $order;
             }
@@ -129,14 +129,13 @@ class OrderFulfillmentService
             }
 
             $order->update([
-                'status' => Order::STATUS_DELIVERED,
+                'status' => Order::STATUS_PACKED,
                 'received_at' => now(),
-                'delivered_at' => now(),
             ]);
             $this->recordStatus(
                 $order,
                 Order::STATUS_AWAITING_RECEIPT,
-                Order::STATUS_DELIVERED,
+                Order::STATUS_PACKED,
                 $picker->id,
                 'Сборщик подтвердил получение упакованной части заказа'
             );
@@ -209,7 +208,7 @@ class OrderFulfillmentService
         return $this->transition($picker, $orderId, function (Order $order) use ($picker): void {
             if (in_array($order->status, [
                 Order::STATUS_READY_FOR_DELIVERY,
-                Order::STATUS_DELIVERED,
+                Order::STATUS_PACKED,
             ], true) && (int) $order->picker_id === (int) $picker->id) {
                 return;
             }
@@ -225,15 +224,11 @@ class OrderFulfillmentService
 
                 $targetStatus = $order->isWarehouseTransfer()
                     ? Order::STATUS_READY_FOR_DELIVERY
-                    : Order::STATUS_DELIVERED;
-                $updates = [
+                    : Order::STATUS_PACKED;
+                $order->update([
                     'status' => $targetStatus,
                     'ready_for_delivery_at' => now(),
-                ];
-                if ($targetStatus === Order::STATUS_DELIVERED) {
-                    $updates['delivered_at'] = now();
-                }
-                $order->update($updates);
+                ]);
                 $this->recordStatus(
                     $order,
                     Order::STATUS_PROCESSING,
@@ -421,7 +416,7 @@ class OrderFulfillmentService
 
         if ($parts->isEmpty()
             || $parts->contains(fn (Order $part): bool =>
-                $part->status !== Order::STATUS_DELIVERED)) {
+                $part->status !== Order::STATUS_PACKED)) {
             return;
         }
 
@@ -487,7 +482,7 @@ class OrderFulfillmentService
             }
 
             $safeAtSource = (!$part->isWarehouseTransfer()
-                    && $part->status === Order::STATUS_DELIVERED)
+                    && $part->status === Order::STATUS_PACKED)
                 || ($part->isWarehouseTransfer()
                     && $part->status === Order::STATUS_READY_FOR_DELIVERY);
             $mainStillAtWarehouse = in_array($main->status, [
@@ -623,7 +618,7 @@ class OrderFulfillmentService
             ->get(['id', 'status']);
         if ($parts->count() < 2
             || $parts->contains(fn (Order $part): bool =>
-                $part->status !== Order::STATUS_DELIVERED)) {
+                $part->status !== Order::STATUS_PACKED)) {
             throw new DomainException(
                 'Части заказа ещё не готовы к итоговой консолидации'
             );
@@ -686,7 +681,7 @@ class OrderFulfillmentService
                                 $parts->where('status', '!=', Order::STATUS_CANCELLED))
                             ->whereDoesntHave('partialOrders', fn (Builder $parts) =>
                                 $parts->whereNotIn('status', [
-                                    Order::STATUS_DELIVERED,
+                                    Order::STATUS_PACKED,
                                     Order::STATUS_CANCELLED,
                                 ]));
                     });

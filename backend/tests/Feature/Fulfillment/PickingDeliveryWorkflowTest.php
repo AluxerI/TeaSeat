@@ -66,7 +66,7 @@ class PickingDeliveryWorkflowTest extends TestCase
 
         $this->postJson("/api/picker/orders/{$part->id}/complete")
             ->assertOk()
-            ->assertJsonPath('data.status', Order::STATUS_DELIVERED);
+            ->assertJsonPath('data.status', Order::STATUS_PACKED);
 
         $inventory = $graph['inventories'][$hub->id]->fresh();
         $this->assertSame(8, (int) $inventory->quantity);
@@ -153,7 +153,7 @@ class PickingDeliveryWorkflowTest extends TestCase
             $this->postJson("/api/picker/orders/{$part->id}/complete")->assertOk();
         }
 
-        $this->assertSame(Order::STATUS_DELIVERED, $localPart->fresh()->status);
+        $this->assertSame(Order::STATUS_PACKED, $localPart->fresh()->status);
         $this->assertSame(
             Order::STATUS_READY_FOR_DELIVERY,
             $remotePart->fresh()->status
@@ -190,7 +190,7 @@ class PickingDeliveryWorkflowTest extends TestCase
             ->assertJsonPath('data.0.id', $remotePart->id);
         $this->postJson("/api/picker/incoming-transfers/{$remotePart->id}/receive")
             ->assertOk()
-            ->assertJsonPath('data.status', Order::STATUS_DELIVERED);
+            ->assertJsonPath('data.status', Order::STATUS_PACKED);
 
         $this->getJson('/api/picker/orders?job_type=consolidation')
             ->assertOk()

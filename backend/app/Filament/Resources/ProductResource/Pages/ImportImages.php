@@ -5,13 +5,16 @@ namespace App\Filament\Resources\ProductResource\Pages;
 
 use App\Filament\Resources\ProductResource;
 use App\Jobs\ImportImagesJob;
+use App\Services\ProductImageImportStorage;
+use DomainException;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Log;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
-use ZipArchive;
+use Throwable;
 
 class ImportImages extends Page
 {
@@ -80,28 +83,29 @@ class ImportImages extends Page
             return;
         }
 
-        // Создаём временную папку для распаковки
-        $extractPath = storage_path('app/public/imports/images/temp/' . uniqid());
-        if (!is_dir($extractPath)) {
-            mkdir($extractPath, 0777, true);
-        }
-        
-        // Распаковываем архив
-        $zip = new ZipArchive();
-        if ($zip->open($tempPath) === true) {
-            $zip->extractTo($extractPath);
-            $zip->close();
-        } else {
+        $importStorage = app(ProductImageImportStorage::class);
+        $this->deletePreviousImport($importStorage);
+        $extractPath = $importStorage->newDirectory();
+
+        try {
+            $importStorage->extractImages($tempPath, $extractPath);
+            $previewData = $this->analyzeImages($extractPath, $importStorage);
+        } catch (Throwable $exception) {
+            $this->deleteImportDirectory($importStorage, $extractPath);
+            Log::error('Product image archive parsing failed', [
+                'exception' => $exception,
+            ]);
             Notification::make()
                 ->title('Ошибка')
-                ->body('Не удалось распаковать архив')
+                ->body($exception instanceof DomainException
+                    ? $exception->getMessage()
+                    : 'Не удалось обработать ZIP-архив')
                 ->danger()
                 ->send();
             return;
         }
         
-        // Анализируем файлы
-        $this->previewData = $this->analyzeImages($extractPath);
+        $this->previewData = $previewData;
         $this->selectedFiles = array_keys($this->previewData);
         $this->importPath = $extractPath;
         
@@ -136,12 +140,14 @@ class ImportImages extends Page
         return null;
     }
 
-    protected function analyzeImages(string $path): array
+    protected function analyzeImages(
+        string $path,
+        ProductImageImportStorage $importStorage
+    ): array
     {
-        $files = glob($path . '/*.{jpg,jpeg,png,gif,svg,webp}', GLOB_BRACE);
         $result = [];
         
-        foreach ($files as $file) {
+        foreach ($importStorage->imageFiles($path) as $file) {
             $filename = basename($file);
             
             // Парсим имя файла
@@ -166,6 +172,7 @@ class ImportImages extends Page
             
             $result[] = [
                 'file' => $file,
+                'preview_url' => $importStorage->previewUrl($path, $file),
                 'filename' => $filename,
                 'product_name' => $productName,
                 'type' => $type,
@@ -220,8 +227,17 @@ class ImportImages extends Page
     public function confirmImport(): void
     {
         $importPath = session()->get('import_images_path');
-        
-        if (!$importPath || !is_dir($importPath)) {
+        $importStorage = app(ProductImageImportStorage::class);
+
+        try {
+            $directoryExists = is_string($importPath)
+                && $importStorage->directoryExists($importPath);
+        } catch (DomainException) {
+            $directoryExists = false;
+            session()->forget('import_images_path');
+        }
+
+        if (!$directoryExists || !is_string($importPath)) {
             Notification::make()
                 ->title('Ошибка')
                 ->body('Папка с изображениями не найдена')
@@ -230,10 +246,27 @@ class ImportImages extends Page
             return;
         }
         
+        try {
+            $currentPreviewData = $this->analyzeImages(
+                $importPath,
+                $importStorage
+            );
+        } catch (Throwable $exception) {
+            Log::error('Product image import preview refresh failed', [
+                'exception' => $exception,
+            ]);
+            Notification::make()
+                ->title('Ошибка')
+                ->body('Не удалось повторно проверить изображения')
+                ->danger()
+                ->send();
+            return;
+        }
+
         $selectedData = [];
         foreach ($this->selectedFiles as $index) {
-            if (isset($this->previewData[$index])) {
-                $selectedData[] = $this->previewData[$index];
+            if (isset($currentPreviewData[$index])) {
+                $selectedData[] = $currentPreviewData[$index];
             }
         }
         
@@ -247,8 +280,10 @@ class ImportImages extends Page
         }
         
         $batch = Bus::batch([
-            new ImportImagesJob($selectedData),
+            new ImportImagesJob($selectedData, $importPath),
         ])->dispatch();
+
+        session()->forget('import_images_path');
         
         Notification::make()
             ->title('Импорт запущен')
@@ -257,6 +292,31 @@ class ImportImages extends Page
             ->send();
         
         $this->redirect(route('filament.admin.resources.products.import-images-progress', ['batchId' => $batch->id]));
+    }
+
+    private function deletePreviousImport(
+        ProductImageImportStorage $importStorage
+    ): void {
+        $previousPath = session()->pull('import_images_path');
+        if (!is_string($previousPath)) {
+            return;
+        }
+
+        $this->deleteImportDirectory($importStorage, $previousPath);
+    }
+
+    private function deleteImportDirectory(
+        ProductImageImportStorage $importStorage,
+        string $directory
+    ): void {
+        try {
+            $importStorage->deleteDirectory($directory);
+        } catch (Throwable $exception) {
+            Log::warning('Product image import directory cleanup failed', [
+                'directory' => $directory,
+                'exception' => $exception,
+            ]);
+        }
     }
 
     protected function getFormActions(): array
