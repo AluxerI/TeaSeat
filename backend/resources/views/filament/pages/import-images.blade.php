@@ -30,6 +30,15 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     @foreach($previewData as $index => $item)
                     <div class="border rounded-lg p-4 {{ in_array($index, $selectedFiles) ? 'border-green-500 bg-green-50 dark:bg-green-900/20' : 'border-gray-200' }}">
+                        <div class="mb-3 overflow-hidden rounded-lg bg-gray-100 dark:bg-gray-800">
+                            <img
+                                src="{{ $item['preview_url'] }}"
+                                alt="Предпросмотр: {{ $item['filename'] }}"
+                                class="h-40 w-full object-contain"
+                                loading="lazy"
+                                decoding="async"
+                            >
+                        </div>
                         <div class="flex items-start gap-3">
                             <input 
                                 type="checkbox" 

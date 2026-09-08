@@ -6,10 +6,13 @@ services:
       context: ./backend
       dockerfile: dockerfile
     ports:
-      - "8000:8000"
-      - "6001:6001" 
+      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:6001:6001"
     environment:
       - OCTANE_SERVER=roadrunner
+    volumes:
+      - backend_imports:/app/backend/storage/app/imports
+      - ./backend/storage/app/public:/app/backend/storage/app/public
     depends_on:
       pgsql:
         condition: service_healthy
@@ -37,6 +40,9 @@ services:
       - app
     environment:
       - QUEUE_CONNECTION=redis
+    volumes:
+      - backend_imports:/app/backend/storage/app/imports
+      - ./backend/storage/app/public:/app/backend/storage/app/public
     restart: unless-stopped
 
   frontend:
@@ -46,7 +52,7 @@ services:
       context: ./frontend
       dockerfile: dockerfile
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     depends_on:
       - backend
     networks:
@@ -61,7 +67,7 @@ services:
       - POSTGRES_PASSWORD=102101
       - POSTGRES_DB=teaseatsql
     ports:
-      - "5436:5432"
+      - "127.0.0.1:5436:5432"
     volumes:
       - ./data/postgres:/var/lib/postgresql/data
       - ./databases-files:/databases-files
@@ -99,7 +105,7 @@ services:
     restart: always
     container_name: redis
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - ./data/redis:/data
     networks:
@@ -116,5 +122,5 @@ networks:
 
 volumes:
   backend_vendor:
+  backend_imports:
   frontend_node_modules:
-    

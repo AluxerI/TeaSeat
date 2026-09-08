@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\JsonResponseMiddleware;
+use Illuminate\Http\Request;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +16,15 @@ return Application::configure(basePath: dirname(__DIR__))
 
     
     ->withMiddleware(function (Middleware $middleware) {
+        // Внешний HTTPS завершается в Cloudflare, затем запрос проходит через
+        // внутренний gateway. Прямой доступ к backend ограничен localhost.
+        $middleware->trustProxies(at: '*', headers:
+            Request::HEADER_X_FORWARDED_FOR |
+            Request::HEADER_X_FORWARDED_HOST |
+            Request::HEADER_X_FORWARDED_PORT |
+            Request::HEADER_X_FORWARDED_PROTO
+        );
+
         $middleware->api(prepend: [
             \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
         ]);

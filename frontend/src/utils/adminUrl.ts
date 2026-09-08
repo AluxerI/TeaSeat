@@ -2,6 +2,10 @@ function withoutTrailingSlash(value: string): string {
   return value.replace(/\/+$/, "");
 }
 
+export function isLocalHostname(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
 export function getAdminPanelUrl(): string {
   const explicit = import.meta.env.VITE_ADMIN_URL?.trim();
   if (explicit) return explicit;
@@ -13,7 +17,7 @@ export function getAdminPanelUrl(): string {
     return `${withoutTrailingSlash(url.toString())}/admin`;
   }
 
-  if (import.meta.env.DEV && window.location.hostname) {
+  if (import.meta.env.DEV && isLocalHostname(window.location.hostname)) {
     return `${window.location.protocol}//${window.location.hostname}:8000/admin`;
   }
 

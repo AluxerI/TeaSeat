@@ -4,11 +4,13 @@ namespace App\Filament\Resources\ProductResource\Pages;
 
 use App\Filament\Resources\ProductResource;
 use App\Jobs\ImportProductsJob;
+use App\Services\ProductImportStorage;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\Page;
 use Illuminate\Support\Facades\Bus;
+use InvalidArgumentException;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
@@ -77,19 +79,12 @@ class ImportPreview extends Page
             return;
         }
     
-        // СОЗДАЕМ ПАПКИ ДЛЯ ОЧИЩЕННЫХ ФАЙЛОВ
-        $importDir = storage_path('app/imports');
-        if (!is_dir($importDir)) {
-            mkdir($importDir, 0755, true);
-        }
-        
-        $cleanDir = storage_path('app/imports/clean');
-        if (!is_dir($cleanDir)) {
-            mkdir($cleanDir, 0755, true);
-        }
-        
-        $fileName = pathinfo($tempFile->getClientOriginalName(), PATHINFO_FILENAME);
-        $cleanFilePath = $cleanDir . '/' . $fileName . '_clean_' . time() . '.xlsx';
+        $importStorage = app(ProductImportStorage::class);
+        $cleanRelativePath = $importStorage->newCleanFile(
+            $tempFile->getClientOriginalName()
+        );
+        $importStorage->ensureParentDirectory($cleanRelativePath);
+        $cleanFilePath = $importStorage->path($cleanRelativePath);
         
         // ОЧИЩАЕМ ФАЙЛ ПЕРЕД ИМПОРТОМ
         $cleaner = new \App\Services\ExcelCleanerService();
@@ -119,8 +114,8 @@ class ImportPreview extends Page
         $this->previewData = $this->parseExcel($cleanFilePath);
         $this->selectedRows = array_keys($this->previewData);
         
-        // Сохраняем путь к очищенному файлу
-        session()->put('import_temp_file', $cleanFilePath);
+        // В сессии и очереди храним только путь внутри общего import-volume.
+        session()->put('import_temp_file', $cleanRelativePath);
         
         Notification::make()
             ->title('Файл загружен и очищен')
@@ -274,9 +269,18 @@ class ImportPreview extends Page
 
     public function confirmImport(): void
     {
-        $tempFile = session()->get('import_temp_file');
+        $relativePath = session()->get('import_temp_file');
+        $importStorage = app(ProductImportStorage::class);
+
+        try {
+            $fileExists = is_string($relativePath)
+                && $importStorage->exists($relativePath);
+        } catch (InvalidArgumentException) {
+            $fileExists = false;
+            session()->forget('import_temp_file');
+        }
         
-        if (!$tempFile || !file_exists($tempFile)) {
+        if (!$fileExists || !is_string($relativePath)) {
             Notification::make()
                 ->title('Ошибка')
                 ->body('Файл для импорта не найден')
@@ -301,11 +305,16 @@ class ImportPreview extends Page
             return;
         }
         
-        $this->createTempExcel($selectedData, $tempFile);
+        $this->createTempExcel(
+            $selectedData,
+            $importStorage->path($relativePath)
+        );
         
         $batch = Bus::batch([
-            new ImportProductsJob($tempFile),
+            new ImportProductsJob($relativePath),
         ])->dispatch();
+
+        session()->forget('import_temp_file');
         
         Notification::make()
             ->title('Импорт запущен')
