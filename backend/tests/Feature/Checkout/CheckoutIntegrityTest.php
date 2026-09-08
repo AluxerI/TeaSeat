@@ -310,7 +310,7 @@ class CheckoutIntegrityTest extends TestCase
         $fulfillment->take($picker, $part->id);
         $packed = $fulfillment->complete($picker, $part->id);
 
-        $this->assertSame(Order::STATUS_DELIVERED, $packed->status);
+        $this->assertSame(Order::STATUS_PACKED, $packed->status);
         $this->assertSame(
             Order::STATUS_READY_FOR_DELIVERY,
             $order->fresh()->status
@@ -324,7 +324,7 @@ class CheckoutIntegrityTest extends TestCase
         );
         $this->assertSame(
             1,
-            $order->partialOrders()->where('status', Order::STATUS_DELIVERED)->count()
+            $order->partialOrders()->where('status', Order::STATUS_PACKED)->count()
         );
 
         $fulfillment->complete($picker, $part->id);

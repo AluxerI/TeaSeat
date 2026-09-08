@@ -114,6 +114,7 @@ class OrderResource extends JsonResource
             'ready_for_delivery' => ['name' => 'Готов к передаче', 'color' => 'cyan'],
             'shipped' => ['name' => 'Отправлен', 'color' => 'purple'],
             'awaiting_receipt' => ['name' => 'Ожидает приёмки', 'color' => 'orange'],
+            'packed' => ['name' => 'Собран', 'color' => 'teal'],
             'delivered' => ['name' => 'Доставлен', 'color' => 'green'],
             'cancelled' => ['name' => 'Отменен', 'color' => 'red'],
             'seller_review' => ['name' => 'Требует проверки продавца', 'color' => 'orange'],

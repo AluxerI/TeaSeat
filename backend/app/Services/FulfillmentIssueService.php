@@ -189,6 +189,7 @@ class FulfillmentIssueService
             ->whereNotIn('orders.status', [
                 Order::STATUS_CART,
                 Order::STATUS_CANCELLED,
+                Order::STATUS_PACKED,
                 Order::STATUS_DELIVERED,
                 Order::STATUS_COMPLETED,
             ])

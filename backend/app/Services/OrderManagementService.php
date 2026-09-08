@@ -105,6 +105,7 @@ class OrderManagementService
             if ($isOnlineFulfillment && in_array($oldStatus, [
                 Order::STATUS_PROCESSING,
                 Order::STATUS_AWAITING_RECEIPT,
+                Order::STATUS_PACKED,
                 Order::STATUS_DELIVERED,
             ], true)) {
                 throw new \DomainException(
@@ -196,6 +197,7 @@ class OrderManagementService
                     }
                     if (in_array($partialOldStatus, [
                         Order::STATUS_CANCELLED,
+                        Order::STATUS_PACKED,
                         Order::STATUS_DELIVERED,
                     ], true)) {
                         continue;
