@@ -295,6 +295,44 @@ class GiftConstructorTest extends TestCase
             ->assertJsonPath('code', 'gift_configuration_invalid');
     }
 
+    public function test_box_can_be_enabled_only_for_the_simple_constructor(): void
+    {
+        $this->box->update(['advanced_constructor_enabled' => false]);
+        [, $teaA] = $this->constructorProduct('Простой чай A', ProductSize::ROLE_TEA);
+        [, $teaB] = $this->constructorProduct('Простой чай B', ProductSize::ROLE_TEA);
+        [, $sweet] = $this->constructorProduct('Простая конфета', ProductSize::ROLE_SWEET);
+
+        $this->getJson('/api/gift-constructor/advanced/options')
+            ->assertOk()
+            ->assertJsonCount(0, 'data.boxes');
+
+        $this->getJson('/api/gift-constructor/simple/options')
+            ->assertOk()
+            ->assertJsonCount(1, 'data.boxes')
+            ->assertJsonPath('data.boxes.0.id', $this->box->id)
+            ->assertJsonPath(
+                'data.boxes.0.advanced_constructor_enabled',
+                false
+            );
+
+        $this->postJson('/api/gift-constructor/simple/gifts', [
+            'box_profile_id' => $this->box->id,
+            'name' => 'Только простой режим',
+            'tea_product_size_ids' => [$teaA->id, $teaB->id],
+            'sweet_product_size_ids' => [$sweet->id],
+        ])->assertCreated();
+
+        $this->postJson('/api/gift-constructor/advanced/validate-layout', [
+            'box_profile_id' => $this->box->id,
+            'items' => [$this->layoutItem($teaA->id, 0)],
+        ])->assertUnprocessable()
+            ->assertJsonPath('code', 'gift_configuration_invalid')
+            ->assertJsonPath(
+                'message',
+                'Выбранная коробка недоступна в сложном конструкторе'
+            );
+    }
+
     public function test_cart_aggregates_standalone_and_gift_component_stock(): void
     {
         [$teaA, $teaASize] = $this->constructorProduct('Редкий чай', ProductSize::ROLE_TEA, stock: 1);

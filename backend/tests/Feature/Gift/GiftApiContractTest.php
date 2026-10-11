@@ -116,6 +116,28 @@ class GiftApiContractTest extends TestCase
             $schemas['SimpleRequirements']['properties']['allow_duplicate_products']['const']
                 ?? false
         );
+        $this->assertContains(
+            'image_url',
+            $schemas['GiftSizeProfile']['required'] ?? []
+        );
+        $this->assertContains(
+            'advanced_constructor_enabled',
+            $schemas['GiftSizeProfile']['required'] ?? []
+        );
+        $this->assertSame(
+            'boolean',
+            $schemas['GiftSizeProfile']['properties']['advanced_constructor_enabled']['type']
+                ?? null
+        );
+        $this->assertSame(
+            [
+                'type' => ['string', 'null'],
+                'format' => 'uri',
+                'description' => 'Публичный URL изображения коробки; '
+                    . 'null для профилей товара и коробок без изображения.',
+            ],
+            $schemas['GiftSizeProfile']['properties']['image_url'] ?? null
+        );
     }
 
     public function test_customer_gift_routes_reject_requests_without_a_token(): void

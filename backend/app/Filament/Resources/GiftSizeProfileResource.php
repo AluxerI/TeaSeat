@@ -39,6 +39,24 @@ class GiftSizeProfileResource extends Resource
                 ])
                 ->required()
                 ->live(),
+            Forms\Components\FileUpload::make('image_path')
+                ->label('Изображение коробки')
+                ->disk('public')
+                ->directory('gift-boxes')
+                ->visibility('public')
+                ->image()
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
+                ->maxSize(5120)
+                ->imagePreviewHeight('220')
+                ->openable()
+                ->downloadable()
+                ->visible(fn ($get): bool =>
+                    $get('kind') === GiftSizeProfile::KIND_BOX
+                )
+                ->dehydrateStateUsing(fn ($state, $get) =>
+                    $get('kind') === GiftSizeProfile::KIND_BOX ? $state : null
+                )
+                ->helperText('Необязательно. JPEG, PNG или WebP до 5 МБ.'),
             Forms\Components\TextInput::make('width_cells')
                 ->label('Ширина в ячейках')
                 ->integer()->minValue(1)->required(),
@@ -56,6 +74,14 @@ class GiftSizeProfileResource extends Resource
                 ->label('Наценка коробки и сборки')
                 ->numeric()->minValue(0)->default(0)->prefix('₽')
                 ->visible(fn ($get) => $get('kind') === GiftSizeProfile::KIND_BOX),
+            Forms\Components\Toggle::make('advanced_constructor_enabled')
+                ->label('Доступна в сложном конструкторе')
+                ->helperText('Позволяет вручную размещать товары в сетке коробки.')
+                ->default(true)
+                ->visible(fn ($get) => $get('kind') === GiftSizeProfile::KIND_BOX)
+                ->dehydrateStateUsing(fn ($state, $get): bool =>
+                    $get('kind') === GiftSizeProfile::KIND_BOX && (bool) $state
+                ),
             Forms\Components\Toggle::make('simple_constructor_enabled')
                 ->label('Доступна в простом конструкторе')
                 ->helperText('Количество чая и сладостей задаётся отдельно для каждой коробки.')
@@ -113,6 +139,9 @@ class GiftSizeProfileResource extends Resource
     {
         return $table
             ->columns([
+                Tables\Columns\ImageColumn::make('image_path')
+                    ->label('Коробка')
+                    ->disk('public'),
                 Tables\Columns\TextColumn::make('code')->label('Код')->searchable(),
                 Tables\Columns\TextColumn::make('name')->label('Название')->searchable(),
                 Tables\Columns\TextColumn::make('kind')->label('Назначение')->badge(),
@@ -122,6 +151,9 @@ class GiftSizeProfileResource extends Resource
                         "{$record->width_cells} × {$record->height_cells}"
                     ),
                 Tables\Columns\TextColumn::make('default_markup_amount')->label('Наценка')->money('RUB'),
+                Tables\Columns\IconColumn::make('advanced_constructor_enabled')
+                    ->label('Сложный')
+                    ->boolean(),
                 Tables\Columns\TextColumn::make('simple_rule')
                     ->label('Простой набор')
                     ->state(fn (GiftSizeProfile $record): string =>

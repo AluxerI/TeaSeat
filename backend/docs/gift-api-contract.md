@@ -34,6 +34,8 @@ Content-Type: application/json
 
 1. Получить `GET /gift-constructor/simple/options`.
 2. Показать только коробки из `data.boxes`.
+   Для изображения использовать `box.image_url`; значение может быть `null`.
+   `advanced_constructor_enabled` не влияет на участие коробки в простом режиме.
 3. После выбора получить
    `GET /gift-constructor/boxes/{box}/products` и показать возвращённый каталог.
 4. Для выбранной коробки прочитать `simple_requirements`.
@@ -73,6 +75,7 @@ Frontend не должен зашивать правила `2 + 1` или `5 + 2
 ## Рекомендуемый поток сложного конструктора
 
 1. Получить `GET /gift-constructor/advanced/options`.
+   Ответ уже отфильтрован по `advanced_constructor_enabled=true`.
 2. Разместить элементы на сетке, используя размеры `product_size.size`.
 3. Проверять черновую раскладку через
    `POST /gift-constructor/advanced/validate-layout`.

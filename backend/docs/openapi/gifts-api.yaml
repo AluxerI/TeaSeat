@@ -561,10 +561,12 @@ components:
         - code
         - name
         - kind
+        - image_url
         - width_cells
         - height_cells
         - can_rotate
         - default_markup_amount
+        - advanced_constructor_enabled
         - simple_constructor_enabled
         - simple_requirements
       properties:
@@ -577,6 +579,10 @@ components:
         kind:
           type: string
           enum: [item, box]
+        image_url:
+          type: [string, 'null']
+          format: uri
+          description: Публичный URL изображения коробки; null для профилей товара и коробок без изображения.
         width_cells:
           type: integer
           minimum: 1
@@ -591,6 +597,9 @@ components:
         default_markup_amount:
           type: number
           minimum: 0
+        advanced_constructor_enabled:
+          type: boolean
+          description: Коробка доступна для ручного размещения в сложном конструкторе.
         simple_constructor_enabled:
           type: boolean
         simple_requirements:
