@@ -15,9 +15,9 @@ class ConstructorPackagingTemplateResource extends Resource
     protected static ?string $model = ConstructorPackagingTemplate::class;
     protected static ?string $navigationIcon = 'heroicon-o-archive-box';
     protected static ?string $navigationGroup = 'Управление товарами';
-    protected static ?string $navigationLabel = 'Упаковка конструктора';
-    protected static ?string $modelLabel = 'шаблон упаковки';
-    protected static ?string $pluralModelLabel = 'шаблоны упаковки';
+    protected static ?string $navigationLabel = 'Визуальные шаблоны упаковки';
+    protected static ?string $modelLabel = 'визуальный шаблон упаковки';
+    protected static ?string $pluralModelLabel = 'визуальные шаблоны упаковки';
 
     public static function form(Form $form): Form
     {
@@ -42,13 +42,16 @@ class ConstructorPackagingTemplateResource extends Resource
                 ->default(ConstructorPackagingTemplate::KIND_OTHER)
                 ->required(),
             Forms\Components\FileUpload::make('image_path')
-                ->label('Изображение упаковки')
+                ->label('Вид товара в конструкторе')
                 ->disk('public')
                 ->directory('constructor-packaging')
                 ->visibility('public')
                 ->image()
                 ->required()
-                ->helperText('Лучше использовать PNG или WebP с прозрачным фоном.'),
+                ->helperText(
+                    'Это не складской товар, а изображение его упаковки в сетке. '
+                    . 'Лучше использовать PNG или WebP с прозрачным фоном.'
+                ),
             Forms\Components\Hidden::make('disk')->default('public'),
             Forms\Components\Toggle::make('is_active')
                 ->label('Активен')

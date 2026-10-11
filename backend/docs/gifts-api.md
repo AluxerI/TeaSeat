@@ -48,7 +48,10 @@ Frontend выбирает `product_size_id`, а не только `product_id`: 
 
 ### `GET /api/gift-constructor/advanced/options`
 
-Возвращает активные коробки и форматы товаров. Товар виден в конструкторе только при наличии активной записи `product_sizes`.
+Возвращает активные коробки с `advanced_constructor_enabled=true` и форматы
+товаров. Товар виден в конструкторе только при наличии активной записи
+`product_sizes`. Переданный вручную профиль с выключенным сложным режимом
+отклоняется маршрутами validate, quote и создания подарка.
 
 ### `POST /api/gift-constructor/advanced/validate-layout`
 
@@ -91,6 +94,8 @@ Frontend выбирает `product_size_id`, а не только `product_id`: 
 {
   "id": 4,
   "name": "Маленький подарочный набор",
+  "image_url": "https://example.test/storage/gift-boxes/small.webp",
+  "advanced_constructor_enabled": false,
   "simple_constructor_enabled": true,
   "simple_requirements": {
     "tea_count": 2,
@@ -100,6 +105,11 @@ Frontend выбирает `product_size_id`, а не только `product_id`: 
   }
 }
 ```
+
+`image_url` содержит необязательное изображение внешнего вида коробки,
+загруженное администратором. Для коробки без изображения значение равно `null`.
+Флаги простого и сложного конструктора независимы: коробку можно включить
+только в одном режиме или сразу в обоих.
 
 В стандартном наполнении маленькая коробка требует два чая и одну сладость,
 большая — пять чаёв и две сладости. Эти числа управляются из Filament и не

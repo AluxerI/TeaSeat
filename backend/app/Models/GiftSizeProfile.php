@@ -2,19 +2,23 @@
 
 namespace App\Models;
 
+use App\Traits\HasImage;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Storage;
 
 class GiftSizeProfile extends Model
 {
-    use HasFactory;
+    use HasFactory, HasImage;
 
     public const KIND_ITEM = 'item';
     public const KIND_BOX = 'box';
 
     protected $fillable = [
-        'code', 'name', 'kind', 'width_cells', 'height_cells', 'can_rotate',
-        'max_weight_grams', 'default_markup_amount', 'simple_constructor_enabled',
+        'code', 'name', 'kind', 'image_path', 'width_cells', 'height_cells',
+        'can_rotate',
+        'max_weight_grams', 'default_markup_amount', 'advanced_constructor_enabled',
+        'simple_constructor_enabled',
         'simple_tea_count', 'simple_sweet_count', 'is_active',
     ];
 
@@ -24,11 +28,41 @@ class GiftSizeProfile extends Model
         'can_rotate' => 'boolean',
         'max_weight_grams' => 'integer',
         'default_markup_amount' => 'decimal:2',
+        'advanced_constructor_enabled' => 'boolean',
         'simple_constructor_enabled' => 'boolean',
         'simple_tea_count' => 'integer',
         'simple_sweet_count' => 'integer',
         'is_active' => 'boolean',
     ];
+
+    public function getPathAttribute(): ?string
+    {
+        return $this->kind === self::KIND_BOX ? $this->image_path : null;
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (GiftSizeProfile $profile): void {
+            if ($profile->kind !== self::KIND_BOX) {
+                $profile->image_path = null;
+                $profile->advanced_constructor_enabled = false;
+            }
+        });
+
+        static::updated(function (GiftSizeProfile $profile): void {
+            $previousPath = $profile->getOriginal('image_path');
+
+            if ($previousPath && $previousPath !== $profile->image_path) {
+                Storage::disk('public')->delete($previousPath);
+            }
+        });
+
+        static::deleted(function (GiftSizeProfile $profile): void {
+            if ($profile->image_path) {
+                Storage::disk('public')->delete($profile->image_path);
+            }
+        });
+    }
 
     public function simpleRequirements(): ?array
     {

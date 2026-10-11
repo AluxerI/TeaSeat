@@ -27,8 +27,12 @@ class GiftConstructorService
         $boxes = GiftSizeProfile::query()
             ->where('kind', GiftSizeProfile::KIND_BOX)
             ->where('is_active', true)
-            ->when($simpleOnly, fn ($query) => $query
-                ->where('simple_constructor_enabled', true))
+            ->where(
+                $simpleOnly
+                    ? 'simple_constructor_enabled'
+                    : 'advanced_constructor_enabled',
+                true
+            )
             ->orderBy('name')
             ->get();
         $sizes = $this->availableProductSizes($role);
@@ -58,6 +62,11 @@ class GiftConstructorService
     public function prepareAdvanced(array $payload): array
     {
         $box = $this->box((int) $payload['box_profile_id']);
+        if (!$box->advanced_constructor_enabled) {
+            throw new DomainException(
+                'Выбранная коробка недоступна в сложном конструкторе'
+            );
+        }
         $sizes = $this->sizesForItems($payload['items']);
         $layout = $this->layoutService->validate($box, $sizes, $payload['items']);
 
@@ -253,6 +262,9 @@ class GiftConstructorService
         return GiftSizeProfile::query()
             ->where('kind', GiftSizeProfile::KIND_BOX)
             ->where('is_active', true)
+            ->where(fn ($query) => $query
+                ->where('advanced_constructor_enabled', true)
+                ->orWhere('simple_constructor_enabled', true))
             ->findOrFail($id);
     }
 
