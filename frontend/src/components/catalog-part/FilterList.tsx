@@ -66,30 +66,9 @@ export const BRANDS: BrandProp[] = [
   { id: "greenfield", label: "Greenfield" },
 ];
 
-// Рейтинги (только 5 и 4 звезды, как самые популярные)
-export const RATINGS = [5, 4] as const;
+
 
 // ---------- Вспомогательные компоненты ----------
-
-function Stars({ value, max = 5 }: { value: number; max?: number }) {
-  // Рисует value закрашенных звёзд (жёлтых) и max-value пустых (серых)
-  return (
-    <span style={{ display: "inline-flex", gap: 2 }}>
-      {Array.from({ length: max }).map((_, i) => (
-        <svg
-          key={i}
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill={i < value ? "#F59E0B" : "#E5E7EB"}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M8 1l1.854 3.756L14 5.528l-3 2.924.708 4.126L8 10.5l-3.708 2.078L5 8.452 2 5.528l4.146-.772L8 1z" />
-        </svg>
-      ))}
-    </span>
-  );
-}
 
 // Кастомный чекбокс (скрываем нативный input, рисуем свой)
 function Checkbox({
@@ -328,32 +307,13 @@ export default function FilterPanel({ filters, onChange, onReset,categories,bran
       <section className="filter-panel__section">
         <h3 className="filter-panel__section-title">Бренд</h3>
         <div className="filter-panel__list">
-          {BRANDS.map((b) => (
+          {brandItems.map((b) => (
             <Checkbox
               key={b.id}
               checked={filters.brands.includes(b.id)}
               onChange={() => toggleArr("brands", b.id)}
             >
               {b.label}
-            </Checkbox>
-          ))}
-        </div>
-      </section>
-
-      {/* -------- Рейтинг (множественный выбор, но выбирается только одно значение) -------- */}
-      <section className="filter-panel__section">
-        <h3 className="filter-panel__section-title">Рейтинг</h3>
-        <div className="filter-panel__list">
-          {RATINGS.map((r) => (
-            <Checkbox
-              key={r}
-              checked={filters.rating === r}
-              onChange={() =>
-                onChange?.({ ...filters, rating: filters.rating === r ? null : r })
-              }
-            >
-              <Stars value={r} />{" "}
-              <span className="filter-panel__rating-label">и выше</span>
             </Checkbox>
           ))}
         </div>

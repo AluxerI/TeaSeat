@@ -2,6 +2,7 @@ import React from 'react';
 import HomePage from './pages/HomePage';
 import AboutPage from './pages/AboutPage';
 import CategoryLandingPage from './pages/CategoryLandingPage';
+import ProductDetailsPage from './pages/ProductDetailsPage';
 
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { PageCatalog } from './pages/Catalog';
@@ -63,6 +64,7 @@ const App: React.FC = () => {
              <Route path='category' Component={CategoryLandingPage}/>
              <Route path='about' Component={AboutPage}/>
              <Route path='catalog' Component={PageCatalog}/>
+             <Route path='product/:id' Component={ProductDetailsPage}/>
              <Route path='register' Component={RegisterPage}/>
              <Route path='login' Component={LoginPage}/>
              <Route path='profile' Component={ProfilePage}/>

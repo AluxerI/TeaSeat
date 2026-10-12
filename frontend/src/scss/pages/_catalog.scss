@@ -15,7 +15,7 @@ $gap-catalog: 5vw;
   gap: 20px;
   flex: 1;
   min-width: 0;
-  padding-bottom: spacing(xl);
+  padding-bottom: 0;
 }
 
 // Сетка карточек занимает всю оставшуюся ширину правой колонки:
@@ -123,9 +123,9 @@ $gap-catalog: 5vw;
   .grid-category .product-card__image { aspect-ratio: 1 / 1; object-fit: contain; }
   .grid-category .product-card__body { padding: 10px !important; }
   .grid-category .product-card__body h2, .grid-category .product-card__body h3,
-  .grid-category .product-card__body .label-product { font-size: 14px !important; line-height: 1.25; }
-  .grid-category .product-card__rating, .grid-category .product-card__stock { font-size: 11px !important; }
-  .grid-category .button-for-buy { min-height: 40px; padding-inline: 8px !important; font-size: 13px !important; }
+  .grid-category .product-card__body .label-product { font-size: 15px !important; line-height: 1.25; }
+  .grid-category .product-card__rating, .grid-category .product-card__stock { font-size: 12px !important; }
+  .grid-category .button-for-buy { min-height: 40px; padding-inline: 8px !important; font-size: 14px !important; }
   .catalog-loading__card { min-height: 300px; }
 }
 

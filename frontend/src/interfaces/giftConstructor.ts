@@ -1,4 +1,5 @@
 import type { StockUnit } from "../types/productMeasurement";
+import type { Warehouse } from "./warehouse";
 
 export interface SimpleRequirements {
   tea_count: number;
@@ -35,6 +36,8 @@ export interface ConstructorProduct {
   sku?: string | null;
   brand?: string | null;
   total_quantity: number;
+  /** Остатки по складам (если бэкенд отдаёт) */
+  inventory?: Warehouse[];
 }
 
 export interface ConstructorPackagingTemplate {

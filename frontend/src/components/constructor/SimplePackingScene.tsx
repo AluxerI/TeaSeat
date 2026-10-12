@@ -47,7 +47,7 @@ export default function SimplePackingScene({ box, teas, sweets, seen, layout }: 
   const slots = teaSlots + (box.simple_requirements?.sweet_count ?? sweets.length);
   const unit = bounds.width / box.width_cells;
   return <div className={styles.packing2d} data-paused={queue.paused} data-layout={layout ? "server" : "illustration"} aria-label="Анимация упаковки подарка">
-    <svg className={styles.packingCanvas} viewBox="0 0 480 410" role="img" aria-label={"2D-упаковка: " + box.name}>
+    <svg className={styles.packingCanvas} viewBox="0 0 480 380" role="img" aria-label={"2D-упаковка: " + box.name}>
       <rect className={styles.packingBoxShadow} x={bounds.x - 14} y={bounds.y - 7} width={bounds.width + 28} height={bounds.height + 28} rx="13" />
       <rect className={styles.packingBoxOuter} x={bounds.x - 14} y={bounds.y - 14} width={bounds.width + 28} height={bounds.height + 28} rx="12" />
       <rect className={styles.packingBoxInner} x={bounds.x - 5} y={bounds.y - 5} width={bounds.width + 10} height={bounds.height + 10} rx="6" />
@@ -61,7 +61,7 @@ export default function SimplePackingScene({ box, teas, sweets, seen, layout }: 
       {entries.map((entry, index) => {
         const slot = packingSlot(entry.role === "tea" ? index : teaSlots + index - teas.length, slots, bounds.width / 100, bounds.height / 100);
         const placement = layout?.[index];
-        const artwork = entry.role === "tea" ? [68, 80] : [80, 72];
+        const artwork = entry.role === "tea" ? [56, 68] : [68, 56];
         const [artWidth, artHeight] = placement?.is_rotated ? [artwork[1], artwork[0]] : artwork;
         const x = placement ? (placement.position_x + placement.width_cells / 2) * unit : bounds.width / 2 + slot.x * 100;
         const y = placement ? (placement.position_y + placement.height_cells / 2) * unit : bounds.height / 2 + slot.z * 100;

@@ -5,7 +5,7 @@ export function packingSlot(index: number, count: number, width: number, depth: 
   const w = width / columns;
   const d = depth / rows;
   return { x: (index % columns + .5) * w - width / 2, z: (Math.floor(index / columns) + .5) * d - depth / 2,
-    scale: Math.min(w / .85, d / .85, 1) * .8 };
+    scale: Math.min(w / .72, d / .72) * .88 };
 }
 
 export const packingDuration = (role: "tea" | "sweet") => role === "tea" ? 3.65 : 2.6;
@@ -20,7 +20,7 @@ export function packingKeys(teas: number[], sweets: number[]): PackingEntry[] {
 
 /** Пропорции выбранной коробки сохраняются и в плоском SVG. */
 export function packingBox(widthCells: number, heightCells: number) {
-  const unit = Math.min(340 / widthCells, 220 / heightCells);
+  const unit = Math.min(420 / widthCells, 300 / heightCells);
   const width = widthCells * unit, height = heightCells * unit;
-  return { x: (480 - width) / 2, y: 136 + (220 - height) / 2, width, height };
+  return { x: (480 - width) / 2, y: 30 + (320 - height) / 2, width, height };
 }

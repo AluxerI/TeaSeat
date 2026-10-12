@@ -1,10 +1,10 @@
 /* v19: one local type scale. No network font is required. */
 :root {
   --ts-font-sans: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --ts-text-xs: 0.8125rem;
-  --ts-text-sm: 0.9375rem;
-  --ts-text-md: 1rem;
-  --ts-text-lg: 1.125rem;
+  --ts-text-xs: 0.875rem;
+  --ts-text-sm: 1rem;
+  --ts-text-md: 1.0625rem;
+  --ts-text-lg: 1.1875rem;
   --ts-title-sm: clamp(1.125rem, 1.04rem + 0.35vw, 1.35rem);
   --ts-title-md: clamp(1.35rem, 1.15rem + 0.75vw, 1.8rem);
   --ts-title-lg: clamp(1.75rem, 1.45rem + 1.25vw, 2.55rem);

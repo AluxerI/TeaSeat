@@ -29,13 +29,13 @@ $padding-body: 12px;
 $padding-at-percent: 2%;
 
 // Шрифты
-$font-size-title: 13px;
-$font-size-brand: 11px;
-$font-size-price: 18px;
-$font-size-old: 13px;
-$font-size-btn: 13px;
-$font-size-badge: 11px;
-$font-size-star: 14px;
+$font-size-title: 15px;
+$font-size-brand: 13px;
+$font-size-price: 20px;
+$font-size-old: 15px;
+$font-size-btn: 14px;
+$font-size-badge: 12px;
+$font-size-star: 15px;
 
 // Анимации
 $transition-fast: 0.2s ease;
@@ -148,10 +148,18 @@ $transition-normal: 0.25s ease;
         border-radius: calc($button-radius / 4);
         color: $color-primary-coffee;
         background: rgba(255, 255, 255, 0.82);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
 
         &:hover {
           background: #f5ead9;
         }
+      }
+
+      .quick-view--link {
+        cursor: pointer;
       }
     }
   }
@@ -176,6 +184,28 @@ $transition-normal: 0.25s ease;
     font-weight: 500;
   }
 
+  &__warehouses {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+  }
+
+  &__warehouse-item {
+    font-size: 11px;
+    color: #7a6452;
+    background: #f5f0e8;
+    padding: 2px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+
+  &__warehouse-empty {
+    font-size: 11px;
+    color: #a33228;
+    font-style: italic;
+  }
+
   &__prices {
     min-width: 72px;
     text-align: right;
@@ -195,7 +225,7 @@ $transition-normal: 0.25s ease;
     min-height: 18px;
     margin: -4px $padding-body $padding-body;
     text-align: center;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 500;
 
     &--success { color: $color-success; }
@@ -220,7 +250,7 @@ $transition-normal: 0.25s ease;
 .label-product {
   margin: 4px $padding-body 6px;
   text-align: center;
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   line-height: 1.3;
   color: $color-text-primary;
@@ -252,7 +282,7 @@ $transition-normal: 0.25s ease;
 
   // Счётчик — компактный, но уверенный: шаг и единица читаются с первого взгляда.
   .count-gramms {
-    font-size: 14px;
+    font-size: 15px;
     font-weight: 600;
     color: $color-text-primary;
   }

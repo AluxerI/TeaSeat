@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import AddShoppingCartRounded from "@mui/icons-material/AddShoppingCartRounded";
 import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
+import type { Warehouse } from "../../interfaces/warehouse";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
 import {
   constructorItemPrice,
@@ -51,6 +52,15 @@ export default function ProductDetailsModal({ box, size, cellSizeMm, onClose, on
         <div><dt>Кол-во в позиции</dt><dd>{constructorItemQuantity(size)}</dd></div>
         <div><dt>Вес позиции</dt><dd>{itemWeight === null ? "Не указан" : `${itemWeight.toLocaleString("ru-RU")} г`}</dd></div>
         <div><dt>Доступно на сайте</dt><dd data-stock-empty={insufficientStock}>{constructorStockLabel(size, remainingStock)}</dd></div>
+        {product.inventory && product.inventory.length > 0 && <div className={styles.productDetailsWarehouses}><dt>Остатки по складам</dt><dd>
+          {product.inventory.filter((w: Warehouse) => w.quantity > 0).length === 0
+            ? <span className={styles.warehouseEmpty}>Нет на складах</span>
+            : <span className={styles.warehouseList}>
+                {product.inventory.filter((w: Warehouse) => w.quantity > 0).map((w: Warehouse) => <span key={w.warehouse_id} className={styles.warehouseItem}>
+                  {w.warehouse_name}: {w.quantity.toLocaleString("ru-RU")} {product.stock_unit === "gram" ? "г" : "шт."}
+                </span>)}
+              </span>}
+        </dd></div>}
         <div className={styles.productDetailsFootprint}><dt>Размер в коробке</dt><dd><FootprintDiagram box={box} width={size.size.width_cells} height={size.size.height_cells} canRotate={size.size.can_rotate} cellSizeMm={cellSizeMm} /></dd></div>
         <div><dt>Цена</dt><dd>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽ <small>до скидок</small></dd></div>
       </dl>

@@ -39,6 +39,7 @@ export const ProductList = ({ products, onQuickView }: ProductListProps) => (
         }}
         availableQuantity={product.total_quantity}
         isAvailable={product.is_available}
+        inventory={product.inventory}
         onQuickView={() => onQuickView(product)}
       />
     ))}

@@ -102,7 +102,7 @@
 
 .model {
   position: relative;
-  height: space-mult(xxl, 3.55);
+  height: space-mult(xxl, 3);
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 76%, #edddc5 0%, #faf5ee 62%, #fffaf4 100%);
 
@@ -167,7 +167,7 @@
 
 .modeHero {
   width: min(100%, space-mult(xxl, 8.8));
-  height: space-mult(xxl, 4.1);
+  height: space-mult(xxl, 3.5);
   overflow: hidden;
   border: 1px solid #e3cfb5;
   border-radius: spacing(lg);
@@ -289,8 +289,8 @@
   .section { padding-inline: spacing(md); }
   .heading { margin-bottom: spacing(sm); }
   .grid { grid-template-columns: minmax(0, space-mult(xxl, 5.6)); gap: spacing(sm); }
-  .model { height: space-mult(xxl, 3.25); }
-  .modeHero { height: space-mult(xxl, 3.8); }
+  .model { height: space-mult(xxl, 2.75); }
+  .modeHero { height: space-mult(xxl, 3.2); }
   .modeOptions { grid-template-columns: minmax(0, 1fr); }
 }
 

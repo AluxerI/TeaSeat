@@ -3,6 +3,7 @@ import AddShoppingCartRounded from "@mui/icons-material/AddShoppingCartRounded";
 import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
+import type { Warehouse } from "../../interfaces/warehouse";
 import type { useConstructorDrag } from "../../hooks/useConstructorDrag";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
 import {
@@ -17,6 +18,18 @@ import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 
 // Широкий каталог: 4 × 3 на десктопе, колонки адаптируются на узких экранах.
 const PAGE_SIZE = 12;
+
+function WarehouseList({ inventory, stockUnit }: { inventory: Warehouse[]; stockUnit: string }) {
+  if (!inventory || inventory.length === 0) return null;
+  const unit = stockUnit === "gram" ? "г" : "шт.";
+  const inStock = inventory.filter((w) => w.quantity > 0);
+  if (inStock.length === 0) return <span className={styles.warehouseEmpty}>Нет на складах</span>;
+  return <span className={styles.warehouseList}>
+    {inStock.map((w) => <span key={w.warehouse_id} className={styles.warehouseItem}>
+      {w.warehouse_name}: {w.quantity.toLocaleString("ru-RU")} {unit}
+    </span>)}
+  </span>;
+}
 
 type Role = ConstructorProductSize["constructor_role"];
 // ProductSize::ROLE_*: это роли конструктора, а не категории обычного каталога.
@@ -133,6 +146,7 @@ export default function ConstructorCarousel({ box, options, selected, limit, onA
                         <span>{size.label}</span>
                         <span>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽</span>
                         <span className={styles.stock} data-stock-empty={!hasStock}>Доступно: {constructorStockLabel(size, remainingStock)}</span>
+                        {size.product.inventory && size.product.inventory.length > 0 && <WarehouseList inventory={size.product.inventory} stockUnit={size.product.stock_unit} />}
                       </div>
                       <div className={styles.cardActions}>
                         <FootprintDiagram compact box={box} width={fp.width} height={fp.height} cellSizeMm={cellSizeMm} />

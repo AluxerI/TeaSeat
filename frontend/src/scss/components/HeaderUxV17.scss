@@ -10,11 +10,11 @@
 .header__search-submit {
   position: absolute; z-index: 5; top: 50%; right: 8px; display: inline-grid;
   width: 36px; height: 36px; place-items: center; padding: 0; border: 0;
-  border-radius: 12px; color: #5a2d0c; background: rgba(255,255,255,.82);
+  border-radius: 12px; color: #5a2d0c; background: transparent;
   cursor: pointer; transform: translateY(-50%); transition: background-color .18s ease, transform .18s ease, box-shadow .18s ease;
 }
 .header__search-submit:hover,
-.header__search-submit:focus-visible { background: #fff; box-shadow: 0 4px 16px rgba(75,45,24,.12); }
+.header__search-submit:focus-visible { background: rgba(255,255,255,.5); box-shadow: 0 4px 16px rgba(75,45,24,.12); }
 .header__search-submit:active { transform: translateY(-50%) scale(.96); }
 .header__search-submit:focus-visible { outline: 2px solid #687e4c; outline-offset: 2px; }
 

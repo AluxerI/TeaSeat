@@ -19,6 +19,7 @@ import {
 } from "../utils/productQuantity";
 import { extractError, translateError } from "../utils/translateError";
 import type { ProductMeasurement } from "../types/productMeasurement";
+import type { Warehouse } from "../interfaces/warehouse";
 import { useWishlist } from "../hooks/useWishlist";
 import favoriteStyles from "../scss/components/WishlistButton.module.scss";
 
@@ -36,6 +37,7 @@ interface ProductProp {
   measurement: ProductMeasurement;
   availableQuantity: number;
   isAvailable: boolean;
+  inventory?: Warehouse[];
   onQuickView: () => void;
 }
 
@@ -53,6 +55,7 @@ export const ProductItem = ({
   measurement,
   availableQuantity,
   isAvailable,
+  inventory,
   onQuickView,
 }: ProductProp) => {
   const navigate = useNavigate();
@@ -187,6 +190,13 @@ export const ProductItem = ({
             <span>{reviewsCount > 0 ? `Отзывы: ${reviewsCount}` : "Нет отзывов"}</span>
           </div>
           <p className="product-card__stock">Доступно: {maximumQuantity} {unitLabel}</p>
+          {inventory && inventory.length > 0 && <div className="product-card__warehouses">
+            {inventory.filter((w) => w.quantity > 0).length === 0
+              ? <span className="product-card__warehouse-empty">Нет на складах</span>
+              : inventory.filter((w) => w.quantity > 0).map((w) => <span key={w.warehouse_id} className="product-card__warehouse-item">
+                  {w.warehouse_name}: {w.quantity.toLocaleString("ru-RU")} {unitLabel}
+                </span>)}
+          </div>}
 
           <div className="gramm-and-price">
             <div className="grams-form">
@@ -210,14 +220,9 @@ export const ProductItem = ({
             <button type="button" className="at-cart" onClick={addToCart} disabled={!hasStock || adding}>
               {!hasStock ? "Нет в наличии" : adding ? "Добавляем…" : "В корзину"}
             </button>
-            <IconButton
-              type="button"
-              className="quick-view"
-              onClick={onQuickView}
-              aria-label={`Быстрый просмотр ${label}`}
-            >
+            <a href={`/product/${productId}`} className="quick-view quick-view--link" aria-label={`Открыть страницу ${label}`} title="Подробнее">
               <VisibilityOutlinedIcon />
-            </IconButton>
+            </a>
           </div>
           {message && <p className="product-card__message product-card__message--error" role="alert">{message}</p>}
         </section>

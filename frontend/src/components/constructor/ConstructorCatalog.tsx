@@ -4,6 +4,7 @@ import VisibilityOutlined from "@mui/icons-material/VisibilityOutlined";
 import RemoveRounded from "@mui/icons-material/RemoveRounded";
 import IconButton from "@mui/material/IconButton";
 import type { ConstructorProductSize, GiftSizeProfile } from "../../interfaces/giftConstructor";
+import type { Warehouse } from "../../interfaces/warehouse";
 import { normalizeAssetUrl } from "../../utils/assetUrl";
 import {
   constructorHasStock,
@@ -16,6 +17,18 @@ import FootprintDiagram from "./FootprintDiagram";
 import styles from "../../scss/pages/ConstructorWorkspace.module.scss";
 
 const PAGE_SIZE = 20;
+
+function WarehouseList({ inventory, stockUnit }: { inventory: Warehouse[]; stockUnit: string }) {
+  if (!inventory || inventory.length === 0) return null;
+  const unit = stockUnit === "gram" ? "г" : "шт.";
+  const inStock = inventory.filter((w) => w.quantity > 0);
+  if (inStock.length === 0) return <span className={styles.warehouseEmpty}>Нет на складах</span>;
+  return <span className={styles.warehouseList}>
+    {inStock.map((w) => <span key={w.warehouse_id} className={styles.warehouseItem}>
+      {w.warehouse_name}: {w.quantity.toLocaleString("ru-RU")} {unit}
+    </span>)}
+  </span>;
+}
 
 interface Props {
   title: string;
@@ -55,6 +68,7 @@ export default function ConstructorCatalog({ title, box, options, selected, stoc
             <span>{size.label}</span>
             <span>{constructorItemPrice(size).toLocaleString("ru-RU")} ₽</span>
             <span className={styles.stock} data-stock-empty={!hasStock}>Доступно: {constructorStockLabel(size, remainingStock)}</span>
+            {size.product.inventory && size.product.inventory.length > 0 && <WarehouseList inventory={size.product.inventory} stockUnit={size.product.stock_unit} />}
           </div>
           <FootprintDiagram compact box={box} width={size.size.width_cells} height={size.size.height_cells} cellSizeMm={cellSizeMm} className={styles.listFootprint} />
           <div className={styles.counter}>

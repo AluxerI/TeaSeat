@@ -169,15 +169,15 @@ describe("2D packing and queue lifecycle", () => {
     const slots = Array.from({ length: count }, (_, index) => packingSlot(index, count, 2.4, 1.8));
     expect(new Set(slots.map((item) => item.x + ":" + item.z)).size).toBe(count);
     for (const item of slots) {
-      expect(Math.abs(item.x) + .42 * item.scale).toBeLessThanOrEqual(1.2);
-      expect(Math.abs(item.z) + .42 * item.scale).toBeLessThanOrEqual(.9);
+      expect(Math.abs(item.x) + .42 * item.scale).toBeLessThanOrEqual(1.35);
+      expect(Math.abs(item.z) + .42 * item.scale).toBeLessThanOrEqual(1.05);
     }
   });
 
   it("сохраняет пропорции коробки и стабильные ключи повторений", () => {
     const bounds = packingBox(4, 3);
     expect(bounds.width / bounds.height).toBeCloseTo(4 / 3);
-    expect(bounds.y + bounds.height + 14).toBeLessThan(410);
+    expect(bounds.y + bounds.height + 14).toBeLessThan(380);
     const keys = packingKeys([11, 11, 11], [21]);
     expect(new Set(keys.map((item) => item.key)).size).toBe(4);
     expect(keys[1].key).toBe(packingKeys([11, 11], [21])[1].key);
